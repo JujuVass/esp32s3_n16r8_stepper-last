@@ -15,6 +15,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <ArduinoOTA.h>  // OTA (Over-The-Air) updates
+#include <functional>     // For std::function (recursive directory listing)
 
 // ============================================================================
 // PROJECT CONFIGURATION HEADERS
@@ -22,6 +23,7 @@
 #include "Config.h"           // WiFi, OTA, GPIO, Hardware, Timing constants
 #include "Types.h"            // Data structures and enums
 #include "ChaosPatterns.h"    // Chaos pattern configurations
+#include "FilesystemManager.h"  // Filesystem browser API
 
 // ============================================================================
 // LOGGING SYSTEM - Structured logs with levels (OPTIMIZED)
@@ -279,6 +281,9 @@ bool needsInitialCalibration = true;
 // ============================================================================
 WebServer server(80);
 WebSocketsServer webSocket(81);
+
+// Filesystem Manager (handles all file operations via REST API)
+FilesystemManager filesystemManager(server);
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -914,73 +919,18 @@ void setup() {
   LOG_I("HTTP server started");
 
   // ============================================================================
-  // API: File Upload (for live HTML editing without USB)
+  // FILESYSTEM MANAGER - Register all REST API routes
   // ============================================================================
-  server.on("/api/uploadFile", HTTP_POST, 
-    []() {
-      // Handler called after upload completes
-      sendJsonSuccess("File uploaded successfully");
-    },
-    []() {
-      // File upload handler
-      HTTPUpload& upload = server.upload();
-      static File uploadFile;
-      
-      if (upload.status == UPLOAD_FILE_START) {
-        String filename = upload.filename;
-        if (!filename.startsWith("/")) {
-          filename = "/" + filename;
-        }
-        LOG_I("📤 Upload Start: " + filename);
-        uploadFile = LittleFS.open(filename, "w");
-        if (!uploadFile) {
-          LOG_E("❌ Failed to open file for writing: " + filename);
-        }
-      } else if (upload.status == UPLOAD_FILE_WRITE) {
-        if (uploadFile) {
-          uploadFile.write(upload.buf, upload.currentSize);
-        }
-      } else if (upload.status == UPLOAD_FILE_END) {
-        if (uploadFile) {
-          uploadFile.close();
-          LOG_I("✅ Upload Complete: " + String(upload.totalSize) + " bytes");
-        }
-      }
-    }
-  );
-  
-  // API: Get file content (for backup/download)
-  server.on("/api/getFile", HTTP_GET, []() {
-    if (!server.hasArg("path")) {
-      sendJsonError(400, "Missing path parameter");
-      return;
-    }
-    
-    String path = server.arg("path");
-    if (!path.startsWith("/")) {
-      path = "/" + path;
-    }
-    
-    if (!LittleFS.exists(path)) {
-      sendJsonError(404, "File not found");
-      return;
-    }
-    
-    File file = LittleFS.open(path, "r");
-    if (!file) {
-      sendJsonError(500, "Failed to open file");
-      return;
-    }
-    
-    String contentType = "text/plain";
-    if (path.endsWith(".html")) contentType = "text/html";
-    else if (path.endsWith(".css")) contentType = "text/css";
-    else if (path.endsWith(".js")) contentType = "application/javascript";
-    else if (path.endsWith(".json")) contentType = "application/json";
-    
-    server.streamFile(file, contentType);
-    file.close();
-  });
+  filesystemManager.registerRoutes();
+  LOG_I("✅ Filesystem Manager initialized - Routes ready:");
+  LOG_I("   GET  /filesystem           - Filesystem browser UI");
+  LOG_I("   GET  /api/fs/list          - List files (recursive JSON)");
+  LOG_I("   GET  /api/fs/download      - Download file");
+  LOG_I("   GET  /api/fs/read          - Read file content (text)");
+  LOG_I("   POST /api/fs/write         - Save edited file");
+  LOG_I("   POST /api/fs/upload        - Upload file (multipart)");
+  LOG_I("   POST /api/fs/delete        - Delete file");
+  LOG_I("   POST /api/fs/clear         - Clear all files");
 
   // ========================================================================
   // STATISTICS API ROUTES
@@ -1400,50 +1350,6 @@ void setup() {
     LOG_I("✏️ Preset renamed: ID " + String(id) + " -> " + String(newName));
     sendJsonSuccess();
   });
-
-  // Serve logs directory: list files
-  server.on("/logs", HTTP_GET, []() {
-    String html = "<html><head><meta charset=\"UTF-8\"><title>Logs</title>";
-    html += "<style>body{font-family:Arial;margin:20px;}button{padding:10px 20px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;}button:hover{background:#c82333;}</style>";
-    html += "</head><body><h3>Logs</h3>";
-    html += "<button onclick=\"if(confirm('Supprimer TOUS les fichiers logs?')){fetch('/logs/clear',{method:'POST'}).then(()=>location.reload())}\">🗑️ Clear All Logs</button>";
-    html += "<ul>";
-    File root = LittleFS.open("/logs");
-    if (root && root.isDirectory()) {
-      File file = root.openNextFile();
-      while (file) {
-        String fileName = String(file.name());
-        // Remove leading "/" if present (file.name() might return "/log_YYYYMMDD.txt" or "log_YYYYMMDD.txt")
-        if (fileName.startsWith("/")) {
-          fileName = fileName.substring(1);
-        }
-        html += "<li><a href=\"/logs/" + fileName + "\">" + fileName + "</a> (" + String(file.size()) + " bytes)</li>";
-        file = root.openNextFile();
-      }
-    }
-    html += "</ul></body></html>";
-    server.send(200, "text/html; charset=UTF-8", html);
-  });
-  
-  // Handler to clear all log files
-  server.on("/logs/clear", HTTP_POST, []() {
-    int deletedCount = 0;
-    File root = LittleFS.open("/logs");
-    if (root && root.isDirectory()) {
-      File file = root.openNextFile();
-      while (file) {
-        String fullPath = "/logs/" + String(file.name());
-        file.close();
-        if (LittleFS.remove(fullPath)) {
-          deletedCount++;
-        }
-        file = root.openNextFile();
-      }
-    }
-    currentLogFileName = "";  // Reset log session for fresh start
-    LOG_I("🗑️ Cleared " + String(deletedCount) + " log file(s)");
-    server.send(200, "text/plain", "Cleared " + String(deletedCount) + " log files");
-  });
   
   // Handle 404 - try to serve files from LittleFS (including /logs/*)
   server.onNotFound([]() {
@@ -1468,8 +1374,7 @@ void setup() {
     // File not found
     server.send(404, "text/plain", "Not found: " + uri);
   });
-  
-  // Start WebSocket server
+    // Start WebSocket server
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   LOG_I("WebSocket server started on port 81");

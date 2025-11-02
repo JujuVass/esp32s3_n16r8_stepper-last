@@ -1,6 +1,6 @@
 # Freenove ESP32 S3 WROOM Project
 
-Un projet complet basé sur **Freenove ESP32 S3 WROOM** utilisant PlatformIO pour la gestion du contrôleur de moteur pas à pas et des patterns chaotiques.
+Un projet complet basé sur **Freenove ESP32 S3 WROOM N8R8** utilisant PlatformIO pour la gestion du contrôleur de moteur pas à pas et des patterns chaotiques.
 
 ## 📋 Description
 

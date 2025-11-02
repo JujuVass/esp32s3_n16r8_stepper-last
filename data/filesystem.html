@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📁 Filesystem Manager</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23667eea' width='100' height='100'/><text x='50' y='70' font-size='70' text-anchor='middle' fill='white'>📁</text></svg>">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    
+    .header h1 { font-size: 28px; }
+    
+    .stats {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      padding: 10px 0;
+    }
+    
+    .stat { display: flex; flex-direction: column; }
+    .stat .label { opacity: 0.8; }
+    .stat .value { font-weight: bold; font-size: 16px; }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background: #4CAF50;
+      color: white;
+    }
+    
+    .btn-primary:hover { background: #45a049; }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-danger:hover { background: #c82333; }
+    
+    .btn-info {
+      background: #2196F3;
+      color: white;
+    }
+    
+    .btn-info:hover { background: #0b7dda; }
+    
+    .content {
+      padding: 20px;
+    }
+    
+    .file-browser {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .file-header {
+      background: #f5f5f5;
+      padding: 15px;
+      display: grid;
+      grid-template-columns: 40px 1fr 100px 100px 150px;
+      gap: 10px;
+      font-weight: 600;
+      color: #666;
+      border-bottom: 1px solid #ddd;
+      font-size: 14px;
+    }
+    
+    .file-list {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    .file-row {
+      padding: 12px 15px;
+      display: grid;
+      grid-template-columns: 40px 1fr 100px 100px 150px;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+      transition: background 0.2s;
+    }
+    
+    .file-row:hover {
+      background: #f9f9f9;
+    }
+    
+    .file-icon {
+      font-size: 20px;
+      text-align: center;
+    }
+    
+    .file-name {
+      word-break: break-all;
+      color: #333;
+      font-weight: 500;
+    }
+    
+    .file-name-link {
+      word-break: break-all;
+      color: #2196F3;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      border-bottom: 1px dotted #2196F3;
+    }
+    
+    .file-name-link:hover {
+      color: #0b7dda;
+      border-bottom: 1px solid #0b7dda;
+      background: rgba(33, 150, 243, 0.05);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    
+    .file-size {
+      text-align: right;
+      color: #666;
+      font-size: 13px;
+      font-family: monospace;
+    }
+    
+    .file-date {
+      text-align: right;
+      color: #999;
+      font-size: 12px;
+    }
+    
+    .file-actions {
+      display: flex;
+      gap: 5px;
+      justify-content: flex-end;
+    }
+    
+    .file-actions button {
+      padding: 6px 10px;
+      font-size: 12px;
+      min-width: 50px;
+    }
+    
+    .folder-toggle {
+      background: none;
+      border: none;
+      padding: 0;
+      margin-right: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      min-width: auto;
+      width: 20px;
+      height: 20px;
+      align-items: center;
+      text-align: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+    
+    .folder-toggle:hover {
+      background: rgba(0,0,0,0.05);
+      border-radius: 4px;
+    }
+    
+    .folder-contents {
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .modal-content h2 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+    
+    .modal-editor {
+      flex: 1;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .modal-editor textarea {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      resize: none;
+      min-height: 300px;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    .upload-zone {
+      border: 2px dashed #667eea;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      background: #f8f9fa;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 20px;
+    }
+    
+    .upload-zone:hover {
+      background: #e8ebf7;
+      border-color: #764ba2;
+    }
+    
+    .upload-zone.dragging {
+      background: #e8ebf7;
+      border-color: #4CAF50;
+    }
+    
+    .upload-zone p {
+      color: #666;
+      margin: 5px 0;
+    }
+    
+    .message {
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      display: none;
+    }
+    
+    .message.show {
+      display: block;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .message.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    @media (max-width: 768px) {
+      .file-header, .file-row {
+        grid-template-columns: 30px 1fr 70px;
+      }
+      .file-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>📁 Filesystem Manager</h1>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Files:</span>
+            <span class="value" id="fileCount">-</span>
+          </div>
+          <div class="stat">
+            <span class="label">Total Size:</span>
+            <span class="value" id="totalSize">-</span>
+          </div>
+          <div class="stat">
+            <span class="label">Free Space:</span>
+            <span class="value" id="freeSpace">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn-primary" onclick="document.getElementById('uploadInput').click()">⬆️ Upload</button>
+        <button class="btn-info" onclick="refreshList()">🔄 Refresh</button>
+        <button class="btn-danger" onclick="clearAll()">🗑️ Clear</button>
+      </div>
+    </div>
+    
+    <div class="content">
+      <div id="message" class="message"></div>
+      
+      <div class="upload-zone" id="uploadZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+        <p>💾 Drop files here to upload</p>
+        <p style="font-size: 12px; color: #999;">or click to browse</p>
+        <input type="file" id="uploadInput" style="display:none;" multiple onchange="handleFileSelect(event)">
+      </div>
+      
+      <div class="file-browser">
+        <div class="file-header">
+          <div>📄</div>
+          <div>Filename</div>
+          <div>Size</div>
+          <div>Date</div>
+          <div>Actions</div>
+        </div>
+        <div class="file-list" id="fileList">
+          <div style="padding: 20px; text-align: center; color: #999;">
+            <div class="spinner"></div>
+            <p>Loading files...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <h2>Edit File: <span id="editFileName"></span></h2>
+      <div class="modal-editor">
+        <textarea id="editContent" placeholder="File content..."></textarea>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-info" onclick="closeEditModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveEditedFile()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let currentEditFile = null;
+    let openFolders = new Set(); // Track which folders are open
+    
+    function showMessage(message, type = 'info') {
+      const msg = document.getElementById('message');
+      msg.textContent = message;
+      msg.className = 'message show ' + type;
+      setTimeout(() => msg.classList.remove('show'), 4000);
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    function formatDate(timestamp) {
+      if (!timestamp || timestamp === 0) return '-';
+      const date = new Date(timestamp * 1000);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+    
+    function isBinaryFile(filename) {
+      const binaryExts = ['.bin', '.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.gz'];
+      return binaryExts.some(ext => filename.toLowerCase().endsWith(ext));
+    }
+    
+    /**
+     * Recursively render file tree with folder hierarchy
+     * @param {Array} files - Array of file objects (may contain children)
+     * @param {number} depth - Current nesting depth (for indentation)
+     * @returns {string} HTML for the file tree
+     */
+    function renderFileTree(files, depth = 0) {
+      let html = '';
+      
+      files.forEach(file => {
+        const indent = depth * 20; // 20px indent per level
+        //const icon = file.isDir ? '📁' : '📄';
+        const folderId = `folder-${file.path.replace(/\//g, '-')}`;
+        
+        // Build actions for files only (not folders)
+        const actions = file.isDir ? '' : `
+          <button class="btn-info" onclick="downloadFile('${file.path}')" title="Download">⬇️</button>
+          <button class="btn-danger" onclick="deleteFile('${file.path}')" title="Delete">🗑️</button>
+        `;
+        
+        // For folders, add toggle button
+        const toggleBtn = file.isDir ? `<button class="folder-toggle" onclick="toggleFolder('${folderId}')" title="Toggle folder">📁</button>` : '';
+        
+        // Check if this folder should be open (from previous state)
+        const isOpen = openFolders.has(folderId);
+        const displayStyle = isOpen ? 'display: block;' : 'display: none;';
+        
+        // Make file name clickable for text files
+        const fileNameHtml = !file.isDir && !isBinaryFile(file.name) 
+          ? `<span class="file-name-link" onclick="editFile('${file.path}', '${file.name}')" title="Click to edit">${file.name}</span>`
+          : `<span>${file.name}</span>`;
+        
+        html += `
+          <div class="file-row" style="margin-left: ${indent}px;">
+            <div class="file-icon">${file.isDir ? toggleBtn : '📄'}</div>
+            <div class="file-name">${fileNameHtml}</div>
+            <div class="file-size">${formatFileSize(file.size)}</div>
+            <div class="file-date">${formatDate(file.time)}</div>
+            <div class="file-actions">${actions}</div>
+          </div>
+        `;
+        
+        // Recursively render children if folder
+        if (file.isDir && file.children && file.children.length > 0) {
+          html += `<div class="folder-contents" id="${folderId}" style="${displayStyle}">`;
+          html += renderFileTree(file.children, depth + 1);
+          html += `</div>`;
+        }
+      });
+      
+      return html;
+    }
+    
+    /**
+     * Toggle folder visibility and update state
+     */
+    function toggleFolder(folderId) {
+      const folder = document.getElementById(folderId);
+      if (folder) {
+        const isVisible = folder.style.display !== 'none';
+        folder.style.display = isVisible ? 'none' : 'block';
+        
+        // Update toggle button rotation
+        const button = folder.previousElementSibling?.querySelector('.folder-toggle');
+        if (button) {
+          button.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
+          button.style.transition = 'transform 0.2s';
+        }
+        
+        // Remember state
+        if (isVisible) {
+          openFolders.delete(folderId);
+        } else {
+          openFolders.add(folderId);
+        }
+      }
+    }
+    
+    function refreshList() {
+      fetch('/api/fs/list')
+        .then(r => r.json())
+        .then(data => {
+          const list = document.getElementById('fileList');
+          
+          if (data.files.length === 0) {
+            list.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No files found</div>';
+            document.getElementById('fileCount').textContent = '0';
+            document.getElementById('totalSize').textContent = '0 B';
+            return;
+          }
+          
+          // Calculate total file count (recursive)
+          function countFiles(files) {
+            let count = 0;
+            files.forEach(file => {
+              count++;
+              if (file.children) count += countFiles(file.children);
+            });
+            return count;
+          }
+          
+          let totalSize = 0;
+          
+          // Calculate total size (files only, not directories)
+          function calculateSize(files) {
+            let size = 0;
+            files.forEach(file => {
+              if (!file.isDir) size += file.size;
+              if (file.children) size += calculateSize(file.children);
+            });
+            return size;
+          }
+          
+          totalSize = calculateSize(data.files);
+          
+          // Render hierarchical tree
+          const html = renderFileTree(data.files);
+          list.innerHTML = html;
+          
+          document.getElementById('fileCount').textContent = countFiles(data.files);
+          document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+          document.getElementById('freeSpace').textContent = formatFileSize(data.freeSpace);
+        })
+        .catch(err => showMessage('Error loading files: ' + err, 'error'));
+    }
+    
+    function downloadFile(path) {
+      const link = document.createElement('a');
+      link.href = '/api/fs/download?path=' + encodeURIComponent(path);
+      link.download = path.split('/').pop();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showMessage('Downloaded: ' + path.split('/').pop(), 'success');
+    }
+    
+    function editFile(path, name) {
+      currentEditFile = path;
+      document.getElementById('editFileName').textContent = name;
+      
+      fetch('/api/fs/read?path=' + encodeURIComponent(path))
+        .then(r => r.text())
+        .then(content => {
+          document.getElementById('editContent').value = content;
+          document.getElementById('editModal').classList.add('show');
+        })
+        .catch(err => showMessage('Error reading file: ' + err, 'error'));
+    }
+    
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+      currentEditFile = null;
+    }
+    
+    function saveEditedFile() {
+      if (!currentEditFile) return;
+      
+      const content = document.getElementById('editContent').value;
+      
+      fetch('/api/fs/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentEditFile, content: content })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showMessage('File saved successfully', 'success');
+            closeEditModal();
+            refreshList();
+          } else {
+            showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+          }
+        })
+        .catch(err => showMessage('Error saving file: ' + err, 'error'));
+    }
+    
+    function deleteFile(path) {
+      if (!confirm('Delete: ' + path.split('/').pop() + ' ?')) return;
+      
+      fetch('/api/fs/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: path })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showMessage('File deleted', 'success');
+            refreshList();
+          } else {
+            showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+          }
+        })
+        .catch(err => showMessage('Error deleting file: ' + err, 'error'));
+    }
+    
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById('uploadZone').classList.add('dragging');
+    }
+    
+    function handleDragLeave(e) {
+      e.preventDefault();
+      document.getElementById('uploadZone').classList.remove('dragging');
+    }
+    
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById('uploadZone').classList.remove('dragging');
+      handleFileSelect({ dataTransfer: e.dataTransfer });
+    }
+    
+    function handleFileSelect(e) {
+      const files = e.target.files || e.dataTransfer.files;
+      uploadFiles(Array.from(files));
+    }
+    
+    function uploadFiles(files) {
+      if (files.length === 0) return;
+      
+      let uploaded = 0;
+      let failed = 0;
+      
+      files.forEach(file => {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch('/api/fs/upload', {
+          method: 'POST',
+          body: formData
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              uploaded++;
+              showMessage(`Uploaded: ${file.name}`, 'success');
+            } else {
+              failed++;
+              showMessage(`Failed: ${file.name}`, 'error');
+            }
+            
+            if (uploaded + failed === files.length) {
+              showMessage(`${uploaded} uploaded, ${failed} failed`, uploaded > failed ? 'success' : 'error');
+              refreshList();
+            }
+          })
+          .catch(err => {
+            failed++;
+            showMessage(`Error uploading ${file.name}: ${err}`, 'error');
+          });
+      });
+    }
+    
+    function clearAll() {
+      if (!confirm('Delete ALL files? This cannot be undone!')) return;
+      
+      fetch('/api/fs/clear', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showMessage('Filesystem cleared', 'success');
+            refreshList();
+          } else {
+            showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+          }
+        })
+        .catch(err => showMessage('Error clearing filesystem: ' + err, 'error'));
+    }
+    
+    // Load files on page load
+    refreshList();
+    // Disabled auto-refresh - use manual refresh button instead to preserve folder state
+    // setInterval(refreshList, 5000); // Auto-refresh every 5 seconds
+  </script>
+</body>
+</html>
