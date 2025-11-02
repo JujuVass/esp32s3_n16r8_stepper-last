@@ -24,129 +24,41 @@
 #include "Types.h"            // Data structures and enums
 #include "ChaosPatterns.h"    // Chaos pattern configurations
 #include "FilesystemManager.h"  // Filesystem browser API
+#include "UtilityEngine.h"     // Unified logging, WebSocket, LittleFS manager
+#include "APIRoutes.h"        // Phase 3.4 - API routes module (extracted from main)
 
 // ============================================================================
-// LOGGING SYSTEM - Structured logs with levels (OPTIMIZED)
+// LOGGING SYSTEM - Managed by UtilityEngine
 // ============================================================================
-enum LogLevel {
-  LOG_ERROR = 0,
-  LOG_WARNING = 1,
-  LOG_INFO = 2,
-  LOG_DEBUG = 3
-};
-
-LogLevel currentLogLevel = LOG_INFO;  // Default: show ERROR, WARNING, INFO
-// Forward declaration for WebSocket server instance used in logMessage
-extern WebSocketsServer webSocket;
-
-// LittleFS mount flag
-bool littleFsMounted = false;
-
-// Current log file name (initialized at startup with unique suffix)
-String currentLogFileName = "";
-
-// Global log file handle (kept open for performance)
-File globalLogFile;
-
+// All logging now handled through UtilityEngine.h
+// Use: engine.info(), engine.error(), engine.warn(), engine.debug()
+// Or legacy macros (will be replaced in Phase 2)
 // ============================================================================
-// LOG BUFFER SYSTEM - Asynchronous file writes (flush every 5-10 seconds)
-// ============================================================================
-#define LOG_BUFFER_SIZE 100
-struct LogEntry {
-  unsigned long timestamp;  // millis() when log was created
-  LogLevel level;
-  String message;
-  bool valid;  // true if entry contains data
-  
-  LogEntry() : timestamp(0), level(LOG_INFO), message(""), valid(false) {}
-};
 
-LogEntry logBuffer[LOG_BUFFER_SIZE];
-int logBufferWriteIndex = 0;  // Next slot to write
-unsigned long lastLogFlush = 0;  // Last flush timestamp
+// Global UtilityEngine instance (initialized in setup)
+UtilityEngine* engine = nullptr;
 
-// Forward declaration (implementation after global variables)
-void flushLogBuffer();
+// ========================================================================
+// COMPATIBILITY WRAPPERS - For code still referencing old global state
+// ========================================================================
+// These allow existing code to work without changes during Phase 2 migration
+// After full migration, these can be removed
 
-// ============================================================================
-// OPTIMIZED STRING ESCAPE - Single pass, pre-allocated buffer
-// ============================================================================
-String escapeJsonOptimized(const String& input) {
-  String output;
-  output.reserve(input.length() + 20);  // Pre-allocate with margin
-  
-  for (unsigned int i = 0; i < input.length(); i++) {
-    char c = input[i];
-    switch(c) {
-      case '\\': output += "\\\\"; break;
-      case '\"': output += "\\\""; break;
-      case '\n': output += "\\n"; break;
-      case '\r': output += "\\r"; break;
-      case '\t': output += "\\t"; break;
-      default: output += c;
-    }
-  }
-  return output;
-}
+// Variables that were managed by the old logging system
+// Now managed internally by UtilityEngine, but exposed here for compatibility
+bool littleFsMounted = false;  // Redundant but kept for backward compat
+File globalLogFile;             // Wrapper only (not used by engine)
+String currentLogFileName = "";  // Wrapper only (not used by engine)
+LogLevel currentLogLevel = LOG_INFO;  // Wrapper only (engine manages this)
 
-// ============================================================================
-// MAIN LOG FUNCTION - Optimized for real-time performance
-// ============================================================================
+// Compatibility wrapper function (bridges old code to new engine)
 void logMessage(LogLevel level, const String& message) {
-  if (level > currentLogLevel) return;  // Skip if below current level
-  
-  const char* prefix;
-  switch (level) {
-    case LOG_ERROR:   prefix = "[ERROR] "; break;
-    case LOG_WARNING: prefix = "[WARN]  "; break;
-    case LOG_INFO:    prefix = "[INFO]  "; break;
-    case LOG_DEBUG:   prefix = "[DEBUG] "; break;
-    default:          prefix = "[LOG]   "; break;
-  }
-  
-  // 1. Serial output (always, ~50µs)
-  Serial.print(prefix);
-  Serial.println(message);
-
-  // 2. WebSocket broadcast (ONLY if clients connected, ~500µs if clients exist)
-  if (webSocket.connectedClients() > 0) {
-    // Use ArduinoJson for efficient JSON construction
-    JsonDocument doc;
-    doc["type"] = "log";
-    
-    switch(level) {
-      case LOG_ERROR:   doc["level"] = "ERROR"; break;
-      case LOG_WARNING: doc["level"] = "WARN"; break;
-      case LOG_INFO:    doc["level"] = "INFO"; break;
-      case LOG_DEBUG:   doc["level"] = "DEBUG"; break;
-      default:          doc["level"] = "LOG"; break;
-    }
-    
-    doc["message"] = message;  // ArduinoJson handles escaping automatically
-    
-    String payload;
-    serializeJson(doc, payload);
-    webSocket.broadcastTXT(payload);
-  }
-
-  // 3. Buffer log for async file write (FAST, no disk I/O)
-  if (littleFsMounted && globalLogFile) {
-    logBuffer[logBufferWriteIndex].timestamp = millis();
-    logBuffer[logBufferWriteIndex].level = level;
-    logBuffer[logBufferWriteIndex].message = String(prefix) + message;
-    logBuffer[logBufferWriteIndex].valid = true;
-    
-    logBufferWriteIndex = (logBufferWriteIndex + 1) % LOG_BUFFER_SIZE;
-    
-    // If buffer wraps, oldest log is overwritten (circular buffer)
+  if (engine) {
+    engine->log(level, message);
   }
 }
 
-// Convenience macros
-#define LOG_E(msg) logMessage(LOG_ERROR, msg)
-#define LOG_W(msg) logMessage(LOG_WARNING, msg)
-#define LOG_I(msg) logMessage(LOG_INFO, msg)
-#define LOG_D(msg) logMessage(LOG_DEBUG, msg)
+// Legacy convenience macros (will be replaced in Phase 2)
 
 // ============================================================================
 // NOTE: Hardware configuration moved to Config.h
@@ -161,20 +73,19 @@ const char* movementTypeName(int type);  // Forward declaration
 const char* executionContextName(ExecutionContext ctx);  // Forward declaration
 
 // ============================================================================
-// GLOBAL STATE VARIABLES
+// GLOBAL STATE VARIABLES (now managed in SystemConfig struct)
 // ============================================================================
-SystemState currentState = STATE_INIT;
-ExecutionContext executionContext = CONTEXT_STANDALONE;  // Current execution context
+// SystemConfig config; declared at setup(), loads from config.json
+// Access via: config.currentState, config.executionContext
+SystemConfig config;  // Global instance - loaded from config.json in setup()
 
 // ============================================================================
-// MOTION VARIABLES (VA-ET-VIENT)
+// MOTION VARIABLES (VA-ET-VIENT) - Position managed in SystemConfig
 // ============================================================================
 volatile long currentStep = 0;
-long minStep = 0;
-long maxStep = 0;
-float totalDistanceMM = 0;
+// config.minStep, config.maxStep, config.totalDistanceMM → config.minStep, config.maxStep, config.totalDistanceMM
 
-// Maximum distance limitation (50-100% of totalDistanceMM)
+// Maximum distance limitation (50-100% of config.totalDistanceMM)
 float maxDistanceLimitPercent = 100.0;  // Default: no limitation
 float effectiveMaxDistanceMM = 0.0;     // Calculated value used for validation
 
@@ -333,107 +244,14 @@ float speedLevelToCyclesPerMin(float speedLevel);
 float cyclesPerMinToSpeedLevel(float cpm);
 
 // ============================================================================
-// LOG BUFFER FLUSH IMPLEMENTATION - After global variables declaration
+// LOG BUFFER FLUSH IMPLEMENTATION - Managed by UtilityEngine
 // ============================================================================
-/**
- * Flush log buffer to disk (called every 5 seconds from loop())
- * CRITICAL: Skips flush if motor is actively moving to avoid jitter
- * EXCEPTION: Forces flush if buffer reaches 80% capacity (prevent data loss)
- */
+// Legacy wrapper for backward compatibility during Phase 2 migration
+// All flushing now handled by UtilityEngine::flushLogBuffer()
 void flushLogBuffer() {
-  // Count valid entries in buffer
-  int validEntries = 0;
-  for (int i = 0; i < LOG_BUFFER_SIZE; i++) {
-    if (logBuffer[i].valid) validEntries++;
+  if (engine) {
+    engine->flushLogBuffer();
   }
-  
-  // Calculate buffer usage percentage
-  float bufferUsagePercent = (validEntries * 100.0) / LOG_BUFFER_SIZE;
-  
-  // CRITICAL: Force flush if buffer is 80% full (even during movement)
-  // This prevents log data loss if buffer wraps during high-activity periods
-  bool forceFlush = (bufferUsagePercent >= 80.0);
-  
-  // CRITICAL: Do NOT flush during movement (avoid jitter)
-  // EXCEPTION: Force flush if buffer nearly full
-  if (currentState == STATE_RUNNING && !isPaused && !forceFlush) {
-    return;  // Skip flush if motor is actively moving (unless buffer critical)
-  }
-  
-  // Only flush if file is open and buffer has data
-  if (!globalLogFile || !littleFsMounted) return;
-  
-  unsigned long now = millis();
-  
-  // Flush every 5 seconds (configurable) OR if forced due to buffer saturation
-  if (!forceFlush && now - lastLogFlush < 5000) return;
-  
-  // Use previously counted validEntries (already calculated above)
-  if (validEntries == 0) {
-    lastLogFlush = now;
-    return;  // Nothing to flush
-  }
-  
-  // Log warning if force-flushing during movement
-  if (forceFlush && currentState == STATE_RUNNING && !isPaused) {
-    Serial.print("[WARN]  ⚠️ FORCE FLUSH during movement - Buffer ");
-    Serial.print(bufferUsagePercent, 1);
-    Serial.print("% full (");
-    Serial.print(validEntries);
-    Serial.println("/100 entries)");
-  }
-  
-  // Get current time for timestamps
-  time_t currentTime = time(nullptr);
-  struct tm *tmstruct = localtime(&currentTime);
-  
-  // Check if time is synchronized
-  bool timeValid = (tmstruct->tm_year > (2020 - 1900));
-  
-  // Write all valid entries in one batch
-  for (int i = 0; i < LOG_BUFFER_SIZE; i++) {
-    if (logBuffer[i].valid) {
-      if (timeValid) {
-        // Use real timestamp if NTP synced
-        char ts[30];
-        time_t logTime = currentTime - ((now - logBuffer[i].timestamp) / 1000);
-        struct tm *logTm = localtime(&logTime);
-        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", logTm);
-        globalLogFile.print("[");
-        globalLogFile.print(ts);
-        globalLogFile.print("] ");
-      } else {
-        // Fallback to millis() if NTP not synced yet
-        globalLogFile.print("[T+");
-        globalLogFile.print(logBuffer[i].timestamp / 1000);
-        globalLogFile.print("s] ");
-      }
-      
-      globalLogFile.println(logBuffer[i].message);
-      
-      // Clear entry
-      logBuffer[i].valid = false;
-      logBuffer[i].message = "";
-    }
-  }
-  
-  // Flush to disk (ensure data is written)
-  globalLogFile.flush();
-  
-  lastLogFlush = now;
-  
-  // Optional: Log flush event to Serial (not to file to avoid recursion)
-  Serial.print("[DEBUG] 💾 Flushed ");
-  Serial.print(validEntries);
-  Serial.print(" log entries to file");
-  
-  if (forceFlush) {
-    Serial.print(" (FORCED at ");
-    Serial.print(bufferUsagePercent, 1);
-    Serial.print("% capacity)");
-  }
-  
-  Serial.println();
 }
 
 // ============================================================================
@@ -499,73 +317,17 @@ void serviceWebSocketFor(unsigned long durationMs) {
 }
 
 // ============================================================================
-// JSON RESPONSE HELPERS - DRY (Don't Repeat Yourself)
 // ============================================================================
-/**
- * Send JSON error response (generic error format)
- * @param code HTTP status code (400, 404, 500, etc.)
- * @param message Error message
- */
-void sendJsonError(int code, const char* message) {
-  JsonDocument doc;
-  doc["error"] = message;
-  String response;
-  serializeJson(doc, response);
-  server.send(code, "application/json", response);
-}
+// JSON RESPONSE HELPERS (moved to APIRoutes.h for Phase 3.4)
+// ============================================================================
+// All JSON helper functions (sendJsonError, sendJsonSuccess, etc.) are now
+// defined in APIRoutes.h to avoid duplication and keep main .ino clean
 
-/**
- * Send JSON error response with success=false (API format)
- * @param code HTTP status code (400, 404, 500, etc.)
- * @param message Error message
- */
-void sendJsonApiError(int code, const char* message) {
-  JsonDocument doc;
-  doc["success"] = false;
-  doc["error"] = message;
-  String response;
-  serializeJson(doc, response);
-  server.send(code, "application/json", response);
-}
+// ============================================================================
+// HELPER FUNCTIONS & VALIDATION (moved to APIRoutes.h for Phase 3.4)
+// ============================================================================
 
-/**
- * Send JSON success response
- * @param message Optional success message
- */
-void sendJsonSuccess(const char* message = nullptr) {
-  JsonDocument doc;
-  doc["success"] = true;
-  if (message) doc["message"] = message;
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-/**
- * Send JSON success response with ID
- * @param id ID to include in response
- */
-void sendJsonSuccessWithId(int id) {
-  JsonDocument doc;
-  doc["success"] = true;
-  doc["id"] = id;
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-/**
- * Send empty playlist structure (for empty/new playlists)
- */
-void sendEmptyPlaylistStructure() {
-  JsonDocument doc;
-  doc.createNestedArray("simple");
-  doc.createNestedArray("oscillation");
-  doc.createNestedArray("chaos");
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
+// Note: sendEmptyPlaylistStructure() moved to APIRoutes.h
 
 // Error notification helper
 void sendError(String message);
@@ -614,7 +376,20 @@ void setup() {
   Serial.begin(115200);
   // Allow serial to initialize (non-critical, keep simple delay)
   delay(1000);
-  LOG_I("\n=== ESP32-S3 Stepper Controller ===");
+  
+  // ============================================================================
+  // UTILITY ENGINE INITIALIZATION (MUST BE FIRST!)
+  // ============================================================================
+  // Creates unified instance for WebSocket, Logging, and LittleFS management
+  engine = new UtilityEngine(webSocket);
+  if (!engine->initialize()) {
+    Serial.println("❌ UtilityEngine initialization failed!");
+    // Continue anyway - engine will degrade gracefully
+  } else {
+    engine->info("✅ UtilityEngine initialized and ready");
+  }
+  
+  engine->info("\n=== ESP32-S3 Stepper Controller ===");
   
   // Initialize GPIO pins
   pinMode(PIN_LED, OUTPUT);
@@ -633,7 +408,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
-  LOG_I("Connecting to WiFi: " + String(ssid));
+  engine->info("Connecting to WiFi: " + String(ssid));
   
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 60) {
@@ -642,20 +417,20 @@ void setup() {
     attempts++;
     
     if (attempts % 10 == 0) {
-      LOG_I(String("\n[") + String(attempts) + "/60] WiFi connecting...");
+      engine->info(String("\n[") + String(attempts) + "/60] WiFi connecting...");
     }
   }
   Serial.println();  // Newline after dots (keep for visual formatting)
   
   if (WiFi.status() == WL_CONNECTED) {
-    LOG_I("✅ WiFi connected!");
-    LOG_I("🌐 IP Address: " + WiFi.localIP().toString());
-    LOG_I("🔄 OTA Mode: ACTIVE - Updates via WiFi enabled!");
+    engine->info("✅ WiFi connected!");
+    engine->info("🌐 IP Address: " + WiFi.localIP().toString());
+    engine->info("🔄 OTA Mode: ACTIVE - Updates via WiFi enabled!");
     
     // Configure time with NTP (GMT+1 = 3600 seconds, daylight saving = 0)
     // Date: October 22, 2025
     configTime(3600, 0, "pool.ntp.org", "time.nist.gov");
-    LOG_I("⏰ NTP time configured (GMT+1)");
+    engine->info("⏰ NTP time configured (GMT+1)");
     
     // Wait a bit for time sync
     delay(1000);
@@ -664,7 +439,7 @@ void setup() {
     if (timeinfo->tm_year > (2020 - 1900)) {
       char timeStr[64];
       strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
-      LOG_I("✓ Time synchronized: " + String(timeStr));
+      engine->info("✓ Time synchronized: " + String(timeStr));
     }
     
     // ============================================================================
@@ -678,15 +453,11 @@ void setup() {
     
     ArduinoOTA.onStart([]() {
       String type = (ArduinoOTA.getCommand() == U_FLASH) ? "firmware" : "filesystem";
-      LOG_I("🔄 OTA Update starting: " + type);
+      engine->info("🔄 OTA Update starting: " + type);
       
       // CRITICAL: Flush and close log file before OTA
-      if (globalLogFile) {
-        flushLogBuffer();  // Flush pending logs
-        globalLogFile.println("========================================");
-        globalLogFile.println("OTA UPDATE - Closing log file");
-        globalLogFile.println("========================================");
-        globalLogFile.close();
+      if (engine) {
+        engine->flushLogBuffer(true);  // Force flush pending logs
       }
       
       // CRITICAL: Stop all movements and disable motor during OTA
@@ -700,7 +471,7 @@ void setup() {
     });
     
     ArduinoOTA.onEnd([]() {
-      LOG_I("✅ OTA Update complete - Rebooting...");
+      engine->info("✅ OTA Update complete - Rebooting...");
     });
     
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -709,683 +480,77 @@ void setup() {
       
       // Log every 10% to avoid spam
       if (percent >= lastPercent + 10) {
-        LOG_I("📥 OTA Progress: " + String(percent) + "%");
+        engine->info("📥 OTA Progress: " + String(percent) + "%");
         lastPercent = percent;
       }
     });
     
     ArduinoOTA.onError([](ota_error_t error) {
-      LOG_E("❌ OTA Error [" + String(error) + "]: ");
-      if (error == OTA_AUTH_ERROR) LOG_E("   Authentication Failed");
-      else if (error == OTA_BEGIN_ERROR) LOG_E("   Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) LOG_E("   Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) LOG_E("   Receive Failed");
-      else if (error == OTA_END_ERROR) LOG_E("   End Failed");
+      engine->error("❌ OTA Error [" + String(error) + "]: ");
+      if (error == OTA_AUTH_ERROR) engine->error("   Authentication Failed");
+      else if (error == OTA_BEGIN_ERROR) engine->error("   Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) engine->error("   Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) engine->error("   Receive Failed");
+      else if (error == OTA_END_ERROR) engine->error("   End Failed");
     });
     
     ArduinoOTA.begin();
-    LOG_I("✅ OTA Ready - Hostname: " + String(otaHostname));
+    engine->info("✅ OTA Ready - Hostname: " + String(otaHostname));
     
   } else {
-    LOG_E("❌ WiFi connection failed!");
+    engine->error("❌ WiFi connection failed!");
   }
   
-  // ============================================================================
-  // LITTLEFS INITIALIZATION
-  // ============================================================================
-  LOG_I("Mounting LittleFS filesystem...");
-  if (!LittleFS.begin(true)) {  // true = format if mount fails
-    LOG_E("❌ LittleFS mount FAILED!");
-    LOG_W("⚠️ Will fallback to embedded HTML if available");
-  } else {
-    littleFsMounted = true;
-    LOG_I("✅ LittleFS mounted successfully");
-    
-    // List filesystem contents for debugging
-    File root = LittleFS.open("/");
-    if (root && root.isDirectory()) {
-      LOG_I("📁 LittleFS contents:");
-      
-      // Build JSON array using ArduinoJson
-      JsonDocument fsDoc;
-      fsDoc["type"] = "fsList";
-      JsonArray filesArray = fsDoc.createNestedArray("files");
-      
-      File file = root.openNextFile();
-      while (file) {
-        time_t t = file.getLastWrite();
-        struct tm *tmstruct = localtime(&t);
-        char timeStr[30];
-        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", tmstruct);
-        LOG_I("  - " + String(file.name()) + " (" + String(file.size()) + " bytes) | " + String(timeStr));
-        
-        JsonObject fileObj = filesArray.add<JsonObject>();
-        fileObj["name"] = String(file.name());
-        fileObj["size"] = String(file.size());
-        fileObj["time"] = String(timeStr);
-        
-        file = root.openNextFile();
-      }
-      
-      // Only broadcast if clients are connected
-      if (webSocket.connectedClients() > 0) {
-        String fsJson;
-        serializeJson(fsDoc, fsJson);
-        webSocket.broadcastTXT(fsJson);
-      }
-    }
-    // Ensure logs directory exists
-    if (!LittleFS.exists("/logs")) {
-      LittleFS.mkdir("/logs");
-    }
-    
-    // Clean up epoch date log files (created before NTP sync)
-    File logsDir = LittleFS.open("/logs");
-    if (logsDir && logsDir.isDirectory()) {
-      File logFile = logsDir.openNextFile();
-      while (logFile) {
-        String fileName = String(logFile.name());
-        // Check if this is an epoch date log file (1970xxxx)
-        if (fileName.indexOf("1970") >= 0) {
-          String fullPath = "/logs/" + fileName;
-          if (fileName.startsWith("/")) {
-            fullPath = "/logs" + fileName;
-          }
-          logFile.close();
-          if (LittleFS.remove(fullPath)) {
-            LOG_I("🗑️ Deleted epoch log file: " + fileName);
-          }
-          logFile = logsDir.openNextFile();
-        } else {
-          logFile = logsDir.openNextFile();
-        }
-      }
-    }
-    
-    // =========================================================================
-    // INITIALIZE GLOBAL LOG FILE (kept open for performance)
-    // =========================================================================
-    // Wait for NTP sync before creating log file
-    delay(2000);  // Give NTP time to sync
-    time_t now = time(nullptr);
-    struct tm *tmstruct = localtime(&now);
-    
-    if (tmstruct->tm_year > (2020 - 1900)) {
-      char timeBuf[20];
-      strftime(timeBuf, sizeof(timeBuf), "%Y%m%d", tmstruct);
-      String dateStr = String(timeBuf);
-      
-      // Find max suffix by scanning /logs directory (single pattern: log_YYYYMMDD_N.txt)
-      int maxSuffix = -1;  // -1 = no files found, will start at _0
-      
-      File scanDir = LittleFS.open("/logs");
-      if (scanDir) {
-        File file = scanDir.openNextFile();
-        while (file) {
-          String fileName = String(file.name());
-          
-          // Parse pattern: log_YYYYMMDD_N.txt (e.g., "log_20250124_5.txt" → N=5)
-          String prefix = "log_" + dateStr + "_";
-          if (fileName.startsWith(prefix) && fileName.endsWith(".txt")) {
-            // Extract suffix number between last '_' and '.txt'
-            int suffixStart = fileName.lastIndexOf('_') + 1;
-            int suffixEnd = fileName.lastIndexOf('.');
-            if (suffixStart > 0 && suffixEnd > suffixStart) {
-              String suffixStr = fileName.substring(suffixStart, suffixEnd);
-              int suffix = suffixStr.toInt();
-              if (suffix > maxSuffix) {
-                maxSuffix = suffix;
-              }
-            }
-          }
-          
-          file = scanDir.openNextFile();
-        }
-        scanDir.close();
-      }
-      
-      // Generate filename: always use pattern log_YYYYMMDD_N.txt (start at _0)
-      currentLogFileName = "/logs/log_" + dateStr + "_" + String(maxSuffix + 1) + ".txt";
-      
-      // Open file in append mode and KEEP IT OPEN
-      globalLogFile = LittleFS.open(currentLogFileName, "a");
-      if (globalLogFile) {
-        Serial.println("[INFO]  📝 Global log file opened: " + currentLogFileName + " (session #" + String(maxSuffix + 2) + ")");
-        
-        // Write session header
-        char ts[30];
-        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", tmstruct);
-        globalLogFile.println("");
-        globalLogFile.println("========================================");
-        globalLogFile.print("SESSION START: ");
-        globalLogFile.println(ts);
-        globalLogFile.println("========================================");
-        globalLogFile.flush();
-      } else {
-        Serial.println("[ERROR] Failed to open log file: " + currentLogFileName);
-      }
-    } else {
-      Serial.println("[WARN]  NTP not synced yet - log file will be created on first log");
-    }
-  }
+  // Print engine status after WiFi setup
+  engine->printStatus();
   
   // ============================================================================
-  // HTTP SERVER CONFIGURATION
+  // HTTP SERVER CONFIGURATION - PHASE 3.4
   // ============================================================================
-  
-  // Main route: serve index.html from LittleFS
-  server.on("/", HTTP_GET, []() {
-    if (LittleFS.exists("/index.html")) {
-      File file = LittleFS.open("/index.html", "r");
-      if (file) {
-        // Disable browser caching to ensure latest version is always loaded
-        server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        server.sendHeader("Pragma", "no-cache");
-        server.sendHeader("Expires", "0");
-        server.streamFile(file, "text/html");
-        file.close();
-        LOG_D("✅ Served /index.html from LittleFS");
-      } else {
-        server.send(500, "text/plain", "❌ Error opening index.html");
-        LOG_E("❌ Error opening /index.html");
-      }
-    } else {
-      server.send(404, "text/plain", "❌ File not found: index.html\nPlease upload filesystem using: platformio run --target uploadfs");
-      LOG_E("❌ /index.html not found in LittleFS");
-    }
-  });
-  
-  // CSS route: serve style.css from LittleFS with caching
-  server.on("/style.css", HTTP_GET, []() {
-    if (LittleFS.exists("/style.css")) {
-      File file = LittleFS.open("/style.css", "r");
-      if (file) {
-        // Enable browser caching for CSS (24 hours)
-        server.sendHeader("Cache-Control", "public, max-age=86400");
-        server.streamFile(file, "text/css");
-        file.close();
-        LOG_D("✅ Served /style.css from LittleFS (cached 24h)");
-      } else {
-        server.send(500, "text/plain", "❌ Error opening style.css");
-        LOG_E("❌ Error opening /style.css");
-      }
-    } else {
-      server.send(404, "text/plain", "❌ File not found: style.css");
-      LOG_E("❌ /style.css not found in LittleFS");
-    }
-  });
+  // All HTTP routes are now managed in APIRoutes.h (setupAPIRoutes())
+  // This reduces main .ino file size by ~550 lines
+  // ============================================================================
   
   server.begin();
-  LOG_I("HTTP server started");
+  engine->info("HTTP server started");
 
   // ============================================================================
   // FILESYSTEM MANAGER - Register all REST API routes
   // ============================================================================
   filesystemManager.registerRoutes();
-  LOG_I("✅ Filesystem Manager initialized - Routes ready:");
-  LOG_I("   GET  /filesystem           - Filesystem browser UI");
-  LOG_I("   GET  /api/fs/list          - List files (recursive JSON)");
-  LOG_I("   GET  /api/fs/download      - Download file");
-  LOG_I("   GET  /api/fs/read          - Read file content (text)");
-  LOG_I("   POST /api/fs/write         - Save edited file");
-  LOG_I("   POST /api/fs/upload        - Upload file (multipart)");
-  LOG_I("   POST /api/fs/delete        - Delete file");
-  LOG_I("   POST /api/fs/clear         - Clear all files");
-
-  // ========================================================================
-  // STATISTICS API ROUTES
-  // ========================================================================
-  
-  // GET /api/stats - Retrieve all daily stats
-  server.on("/api/stats", HTTP_GET, []() {
-    if (!LittleFS.exists("/stats.json")) {
-      server.send(200, "application/json", "[]");
-      return;
-    }
-    
-    File file = LittleFS.open("/stats.json", "r");
-    if (!file) {
-      sendJsonError(500, "Failed to open stats file");
-      return;
-    }
-    
-    String content = file.readString();
-    file.close();
-    server.send(200, "application/json", content);
-  });
-  
-  // POST /api/stats/increment - Add distance to today's stats
-  server.on("/api/stats/increment", HTTP_POST, []() {
-    if (!server.hasArg("plain")) {
-      sendJsonError(400, "Missing JSON body");
-      return;
-    }
-    
-    String body = server.arg("plain");
-    JsonDocument requestDoc;
-    DeserializationError error = deserializeJson(requestDoc, body);
-    
-    if (error) {
-      sendJsonError(400, "Invalid JSON");
-      return;
-    }
-    
-    float distanceMM = requestDoc["distanceMM"] | 0.0;
-    if (distanceMM <= 0) {
-      sendJsonError(400, "Invalid distance");
-      return;
-    }
-    
-    // Get current date (YYYY-MM-DD format)
-    time_t now = time(nullptr);
-    struct tm* timeinfo = localtime(&now);
-    char dateStr[11];
-    strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", timeinfo);
-    
-    // Load existing stats
-    JsonDocument statsDoc;
-    if (LittleFS.exists("/stats.json")) {
-      File file = LittleFS.open("/stats.json", "r");
-      if (file) {
-        deserializeJson(statsDoc, file);
-        file.close();
-      }
-    }
-    
-    // Find or create today's entry
-    JsonArray statsArray = statsDoc.as<JsonArray>();
-    if (statsArray.isNull()) {
-      statsArray = statsDoc.to<JsonArray>();
-    }
-    
-    bool found = false;
-    for (JsonObject entry : statsArray) {
-      if (strcmp(entry["date"], dateStr) == 0) {
-        float current = entry["distanceMM"] | 0.0;
-        entry["distanceMM"] = current + distanceMM;
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      JsonObject newEntry = statsArray.add<JsonObject>();
-      newEntry["date"] = dateStr;
-      newEntry["distanceMM"] = distanceMM;
-    }
-    
-    // Save back to file
-    File file = LittleFS.open("/stats.json", "w");
-    if (!file) {
-      sendJsonError(500, "Failed to write stats");
-      return;
-    }
-    
-    serializeJson(statsDoc, file);
-    file.close();
-    
-    LOG_I(String("📊 Stats updated: +") + String(distanceMM, 1) + "mm on " + String(dateStr));
-    sendJsonSuccess();
-  });
-  
-  // POST /api/stats/clear - Delete all stats
-  server.on("/api/stats/clear", HTTP_POST, []() {
-    if (LittleFS.exists("/stats.json")) {
-      if (LittleFS.remove("/stats.json")) {
-        LOG_I("🗑️ Statistics cleared");
-        sendJsonSuccess();
-      } else {
-        sendJsonError(500, "Failed to delete stats");
-      }
-    } else {
-      sendJsonSuccess("No stats to clear");
-    }
-  });
+  engine->info("✅ Filesystem Manager initialized - Routes ready:");
+  engine->info("   GET  /filesystem           - Filesystem browser UI");
+  engine->info("   GET  /api/fs/list          - List files (recursive JSON)");
+  engine->info("   GET  /api/fs/download      - Download file");
+  engine->info("   GET  /api/fs/read          - Read file content (text)");
+  engine->info("   POST /api/fs/write         - Save edited file");
+  engine->info("   POST /api/fs/upload        - Upload file (multipart)");
+  engine->info("   POST /api/fs/delete        - Delete file");
+  engine->info("   POST /api/fs/clear         - Clear all files");
 
   // ============================================================================
-  // PLAYLIST API ENDPOINTS
+  // SETUP API ROUTES (Phase 3.4 - extracted from main)
   // ============================================================================
+  setupAPIRoutes();
+  engine->info("✅ API Routes initialized (Phase 3.4):");
+  engine->info("   GET  /               - Web interface");
+  engine->info("   GET  /style.css      - Stylesheet");
+  engine->info("   GET  /api/stats      - Daily statistics");
+  engine->info("   GET  /api/playlists  - Preset playlists");
+  engine->info("   GET  /logs           - Log files");
   
-  // GET /api/playlists - Get all playlists
-  server.on("/api/playlists", HTTP_GET, []() {
-    if (!littleFsMounted) {
-      LOG_E("❌ GET /api/playlists: LittleFS not mounted");
-      sendJsonError(500, "LittleFS not mounted");
-      return;
-    }
-    
-    if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      // Return empty structure using ArduinoJson
-      LOG_D("📋 GET /api/playlists: File not found, returning empty");
-      sendEmptyPlaylistStructure();
-      return;
-    }
-    
-    File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-    if (!file) {
-      LOG_E("❌ GET /api/playlists: Failed to open file");
-      sendJsonError(500, "Failed to open playlists file");
-      return;
-    }
-    
-    String content = file.readString();
-    size_t fileSize = file.size();
-    file.close();
-    
-    LOG_D("📋 GET /api/playlists: File size=" + String(fileSize) + ", content length=" + String(content.length()));
-    
-    if (content.length() == 0) {
-      LOG_W("⚠️ Playlist file exists but is empty");
-      sendEmptyPlaylistStructure();
-    } else {
-      LOG_D("✅ Returning playlist content: " + content.substring(0, 100) + "...");
-      server.send(200, "application/json", content);
-    }
-  });
-  
-  // POST /api/playlists/add - Add a preset to playlist
-  server.on("/api/playlists/add", HTTP_POST, []() {
-    if (!littleFsMounted) {
-      sendJsonApiError(500, "LittleFS not mounted");
-      return;
-    }
-    
-    // Parse request body
-    String body = server.arg("plain");
-    JsonDocument reqDoc;
-    DeserializationError error = deserializeJson(reqDoc, body);
-    
-    if (error) {
-      sendJsonApiError(400, "Invalid JSON");
-      return;
-    }
-    
-    const char* mode = reqDoc["mode"];
-    const char* name = reqDoc["name"];
-    JsonObject config = reqDoc["config"];
-    
-    if (!mode || !name || config.isNull()) {
-      sendJsonApiError(400, "Missing required fields");
-      return;
-    }
-    
-    // Validation: refuse infinite durations
-    if (strcmp(mode, "oscillation") == 0) {
-      int cycleCount = config["cycleCount"] | -1;
-      if (cycleCount == 0) {
-        sendJsonApiError(400, "Infinite cycles not allowed in playlist");
-        return;
-      }
-    } else if (strcmp(mode, "chaos") == 0) {
-      int duration = config["durationSeconds"] | -1;
-      if (duration == 0) {
-        sendJsonApiError(400, "Infinite duration not allowed in playlist");
-        return;
-      }
-    }
-    
-    // Load existing playlists
-    JsonDocument playlistDoc;
-    if (LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-      if (file) {
-        deserializeJson(playlistDoc, file);
-        file.close();
-      }
-    }
-    
-    // Initialize mode array if doesn't exist
-    JsonArray modeArray;
-    if (!playlistDoc.containsKey(mode) || playlistDoc[mode].isNull()) {
-      modeArray = playlistDoc.createNestedArray(mode);
-      LOG_D("📋 Created new array for mode: " + String(mode));
-    } else {
-      modeArray = playlistDoc[mode].as<JsonArray>();
-      LOG_D("📋 Using existing array for mode: " + String(mode) + ", size: " + String(modeArray.size()));
-    }
-    
-    // Check limit
-    if (modeArray.size() >= MAX_PRESETS_PER_MODE) {
-      sendJsonApiError(400, "Maximum 20 presets reached");
-      return;
-    }
-    
-    // Find next available ID
-    int nextId = 1;
-    for (JsonObject preset : modeArray) {
-      int id = preset["id"] | 0;
-      if (id >= nextId) {
-        nextId = id + 1;
-      }
-    }
-    
-    // Create new preset
-    JsonObject newPreset = modeArray.add<JsonObject>();
-    newPreset["id"] = nextId;
-    newPreset["name"] = name;
-    newPreset["timestamp"] = (unsigned long)time(nullptr);  // Unix epoch timestamp
-    newPreset["config"] = config;
-    
-    LOG_D("📋 Adding preset: mode=" + String(mode) + ", id=" + String(nextId) + ", name=" + String(name));
-    LOG_D("📋 Array size after add: " + String(modeArray.size()));
-    
-    // Save to file
-    File file = LittleFS.open(PLAYLIST_FILE_PATH, "w");
-    if (!file) {
-      LOG_E("❌ Failed to open playlist file for writing");
-      sendJsonApiError(500, "Failed to save");
-      return;
-    }
-    
-    size_t bytesWritten = serializeJson(playlistDoc, file);
-    file.close();
-    
-    LOG_I("📋 Preset added: " + String(name) + " (mode: " + String(mode) + ", bytes: " + String(bytesWritten) + ")");
-    
-    // Verify file exists
-    if (LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      File verifyFile = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-      size_t fileSize = verifyFile.size();
-      verifyFile.close();
-      LOG_D("✅ Playlist file saved, size: " + String(fileSize) + " bytes");
-    } else {
-      LOG_E("❌ Playlist file does not exist after save!");
-    }
-    
-    sendJsonSuccessWithId(nextId);
-  });
-  
-  // POST /api/playlists/delete - Delete a preset
-  server.on("/api/playlists/delete", HTTP_POST, []() {
-    if (!littleFsMounted) {
-      sendJsonApiError(500, "LittleFS not mounted");
-      return;
-    }
-    
-    // Parse request body
-    String body = server.arg("plain");
-    JsonDocument reqDoc;
-    DeserializationError error = deserializeJson(reqDoc, body);
-    
-    if (error) {
-      sendJsonApiError(400, "Invalid JSON");
-      return;
-    }
-    
-    const char* mode = reqDoc["mode"];
-    int id = reqDoc["id"] | 0;
-    
-    if (!mode || id == 0) {
-      sendJsonApiError(400, "Missing mode or id");
-      return;
-    }
-    
-    // Load existing playlists
-    if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      sendJsonApiError(404, "No playlists found");
-      return;
-    }
-    
-    File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-    if (!file) {
-      sendJsonApiError(500, "Failed to read playlists");
-      return;
-    }
-    
-    JsonDocument playlistDoc;
-    deserializeJson(playlistDoc, file);
-    file.close();
-    
-    // Find and remove preset
-    if (!playlistDoc.containsKey(mode)) {
-      sendJsonApiError(404, "Mode not found");
-      return;
-    }
-    
-    JsonArray modeArray = playlistDoc[mode].as<JsonArray>();
-    bool found = false;
-    
-    for (size_t i = 0; i < modeArray.size(); i++) {
-      JsonObject preset = modeArray[i];
-      if (preset["id"] == id) {
-        modeArray.remove(i);
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      sendJsonApiError(404, "Preset not found");
-      return;
-    }
-    
-    // Save updated playlists
-    file = LittleFS.open(PLAYLIST_FILE_PATH, "w");
-    if (!file) {
-      sendJsonApiError(500, "Failed to save");
-      return;
-    }
-    
-    serializeJson(playlistDoc, file);
-    file.close();
-    
-    LOG_I("🗑️ Preset deleted: ID " + String(id) + " (mode: " + String(mode) + ")");
-    sendJsonSuccess();
-  });
-  
-  // POST /api/playlists/update - Update (rename) a preset
-  server.on("/api/playlists/update", HTTP_POST, []() {
-    if (!littleFsMounted) {
-      sendJsonApiError(500, "LittleFS not mounted");
-      return;
-    }
-    
-    // Parse request body
-    String body = server.arg("plain");
-    JsonDocument reqDoc;
-    DeserializationError error = deserializeJson(reqDoc, body);
-    
-    if (error) {
-      sendJsonApiError(400, "Invalid JSON");
-      return;
-    }
-    
-    const char* mode = reqDoc["mode"];
-    int id = reqDoc["id"] | 0;
-    const char* newName = reqDoc["name"];
-    
-    if (!mode || id == 0 || !newName) {
-      sendJsonApiError(400, "Missing required fields");
-      return;
-    }
-    
-    // Load existing playlists
-    if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      sendJsonApiError(404, "No playlists found");
-      return;
-    }
-    
-    File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-    if (!file) {
-      sendJsonApiError(500, "Failed to read playlists");
-      return;
-    }
-    
-    JsonDocument playlistDoc;
-    deserializeJson(playlistDoc, file);
-    file.close();
-    
-    // Find and update preset
-    if (!playlistDoc.containsKey(mode)) {
-      sendJsonApiError(404, "Mode not found");
-      return;
-    }
-    
-    JsonArray modeArray = playlistDoc[mode].as<JsonArray>();
-    bool found = false;
-    
-    for (JsonObject preset : modeArray) {
-      if (preset["id"] == id) {
-        preset["name"] = newName;
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      sendJsonApiError(404, "Preset not found");
-      return;
-    }
-    
-    // Save updated playlists
-    file = LittleFS.open(PLAYLIST_FILE_PATH, "w");
-    if (!file) {
-      sendJsonApiError(500, "Failed to save");
-      return;
-    }
-    
-    serializeJson(playlistDoc, file);
-    file.close();
-    
-    LOG_I("✏️ Preset renamed: ID " + String(id) + " -> " + String(newName));
-    sendJsonSuccess();
-  });
-  
-  // Handle 404 - try to serve files from LittleFS (including /logs/*)
-  server.onNotFound([]() {
-    String uri = server.uri();
-    
-    // Try to serve the file from LittleFS
-    if (LittleFS.exists(uri)) {
-      File f = LittleFS.open(uri, "r");
-      if (f) {
-        String contentType = "text/plain; charset=UTF-8";
-        if (uri.endsWith(".html")) contentType = "text/html; charset=UTF-8";
-        else if (uri.endsWith(".css")) contentType = "text/css";
-        else if (uri.endsWith(".js")) contentType = "application/javascript";
-        else if (uri.endsWith(".json")) contentType = "application/json";
-        
-        server.streamFile(f, contentType);
-        f.close();
-        return;
-      }
-    }
-    
-    // File not found
-    server.send(404, "text/plain", "Not found: " + uri);
-  });
-    // Start WebSocket server
+  // Start WebSocket server
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  LOG_I("WebSocket server started on port 81");
+  engine->info("WebSocket server started on port 81");
   
-  currentState = STATE_READY;
-  LOG_I("\n╔════════════════════════════════════════════════════════╗");
-  LOG_I("║  WEB INTERFACE READY!                                  ║");
-  LOG_I("║  Access: http://" + WiFi.localIP().toString() + "                          ║");
-  LOG_I("║  Auto-calibration starts in 2 seconds...              ║");
-  LOG_I("║  Connect now to see calibration overlay!              ║");
-  LOG_I("╚════════════════════════════════════════════════════════╝\n");
+  config.currentState = STATE_READY;
+  engine->info("\n╔════════════════════════════════════════════════════════╗");
+  engine->info("║  WEB INTERFACE READY!                                  ║");
+  engine->info("║  Access: http://" + WiFi.localIP().toString() + "                          ║");
+  engine->info("║  Auto-calibration starts in 2 seconds...              ║");
+  engine->info("║  Connect now to see calibration overlay!              ║");
+  engine->info("╚════════════════════════════════════════════════════════╝\n");
 }
 
 // ============================================================================
@@ -1413,14 +578,14 @@ void loop() {
     int endState = endEngaged ? LOW : HIGH;
     
     if (startState != lastStartContactState) {
-      LOG_D(String("🔵 START contact changed: ") + (lastStartContactState == HIGH ? "HIGH" : "LOW") + 
+      engine->debug(String("🔵 START contact changed: ") + (lastStartContactState == HIGH ? "HIGH" : "LOW") + 
             " → " + (startState == HIGH ? "HIGH" : "LOW") + 
             " | Position: " + String(currentStep / STEPS_PER_MM, 1) + "mm");
       lastStartContactState = startState;
     }
     
     if (endState != lastEndContactState) {
-      LOG_D(String("🔴 END contact changed: ") + (lastEndContactState == HIGH ? "HIGH" : "LOW") + 
+      engine->debug(String("🔴 END contact changed: ") + (lastEndContactState == HIGH ? "HIGH" : "LOW") + 
             " → " + (endState == HIGH ? "HIGH" : "LOW") + 
             " | Position: " + String(currentStep / STEPS_PER_MM, 1) + "mm");
       lastEndContactState = endState;
@@ -1436,14 +601,14 @@ void loop() {
   if (needsInitialCalibration && !calibrationStarted) {
     if (calibrationDelayStart == 0) {
       calibrationDelayStart = millis();
-      LOG_I("=== Web interface ready - Calibration will start in 2 seconds ===");
-      LOG_I("Connect now to see calibration overlay!");
+      engine->info("=== Web interface ready - Calibration will start in 2 seconds ===");
+      engine->info("Connect now to see calibration overlay!");
     }
     
     // Wait 2 seconds to allow users to connect
     if (millis() - calibrationDelayStart >= 2000) {
       calibrationStarted = true;
-      LOG_I("=== Starting automatic calibration ===");
+      engine->info("=== Starting automatic calibration ===");
       delay(100);
       startCalibration();
       needsInitialCalibration = false;
@@ -1456,7 +621,7 @@ void loop() {
   switch (currentMovement) {
     case MOVEMENT_VAET:
       // VA-ET-VIENT: Classic back-and-forth movement
-      if (currentState == STATE_RUNNING && !isPaused) {
+      if (config.currentState == STATE_RUNNING && !isPaused) {
         unsigned long currentMicros = micros();
         unsigned long currentDelay = movingForward ? stepDelayMicrosForward : stepDelayMicrosBackward;
         
@@ -1499,23 +664,23 @@ void loop() {
       
     case MOVEMENT_OSC:
       // OSCILLATION: Sinusoidal oscillation with ramping
-      if (currentState == STATE_RUNNING && !isPaused) {
+      if (config.currentState == STATE_RUNNING && !isPaused) {
         doOscillationStep();
       }
       break;
       
     case MOVEMENT_CHAOS:
       // CHAOS: Random chaotic patterns
-      if (currentState == STATE_RUNNING && !isPaused) {
+      if (config.currentState == STATE_RUNNING && !isPaused) {
         processChaosExecution();
       }
       break;
   }
   
   // ═══════════════════════════════════════════════════════════════════════════
-  // SEQUENCER MANAGEMENT (Based on ExecutionContext - WHO controls)
+  // SEQUENCER MANAGEMENT (Based on config.executionContext - WHO controls)
   // ═══════════════════════════════════════════════════════════════════════════
-  if (executionContext == CONTEXT_SEQUENCER) {
+  if (config.executionContext == CONTEXT_SEQUENCER) {
     processSequenceExecution();
   }
   
@@ -1548,7 +713,7 @@ void loop() {
   static unsigned long lastSummary = 0;
   static unsigned long cycleCounter = 0;
   
-  if (currentState == STATE_RUNNING && !isPaused) {
+  if (config.currentState == STATE_RUNNING && !isPaused) {
     // Count cycles (increment when we reach start position)
     static bool lastWasAtStart = false;
     bool nowAtStart = (currentStep == startStep);
@@ -1559,14 +724,14 @@ void loop() {
     
     // Print summary every 60 seconds (avoid log spam)
     if (millis() - lastSummary > SUMMARY_LOG_INTERVAL_MS) {
-      LOG_D("Status: " + String(cycleCounter) + " cycles | " + 
+      engine->debug("Status: " + String(cycleCounter) + " cycles | " + 
             String(totalDistanceTraveled / 1000000.0, 2) + " km");
       lastSummary = millis();
     }
   } else {
     // Reset summary timer when not running
     lastSummary = millis();
-    if (currentState != STATE_RUNNING) {
+    if (config.currentState != STATE_RUNNING) {
       cycleCounter = 0;  // Reset counter when stopped
     }
   }
@@ -1627,7 +792,7 @@ bool findContactWithService(int dirPin, int contactPin, const char* contactName)
       errorMsg += " introuvable";
       sendError(errorMsg);
       digitalWrite(PIN_ENABLE, HIGH);
-      currentState = STATE_ERROR;
+      config.currentState = STATE_ERROR;
       return false;
     }
   }
@@ -1637,7 +802,7 @@ bool findContactWithService(int dirPin, int contactPin, const char* contactName)
 
 bool returnToStartContact() {
 
-  LOG_D("Expected steps to return: ~" + String(maxStep));
+  engine->debug("Expected steps to return: ~" + String(config.maxStep));
   
   setMotorDirection(false);  // Backward to START contact
   
@@ -1653,13 +818,13 @@ bool returnToStartContact() {
     if (currentStep < -CALIBRATION_ERROR_MARGIN_STEPS) {
       sendError("❌ ERROR: Impossible de retourner au contact START!");
       digitalWrite(PIN_ENABLE, HIGH);
-      currentState = STATE_ERROR;
+      config.currentState = STATE_ERROR;
       return false;
     }
   }
   
   // Contact detected - apply calibration offset directly
-  LOG_D("Start contact detected - applying calibration offset...");
+  engine->debug("Start contact detected - applying calibration offset...");
   
   // Move forward slowly until contact releases (decontact)
   setMotorDirection(true);
@@ -1681,15 +846,15 @@ bool returnToStartContact() {
 }
 
 float validateCalibrationAccuracy() {
-  LOG_D("✓ Returned to start contact - Current position: " + String(currentStep) + " steps (" + String(currentStep / STEPS_PER_MM, 2) + " mm)");
+  engine->debug("✓ Returned to start contact - Current position: " + String(currentStep) + " steps (" + String(currentStep / STEPS_PER_MM, 2) + " mm)");
   
   long stepDifference = abs(currentStep);
-  float differencePercent = ((float)stepDifference / (float)maxStep) * 100.0;
+  float differencePercent = ((float)stepDifference / (float)config.maxStep) * 100.0;
   
   if (stepDifference == 0) {
-    LOG_D(" ✓ PERFECT!");
+    engine->debug(" ✓ PERFECT!");
   } else {
-    LOG_W(" ⚠️ Difference: " + String(stepDifference) + " steps (" + 
+    engine->warn(" ⚠️ Difference: " + String(stepDifference) + " steps (" + 
           String((float)stepDifference / STEPS_PER_MM, 2) + " mm, " + 
           String(differencePercent, 1) + " %)");
   }
@@ -1703,7 +868,7 @@ float validateCalibrationAccuracy() {
 
 void handleCalibrationFailure(int& attempt) {
   digitalWrite(PIN_ENABLE, HIGH);  // Disable on error is safe
-  currentState = STATE_ERROR;
+  config.currentState = STATE_ERROR;
   
   attempt++;
   if (attempt >= MAX_CALIBRATION_RETRIES) {
@@ -1835,7 +1000,7 @@ void validateDecelZone() {
   float movementAmplitudeMM = motion.targetDistanceMM;
   
   if (movementAmplitudeMM <= 0) {
-    LOG_W("⚠️ Cannot validate decel zone: no movement configured");
+    engine->warn("⚠️ Cannot validate decel zone: no movement configured");
     return;
   }
   
@@ -1852,15 +1017,15 @@ void validateDecelZone() {
   // Enforce minimum zone size (10mm) - P4 enhancement: catch negative values
   if (decelZone.zoneMM < 0) {
     decelZone.zoneMM = 10.0;
-    LOG_W("⚠️ Zone négative détectée, corrigée à 10 mm");
+    engine->warn("⚠️ Zone négative détectée, corrigée à 10 mm");
   } else if (decelZone.zoneMM < 10.0) {
     decelZone.zoneMM = 10.0;
-    LOG_W("⚠️ Zone augmentée à 10 mm (minimum)");
+    engine->warn("⚠️ Zone augmentée à 10 mm (minimum)");
   }
   
   // Enforce maximum zone size
   if (decelZone.zoneMM > maxAllowedZone) {
-    LOG_W("⚠️ Zone réduite de " + String(decelZone.zoneMM, 1) + " mm à " + 
+    engine->warn("⚠️ Zone réduite de " + String(decelZone.zoneMM, 1) + " mm à " + 
           String(maxAllowedZone, 1) + " mm (max pour amplitude de " + 
           String(movementAmplitudeMM, 1) + " mm)");
     
@@ -1875,8 +1040,8 @@ void validateDecelZone() {
 void startCalibration() {
   static int calibrationAttempt = 0;
   
-  LOG_I(calibrationAttempt == 0 ? "Starting calibration..." : "Retry calibration...");
-  currentState = STATE_CALIBRATING;
+  engine->info(calibrationAttempt == 0 ? "Starting calibration..." : "Retry calibration...");
+  config.currentState = STATE_CALIBRATING;
   
   // Send status updates to ensure WebSocket clients receive calibration state
   for (int i = 0; i < 5; i++) {
@@ -1896,7 +1061,7 @@ void startCalibration() {
     return;
   }
   
-  LOG_D("✓ Start contact found - releasing contact very slowly...");
+  engine->debug("✓ Start contact found - releasing contact very slowly...");
   
   // Move forward VERY SLOWLY until contact releases (HIGH)
   setMotorDirection(true);  // Forward to release contact
@@ -1905,7 +1070,7 @@ void startCalibration() {
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);  // 10ms per step = ultra gentle
   }
   
-  LOG_D("✓ Contact released - adding safety margin...");
+  engine->debug("✓ Contact released - adding safety margin...");
   
   // Move forward another 10 steps (safety margin)
   for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
@@ -1919,9 +1084,9 @@ void startCalibration() {
   
   // THIS position = new logical zero
   // Physical motor is at: START contact + decontact + SAFETY_OFFSET_STEPS
-  minStep = 0;
+  config.minStep = 0;
   currentStep = 0;
-  LOG_D(String("✓ Position 0 set (") + String(SAFETY_OFFSET_STEPS) + 
+  engine->debug(String("✓ Position 0 set (") + String(SAFETY_OFFSET_STEPS) + 
         " steps after START contact decontact)");
   
   // ========================================
@@ -1932,7 +1097,7 @@ void startCalibration() {
     return;
   }
   
-  LOG_D("✓ End contact found - releasing contact very slowly...");
+  engine->debug("✓ End contact found - releasing contact very slowly...");
   
   // Reculer TRES DOUCEMENT jusqu'à décontact (HIGH)
   setMotorDirection(false);  // Backward to release contact
@@ -1942,7 +1107,7 @@ void startCalibration() {
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);
   }
   
-  LOG_D("✓ Contact released - adding safety margin...");
+  engine->debug("✓ Contact released - adding safety margin...");
   
   // Reculer encore 10 steps (safety margin)
   for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
@@ -1955,25 +1120,25 @@ void startCalibration() {
     }
   }
   
-  // Cette position = nouveau maxStep logique
-  maxStep = currentStep;
-  totalDistanceMM = maxStep / STEPS_PER_MM;
+  // Cette position = nouveau config.maxStep logique
+  config.maxStep = currentStep;
+  config.totalDistanceMM = config.maxStep / STEPS_PER_MM;
   
   // SAFETY: Check minimum distance (detect mechanical issues early)
-  if (totalDistanceMM < HARD_MIN_DISTANCE_MM) {
+  if (config.totalDistanceMM < HARD_MIN_DISTANCE_MM) {
     calibrationAttempt++;
     
     if (calibrationAttempt >= MAX_CALIBRATION_RETRIES) {
-      sendError("❌ ERROR: Distance calibrée trop courte (" + String(totalDistanceMM, 1) + 
+      sendError("❌ ERROR: Distance calibrée trop courte (" + String(config.totalDistanceMM, 1) + 
                 " mm < " + String(HARD_MIN_DISTANCE_MM, 1) + " mm) après 3 tentatives - " +
                 "Vérifiez les contacts, la mécanique (courroie, poulies) et le câblage");
       digitalWrite(PIN_ENABLE, HIGH);
-      currentState = STATE_ERROR;
+      config.currentState = STATE_ERROR;
       calibrationAttempt = 0;
       return;
     }
     
-    LOG_W("⚠️ Distance calibrée trop courte: " + String(totalDistanceMM, 1) + " mm < " + 
+    engine->warn("⚠️ Distance calibrée trop courte: " + String(config.totalDistanceMM, 1) + " mm < " + 
           String(HARD_MIN_DISTANCE_MM, 1) + " mm - Retry " + String(calibrationAttempt) + "/" + 
           String(MAX_CALIBRATION_RETRIES));
     // Brief pause before retry
@@ -1983,15 +1148,15 @@ void startCalibration() {
   }
   
   // SAFETY: Check maximum distance (mechanical constraint)
-  if (totalDistanceMM > HARD_MAX_DISTANCE_MM) {
-    LOG_W("⚠️ WARNING: Distance calibrée (" + String(totalDistanceMM, 1) + 
+  if (config.totalDistanceMM > HARD_MAX_DISTANCE_MM) {
+    engine->warn("⚠️ WARNING: Distance calibrée (" + String(config.totalDistanceMM, 1) + 
           " mm) dépasse limite sécurité (" + String(HARD_MAX_DISTANCE_MM, 1) + " mm)");
-    LOG_W("   → Limitation appliquée à " + String(HARD_MAX_DISTANCE_MM, 1) + " mm");
-    totalDistanceMM = HARD_MAX_DISTANCE_MM;
-    maxStep = (long)(totalDistanceMM * STEPS_PER_MM);
+    engine->warn("   → Limitation appliquée à " + String(HARD_MAX_DISTANCE_MM, 1) + " mm");
+    config.totalDistanceMM = HARD_MAX_DISTANCE_MM;
+    config.maxStep = (long)(config.totalDistanceMM * STEPS_PER_MM);
   }
   
-  LOG_D("✓ End contact found - Distance: " + String(totalDistanceMM, 1) + " mm");
+  engine->debug("✓ End contact found - Distance: " + String(config.totalDistanceMM, 1) + " mm");
   
   // ========================================
   // Step 3: Return to START
@@ -2012,12 +1177,12 @@ void startCalibration() {
     if (calibrationAttempt >= MAX_CALIBRATION_RETRIES) {
       sendError("❌ ERROR: Calibration échouée après 3 tentatives - Vérifiez la mécanique (tension courroie, blocages, config driver)");
       digitalWrite(PIN_ENABLE, HIGH);
-      currentState = STATE_ERROR;
+      config.currentState = STATE_ERROR;
       calibrationAttempt = 0;
       return;
     }
     
-    LOG_W("⚠️ Error too large (" + String(errorPercent, 1) + "%) - Retrying...");
+    engine->warn("⚠️ Error too large (" + String(errorPercent, 1) + "%) - Retrying...");
     // Brief pause before retry (service WebSocket)
     serviceWebSocketFor(500);
     startCalibration();  // Recursive retry
@@ -2028,7 +1193,7 @@ void startCalibration() {
   // SUCCESS
   // ========================================
   currentStep = 0;
-  minStep = 0;
+  config.minStep = 0;
   startStep = 0;
   targetStep = 0;
   
@@ -2037,7 +1202,7 @@ void startCalibration() {
   // This prevents step loss when starting with startPosition > 0
   // digitalWrite(PIN_ENABLE, HIGH);  // Disabled - motor stays enabled
   
-  currentState = STATE_READY;
+  config.currentState = STATE_READY;
   calibrationAttempt = 0;
   
   // Reset max distance limit to 100% after calibration
@@ -2046,14 +1211,14 @@ void startCalibration() {
   
   // Initialize oscillation center to middle of effective travel distance
   if (oscillation.centerPositionMM == 0) {
-    float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+    float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
     oscillation.centerPositionMM = effectiveMax / 2.0;
   }
 
-  LOG_I("✓ Calibration complete - Motor remains enabled");
+  engine->info("✓ Calibration complete - Motor remains enabled");
 
   // CRITICAL: Notify sequencer that calibration is complete
-  if (executionContext == CONTEXT_SEQUENCER) {
+  if (config.executionContext == CONTEXT_SEQUENCER) {
     onMovementComplete();
   }
 }
@@ -2068,7 +1233,7 @@ void startCalibration() {
  */
 void sendError(String message) {
   // Use structured logging
-  LOG_E(message);
+  engine->error(message);
   
   // Send to all WebSocket clients (only if clients connected)
   if (webSocket.connectedClients() > 0) {
@@ -2111,7 +1276,7 @@ bool validateDistance(float distMM, String& errorMsg) {
   }
   
   // Use effective max distance (with limitation factor applied)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   if (maxAllowed > 0 && distMM > maxAllowed) {
     errorMsg = "Distance dépasse limite: " + String(distMM, 1) + " > " + String(maxAllowed, 1) + " mm";
@@ -2153,7 +1318,7 @@ bool validatePosition(float positionMM, String& errorMsg) {
   }
   
   // Use effective max distance (with limitation factor applied)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   if (maxAllowed > 0 && positionMM > maxAllowed) {
     errorMsg = "Position dépasse limite: " + String(positionMM, 1) + " > " + String(maxAllowed, 1) + " mm";
@@ -2183,7 +1348,7 @@ bool validateMotionRange(float startMM, float distMM, String& errorMsg) {
   
   // Validate combined range
   float endPositionMM = startMM + distMM;
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   if (maxAllowed > 0 && endPositionMM > maxAllowed) {
     errorMsg = "Position finale dépasse limite: " + String(endPositionMM, 1) + " mm (start " + 
@@ -2213,7 +1378,7 @@ bool validateChaosParams(float centerMM, float amplitudeMM, float maxSpeed, floa
     return false;
   }
   
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   if (amplitudeMM > maxAllowed / 2.0) {
     errorMsg = "Amplitude trop grande: " + String(amplitudeMM, 1) + " > " + String(maxAllowed / 2.0, 1) + " mm (max)";
@@ -2264,7 +1429,7 @@ bool validateOscillationParams(float centerMM, float amplitudeMM, float frequenc
   }
   
   // Use effective max distance (respects limitation percentage)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   // Validate bounds (center ± amplitude must stay within limits)
   if (centerMM - amplitudeMM < 0) {
@@ -2315,38 +1480,38 @@ float cyclesPerMinToSpeedLevel(float cpm) {
 void startMovement(float distMM, float speedLevel) {
   // ✅ Stop sequence if running (user manually starts simple mode)
   if (seqState.isRunning) {
-    LOG_D("startMovement(): stopping sequence because user manually started movement");
+    engine->debug("startMovement(): stopping sequence because user manually started movement");
     stopSequenceExecution();
   }
   
   // Auto-calibrate if not yet done
-  if (totalDistanceMM == 0) {
-    LOG_W("Not calibrated - auto-calibrating...");
+  if (config.totalDistanceMM == 0) {
+    engine->warn("Not calibrated - auto-calibrating...");
     startCalibration();
-    if (totalDistanceMM == 0) return;
+    if (config.totalDistanceMM == 0) return;
   }
   
   // Block start if in error state
-  if (currentState == STATE_ERROR) {
+  if (config.currentState == STATE_ERROR) {
     sendError("❌ Impossible de démarrer: Système en état ERREUR - Utilisez 'Retour Départ' ou recalibrez");
     return;
   }
   
-  if (currentState != STATE_READY && currentState != STATE_PAUSED && currentState != STATE_RUNNING) {
+  if (config.currentState != STATE_READY && config.currentState != STATE_PAUSED && config.currentState != STATE_RUNNING) {
     return;
   }
   
   // Validate and limit distance if needed
-  if (motion.startPositionMM + distMM > totalDistanceMM) {
-    if (motion.startPositionMM >= totalDistanceMM) {
+  if (motion.startPositionMM + distMM > config.totalDistanceMM) {
+    if (motion.startPositionMM >= config.totalDistanceMM) {
       sendError("❌ ERROR: Position de départ dépasse le maximum");
       return;
     }
-    distMM = totalDistanceMM - motion.startPositionMM;
+    distMM = config.totalDistanceMM - motion.startPositionMM;
   }
   
   // If already running, queue changes for next cycle
-  if (currentState == STATE_RUNNING) {
+  if (config.currentState == STATE_RUNNING) {
     pendingMotion.startPositionMM = motion.startPositionMM;
     pendingMotion.distanceMM = distMM;
     pendingMotion.speedLevelForward = speedLevel;
@@ -2359,7 +1524,7 @@ void startMovement(float distMM, float speedLevel) {
   motion.speedLevelForward = speedLevel;
   motion.speedLevelBackward = speedLevel;
   
-  LOG_I("▶ Start movement: " + String(distMM, 1) + " mm @ speed " + 
+  engine->info("▶ Start movement: " + String(distMM, 1) + " mm @ speed " + 
         String(speedLevel, 1) + " (" + String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
   
   calculateStepDelay();
@@ -2374,7 +1539,7 @@ void startMovement(float distMM, float speedLevel) {
   targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
   
   // NOW set running state - lastStepMicros is properly initialized
-  currentState = STATE_RUNNING;
+  config.currentState = STATE_RUNNING;
   isPaused = false;
   currentMovement = MOVEMENT_VAET;  // Reset to Simple mode (va-et-vient)
   
@@ -2404,7 +1569,7 @@ void startMovement(float distMM, float speedLevel) {
   // If we're already at or past startStep, mark it as reached
   hasReachedStartStep = (currentStep >= startStep);
     
-  LOG_D("🚀 Starting movement: currentStep=" + String(currentStep) + 
+  engine->debug("🚀 Starting movement: currentStep=" + String(currentStep) + 
         " startStep=" + String(startStep) + " targetStep=" + String(targetStep) + 
         " movingForward=" + String(movingForward ? "YES" : "NO"));
 }
@@ -2413,10 +1578,10 @@ void startMovement(float distMM, float speedLevel) {
 // EFFECTIVE MAX DISTANCE - Calculate usable distance based on limit percent
 // ============================================================================
 void updateEffectiveMaxDistance() {
-  effectiveMaxDistanceMM = totalDistanceMM * (maxDistanceLimitPercent / 100.0);
-  LOG_D(String("📏 Effective max distance: ") + String(effectiveMaxDistanceMM, 1) + 
+  effectiveMaxDistanceMM = config.totalDistanceMM * (maxDistanceLimitPercent / 100.0);
+  engine->debug(String("📏 Effective max distance: ") + String(effectiveMaxDistanceMM, 1) + 
         " mm (" + String(maxDistanceLimitPercent, 0) + "% of " + 
-        String(totalDistanceMM, 1) + " mm)");
+        String(config.totalDistanceMM, 1) + " mm)");
 }
 
 void calculateStepDelay() {
@@ -2453,13 +1618,13 @@ void calculateStepDelay() {
   // Minimum delay for HSS86 safety (50kHz max = 20µs period)
   if (stepDelayMicrosForward < 20) {
     stepDelayMicrosForward = 20;
-    LOG_W("⚠️ Forward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
+    engine->warn("⚠️ Forward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
           "mm too long for speed " + String(motion.speedLevelForward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
           String(cyclesPerMinuteForward, 0) + " c/min)");
   }
   if (stepDelayMicrosBackward < 20) {
     stepDelayMicrosBackward = 20;
-    LOG_W("⚠️ Backward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
+    engine->warn("⚠️ Backward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
           "mm too long for speed " + String(motion.speedLevelBackward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
           String(cyclesPerMinuteBackward, 0) + " c/min)");
   }
@@ -2468,7 +1633,7 @@ void calculateStepDelay() {
   float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
   float totalCycleTime = (60000.0 / cyclesPerMinuteForward / 2.0) + (60000.0 / cyclesPerMinuteBackward / 2.0);
   
-  LOG_D("⚙️  " + String(stepsPerDirection) + " steps × 2 directions | Forward: " + 
+  engine->debug("⚙️  " + String(stepsPerDirection) + " steps × 2 directions | Forward: " + 
         String(motion.speedLevelForward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(cyclesPerMinuteForward, 0) + " c/min, " + 
         String(stepDelayMicrosForward) + " µs) | Backward: " + String(motion.speedLevelBackward, 1) + 
         "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(cyclesPerMinuteBackward, 0) + " c/min, " + String(stepDelayMicrosBackward) + 
@@ -2484,15 +1649,15 @@ void doStep() {
     // MULTI-LEVEL DRIFT DETECTION: END (Physical Correction)
     // ═══════════════════════════════════════════════════════════════════════
     
-    // LEVEL 3: SOFT DRIFT (Position beyond maxStep within buffer zone)
+    // LEVEL 3: SOFT DRIFT (Position beyond config.maxStep within buffer zone)
     // Action: Physically move motor backward to correct position
-    if (currentStep > maxStep && currentStep <= maxStep + SAFETY_OFFSET_STEPS) {
-      int correctionSteps = currentStep - maxStep;  // Ex: maxStep+5 → 5 steps to back
+    if (currentStep > config.maxStep && currentStep <= config.maxStep + SAFETY_OFFSET_STEPS) {
+      int correctionSteps = currentStep - config.maxStep;  // Ex: config.maxStep+5 → 5 steps to back
       
-      LOG_D(String("🔧 LEVEL 3 - Soft drift END: ") + String(currentStep) + 
+      engine->debug(String("🔧 LEVEL 3 - Soft drift END: ") + String(currentStep) + 
             " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
-            "Backing " + String(correctionSteps) + " steps to maxStep (" + 
-            String(maxStep / STEPS_PER_MM, 2) + "mm)");
+            "Backing " + String(correctionSteps) + " steps to config.maxStep (" + 
+            String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
       
       setMotorDirection(false);  // Backward (includes 50µs delay)
       for (int i = 0; i < correctionSteps; i++) {
@@ -2500,10 +1665,10 @@ void doStep() {
         currentStep--;  // Update position as we move
       }
       
-      // Now physically synchronized at maxStep
-      currentStep = maxStep;
-      LOG_D(String("✓ Position physically corrected to maxStep (") + 
-            String(maxStep / STEPS_PER_MM, 2) + "mm)");
+      // Now physically synchronized at config.maxStep
+      currentStep = config.maxStep;
+      engine->debug(String("✓ Position physically corrected to config.maxStep (") + 
+            String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
       
       movingForward = false;  // Reverse direction
       return;
@@ -2514,13 +1679,13 @@ void doStep() {
     if (readContactDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
       float currentPos = currentStep / STEPS_PER_MM;
       
-      LOG_E(String("🔴 Hard drift END! Physical contact at ") + 
+      engine->error(String("🔴 Hard drift END! Physical contact at ") + 
             String(currentPos, 1) + "mm (currentStep: " + String(currentStep) + ")");
       
       sendError("❌ ERREUR CRITIQUE: Contact END atteint - Position dérivée au-delà du buffer de sécurité");
       
       stopMovement();
-      currentState = STATE_ERROR;
+      config.currentState = STATE_ERROR;
       digitalWrite(PIN_ENABLE, HIGH);
       return;
     }
@@ -2563,7 +1728,7 @@ void doStep() {
     if (currentStep < 0 && currentStep >= -SAFETY_OFFSET_STEPS) {
       int correctionSteps = abs(currentStep);  // Ex: -3 → 3 steps to advance
       
-      LOG_D(String("🔧 LEVEL 1 - Soft drift START: ") + String(currentStep) + 
+      engine->debug(String("🔧 LEVEL 1 - Soft drift START: ") + String(currentStep) + 
             " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
             "Advancing " + String(correctionSteps) + " steps to position 0");
       
@@ -2575,8 +1740,8 @@ void doStep() {
       
       // Now physically synchronized at position 0
       currentStep = 0;
-      minStep = 0;
-      LOG_D("✓ Position physically corrected to 0");
+      config.minStep = 0;
+      engine->debug("✓ Position physically corrected to 0");
       return;
     }
     
@@ -2585,19 +1750,19 @@ void doStep() {
     if (readContactDebounced(PIN_START_CONTACT, LOW, 3, 50)) {
       float currentPos = currentStep / STEPS_PER_MM;
 
-      LOG_E(String("🔴 Hard drift START! Physical contact at ") +
+      engine->error(String("🔴 Hard drift START! Physical contact at ") +
             String(currentPos, 1) + "mm (currentStep: " + String(currentStep) + ")");
       
       sendError("❌ ERREUR CRITIQUE: Contact START atteint - Position dérivée au-delà du buffer de sécurité");
       
       stopMovement();
-      currentState = STATE_ERROR;
+      config.currentState = STATE_ERROR;
       digitalWrite(PIN_ENABLE, HIGH);
       return;
     }
     
     // First, execute the step
-    if (currentStep > minStep + WASATSTART_THRESHOLD_STEPS) {
+    if (currentStep > config.minStep + WASATSTART_THRESHOLD_STEPS) {
       wasAtStart = false;
     }
     
@@ -2624,7 +1789,7 @@ void doStep() {
       // ✅ CRITICAL: Apply pending changes at end of cycle BEFORE reversing direction
       // This applies for ALL start positions (0mm, 25mm, etc.)
       if (pendingMotion.hasChanges) {
-        LOG_D(String("🔄 New config: ") + String(pendingMotion.distanceMM, 1) + 
+        engine->debug(String("🔄 New config: ") + String(pendingMotion.distanceMM, 1) + 
               "mm @ F" + String(pendingMotion.speedLevelForward, 1) + 
               "/B" + String(pendingMotion.speedLevelBackward, 1));
         
@@ -2643,12 +1808,12 @@ void doStep() {
       // Direction will be set on next doStep() call when entering FORWARD block
       
       // NEW ARCHITECTURE: Unified completion handler
-      if (executionContext == CONTEXT_SEQUENCER) {
+      if (config.executionContext == CONTEXT_SEQUENCER) {
         // SEQUENCER: Call onMovementComplete() to increment cycle counter
         onMovementComplete();
       } else {
         // STANDALONE: VA-ET-VIENT loops infinitely, keep STATE_RUNNING
-        // currentState stays STATE_RUNNING to continue looping
+        // config.currentState stays STATE_RUNNING to continue looping
       }
       
       // Measure cycle time (for all start positions)
@@ -2664,7 +1829,7 @@ void doStep() {
           
           // Only log if difference is significant (> 15% after compensation)
           if (abs(diffPercent) > 15.0) {
-            LOG_D(String("⏱️  Cycle timing: ") + String(cycleTimeMillis) + 
+            engine->debug(String("⏱️  Cycle timing: ") + String(cycleTimeMillis) + 
                   " ms | Target: " + String(avgSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
                   String(avgTargetCPM, 0) + " c/min) | Actual: " + 
                   String(measuredCyclesPerMinute, 1) + " c/min | ⚠️ Diff: " + 
@@ -2679,7 +1844,7 @@ void doStep() {
       setMotorDirection(true);  // Forward
       
       // CRITICAL: Return here to allow next doStep() call to start forward movement
-      LOG_D(String("🔄 End of backward cycle - State: ") + String(currentState) + 
+      engine->debug(String("🔄 End of backward cycle - State: ") + String(config.currentState) + 
             " | Movement: " + movementTypeName(currentMovement) + 
             " | movingForward: " + String(movingForward) + 
             " | seqState.isRunning: " + String(seqState.isRunning));
@@ -2709,10 +1874,10 @@ bool checkChaosLimits() {
   
   if (movingForward) {
     // Check upper limit (use effective max distance to respect limitation)
-    float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+    float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
     float effectiveMaxLimit = min(chaos.centerPositionMM + chaos.amplitudeMM, maxAllowed);
     if (nextPosMM > effectiveMaxLimit) {
-      LOG_W(String("🛡️ CHAOS: Hit upper limit! Current: ") + 
+      engine->warn(String("🛡️ CHAOS: Hit upper limit! Current: ") + 
             String(currentPosMM, 1) + "mm | Limit: " + String(effectiveMaxLimit, 1) + "mm");
       targetStep = currentStep;
       movingForward = false;  // CRITICAL: Must reverse to go DOWN
@@ -2722,7 +1887,7 @@ bool checkChaosLimits() {
     // Check lower limit
     float effectiveMinLimit = max(chaos.centerPositionMM - chaos.amplitudeMM, 0.0f);
     if (nextPosMM < effectiveMinLimit) {
-      LOG_D(String("🛡️ CHAOS: Hit lower limit! Current: ") + 
+      engine->debug(String("🛡️ CHAOS: Hit lower limit! Current: ") + 
             String(currentPosMM, 1) + "mm | Limit: " + String(effectiveMinLimit, 1) + "mm");
       targetStep = currentStep;
       movingForward = true;  // CRITICAL: Must reverse to go UP
@@ -2734,10 +1899,10 @@ bool checkChaosLimits() {
 }
 
 void togglePause() {
-  if (currentState == STATE_RUNNING || currentState == STATE_PAUSED) {
+  if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
     isPaused = !isPaused;
-    currentState = isPaused ? STATE_PAUSED : STATE_RUNNING;
-    LOG_I(isPaused ? "Paused" : "Resumed");
+    config.currentState = isPaused ? STATE_PAUSED : STATE_RUNNING;
+    engine->info(isPaused ? "Paused" : "Resumed");
   }
 }
 
@@ -2753,12 +1918,12 @@ void stopMovement() {
   }
   
   // Stop simple mode
-  if (currentState == STATE_RUNNING || currentState == STATE_PAUSED) {
+  if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
     // CRITICAL: Keep motor enabled to maintain HSS86 synchronization
     // Disabling and re-enabling causes step loss with startPosition > 0
     // digitalWrite(PIN_ENABLE, HIGH);
     
-    currentState = STATE_READY;
+    config.currentState = STATE_READY;
     isPaused = false;
     
     pendingMotion.hasChanges = false;
@@ -2774,11 +1939,11 @@ void stopMovement() {
 
 void setDistance(float distMM) {
   // Limit distance to valid range
-  if (motion.startPositionMM + distMM > totalDistanceMM) {
-    distMM = totalDistanceMM - motion.startPositionMM;
+  if (motion.startPositionMM + distMM > config.totalDistanceMM) {
+    distMM = config.totalDistanceMM - motion.startPositionMM;
   }
   
-  if (currentState == STATE_RUNNING && !isPaused) {
+  if (config.currentState == STATE_RUNNING && !isPaused) {
     // Queue change for end of cycle
     if (!pendingMotion.hasChanges) {
       pendingMotion.startPositionMM = motion.startPositionMM;
@@ -2800,20 +1965,20 @@ void setDistance(float distMM) {
 
 void setStartPosition(float startMM) {
   if (startMM < 0) startMM = 0;
-  if (startMM > totalDistanceMM) {
-    startMM = totalDistanceMM;
-    LOG_W(String("⚠️ Start position limited to ") + String(startMM, 1) + " mm (maximum)");
+  if (startMM > config.totalDistanceMM) {
+    startMM = config.totalDistanceMM;
+    engine->warn(String("⚠️ Start position limited to ") + String(startMM, 1) + " mm (maximum)");
   }
   
   // Validate start position + distance don't exceed maximum
   bool distanceWasAdjusted = false;
-  if (startMM + motion.targetDistanceMM > totalDistanceMM) {
-    motion.targetDistanceMM = totalDistanceMM - startMM;
+  if (startMM + motion.targetDistanceMM > config.totalDistanceMM) {
+    motion.targetDistanceMM = config.totalDistanceMM - startMM;
     distanceWasAdjusted = true;
-    LOG_W(String("⚠️ Distance auto-adjusted to ") + String(motion.targetDistanceMM, 1) + " mm to fit within maximum");
+    engine->warn(String("⚠️ Distance auto-adjusted to ") + String(motion.targetDistanceMM, 1) + " mm to fit within maximum");
   }
   
-  bool wasRunning = (currentState == STATE_RUNNING && !isPaused);
+  bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
   
   if (wasRunning) {
     // Queue change for end of cycle
@@ -2831,7 +1996,7 @@ void setStartPosition(float startMM) {
     }
     pendingMotion.hasChanges = true;
     
-    LOG_D(String("⏳ Start position queued: ") + String(startMM) + " mm (will apply at end of cycle)");
+    engine->debug(String("⏳ Start position queued: ") + String(startMM) + " mm (will apply at end of cycle)");
   } else {
     // Apply immediately
     motion.startPositionMM = startMM;
@@ -2839,7 +2004,7 @@ void setStartPosition(float startMM) {
     targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
     calculateStepDelay();
     
-    LOG_D(String("✓ Start position updated: ") + String(motion.startPositionMM) + " mm");
+    engine->debug(String("✓ Start position updated: ") + String(motion.startPositionMM) + " mm");
     
     // If distance was auto-adjusted, send immediate status update to sync UI
     if (distanceWasAdjusted) {
@@ -2850,7 +2015,7 @@ void setStartPosition(float startMM) {
 
 void setSpeedForward(float speedLevel) {
   float oldSpeedLevel = motion.speedLevelForward;
-  bool wasRunning = (currentState == STATE_RUNNING && !isPaused);
+  bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
   
   if (wasRunning) {
     // Only update forward speed in pending changes
@@ -2866,11 +2031,11 @@ void setSpeedForward(float speedLevel) {
       pendingMotion.speedLevelForward = speedLevel;
     }
     pendingMotion.hasChanges = true;
-    LOG_D(String("⏳ Forward speed queued: ") + String(oldSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " → " + 
+    engine->debug(String("⏳ Forward speed queued: ") + String(oldSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " → " + 
           String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
   } else {
     motion.speedLevelForward = speedLevel;
-    LOG_D(String("✓ Forward speed: ") + String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
+    engine->debug(String("✓ Forward speed: ") + String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
           String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
     calculateStepDelay();
   }
@@ -2878,7 +2043,7 @@ void setSpeedForward(float speedLevel) {
 
 void setSpeedBackward(float speedLevel) {
   float oldSpeedLevel = motion.speedLevelBackward;
-  bool wasRunning = (currentState == STATE_RUNNING && !isPaused);
+  bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
   
   if (wasRunning) {
     // Only update backward speed in pending changes
@@ -2894,11 +2059,11 @@ void setSpeedBackward(float speedLevel) {
       pendingMotion.speedLevelBackward = speedLevel;
     }
     pendingMotion.hasChanges = true;
-    LOG_D(String("⏳ Backward speed queued: ") + String(oldSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " → " + 
+    engine->debug(String("⏳ Backward speed queued: ") + String(oldSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " → " + 
           String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
   } else {
     motion.speedLevelBackward = speedLevel;
-    LOG_D(String("✓ Backward speed: ") + String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
+    engine->debug(String("✓ Backward speed: ") + String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
           String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
     calculateStepDelay();
   }
@@ -2911,7 +2076,7 @@ void resetTotalDistance() {
   // Now reset counters
   totalDistanceTraveled = 0;
   lastSavedDistance = 0;  // Also reset last saved to prevent negative increment
-  LOG_I("🔄 Total distance counter reset to 0");
+  engine->info("🔄 Total distance counter reset to 0");
 }
 
 /**
@@ -2962,14 +2127,14 @@ void incrementDailyStats(float distanceMM) {
   // Save back to file
   File file = LittleFS.open("/stats.json", "w");
   if (!file) {
-    LOG_E("Failed to write stats.json");
+    engine->error("Failed to write stats.json");
     return;
   }
   
   serializeJson(statsDoc, file);
   file.close();
   
-  LOG_D(String("📊 Stats: +") + String(distanceMM, 1) + "mm on " + String(dateStr));
+  engine->debug(String("📊 Stats: +") + String(distanceMM, 1) + "mm on " + String(dateStr));
 }
 
 /**
@@ -2990,14 +2155,14 @@ void saveCurrentSessionStats() {
   float incrementMM = incrementSteps / STEPS_PER_MM;
   
   if (incrementMM <= 0) {
-    LOG_D("📊 No new distance to save (no increment since last save)");
+    engine->debug("📊 No new distance to save (no increment since last save)");
     return;
   }
   
   // Save increment to daily stats
   incrementDailyStats(incrementMM);
   
-  LOG_D(String("💾 Session stats saved: +") + String(incrementMM, 1) + "mm (total session: " + String(totalDistanceTraveled / STEPS_PER_MM, 1) + "mm)");
+  engine->debug(String("💾 Session stats saved: +") + String(incrementMM, 1) + "mm (total session: " + String(totalDistanceTraveled / STEPS_PER_MM, 1) + "mm)");
   
   // Update last saved distance (but keep totalDistanceTraveled for UI display)
   lastSavedDistance = totalDistanceTraveled;
@@ -3005,7 +2170,7 @@ void saveCurrentSessionStats() {
 
 void pursuitMove(float targetPositionMM, float maxSpeedLevel) {
   // Safety check: calibration required
-  if (totalDistanceMM == 0) {
+  if (config.totalDistanceMM == 0) {
     sendError("❌ Mode Pursuit nécessite une calibration d'abord!");
     return;
   }
@@ -3014,14 +2179,14 @@ void pursuitMove(float targetPositionMM, float maxSpeedLevel) {
   pursuit.maxSpeedLevel = maxSpeedLevel;
   
   // Clamp target to valid range (respect effective max distance limit)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   if (targetPositionMM < 0) targetPositionMM = 0;
   if (targetPositionMM > maxAllowed) targetPositionMM = maxAllowed;
   
-  // Convert to steps and CLAMP to calibrated limits (minStep/maxStep)
+  // Convert to steps and CLAMP to calibrated limits (config.minStep/config.maxStep)
   pursuit.targetStep = (long)(targetPositionMM * STEPS_PER_MM);
-  if (pursuit.targetStep < minStep) pursuit.targetStep = minStep;
-  if (pursuit.targetStep > maxStep) pursuit.targetStep = maxStep;
+  if (pursuit.targetStep < config.minStep) pursuit.targetStep = config.minStep;
+  if (pursuit.targetStep > config.maxStep) pursuit.targetStep = config.maxStep;
   
   long errorSteps = pursuit.targetStep - currentStep;
   float errorMM = abs(errorSteps) / STEPS_PER_MM;
@@ -3097,22 +2262,22 @@ void doPursuitStep() {
     return;
   }
   
-  // Safety: respect calibrated limits (don't go beyond minStep/maxStep)
+  // Safety: respect calibrated limits (don't go beyond config.minStep/config.maxStep)
   bool moveForward = (errorSteps > 0);
   
-  if (moveForward && currentStep >= maxStep) {
+  if (moveForward && currentStep >= config.maxStep) {
     // Already at max limit - stop here
     pursuit.targetStep = currentStep;
     pursuit.isMoving = false;
-    LOG_W("⚠️ Pursuit: reached maxStep limit");
+    engine->warn("⚠️ Pursuit: reached config.maxStep limit");
     return;
   }
   
-  if (!moveForward && currentStep <= minStep) {
+  if (!moveForward && currentStep <= config.minStep) {
     // Already at min limit - stop here
     pursuit.targetStep = currentStep;
     pursuit.isMoving = false;
-    LOG_W("⚠️ Pursuit: reached minStep limit");
+    engine->warn("⚠️ Pursuit: reached config.minStep limit");
     return;
   }
   
@@ -3154,7 +2319,7 @@ float calculateOscillationPosition() {
       // Log warning (throttled to avoid spam)
       static unsigned long lastSpeedLimitLog = 0;
       if (currentMs - lastSpeedLimitLog > 5000) {
-        LOG_W("⚠️ Fréquence réduite: " + String(oscillation.frequencyHz, 2) + " Hz → " + 
+        engine->warn("⚠️ Fréquence réduite: " + String(oscillation.frequencyHz, 2) + " Hz → " + 
               String(effectiveFrequency, 2) + " Hz (vitesse max: " + 
               String(OSC_MAX_SPEED_MM_S, 0) + " mm/s)");
         lastSpeedLimitLog = currentMs;
@@ -3184,14 +2349,14 @@ float calculateOscillationPosition() {
       // Reduced logging: every 200ms (was 100ms)
       static unsigned long lastTransitionLog = 0;
       if (currentMs - lastTransitionLog > OSC_TRANSITION_LOG_INTERVAL_MS) {
-        LOG_D("🔄 Transition: " + String(effectiveFrequency, 3) + " Hz (" + String(progress * 100, 0) + "%)");
+        engine->debug("🔄 Transition: " + String(effectiveFrequency, 3) + " Hz (" + String(progress * 100, 0) + "%)");
         lastTransitionLog = currentMs;
       }
     } else {
       // Transition complete
       oscillationState.isTransitioning = false;
       effectiveFrequency = oscillation.frequencyHz;
-      LOG_I("✅ Transition terminée: " + String(effectiveFrequency, 3) + " Hz");
+      engine->info("✅ Transition terminée: " + String(effectiveFrequency, 3) + " Hz");
     }
   }
   
@@ -3232,10 +2397,10 @@ float calculateOscillationPosition() {
   // ⚠️ Don't increment during ramp out - we've already reached target cycle count
   if (!oscillationState.isRampingOut && phase < oscillationState.lastPhase) {  // Cycle wrap-around detected
     oscillationState.completedCycles++;
-    LOG_D("🔄 Cycle " + String(oscillationState.completedCycles) + "/" + String(oscillation.cycleCount));
+    engine->debug("🔄 Cycle " + String(oscillationState.completedCycles) + "/" + String(oscillation.cycleCount));
     
     // ⚠️ Send status update to frontend when cycle completes (Bug #1 fix)
-    if (executionContext == CONTEXT_SEQUENCER) {
+    if (config.executionContext == CONTEXT_SEQUENCER) {
       sendSequenceStatus();
     }
   }
@@ -3258,21 +2423,21 @@ float calculateOscillationPosition() {
       // Log transition progress (every 200ms)
       static unsigned long lastAmpTransitionLog = 0;
       if (currentMs - lastAmpTransitionLog > OSC_TRANSITION_LOG_INTERVAL_MS) {
-        LOG_D("🔄 Amplitude transition: " + String(effectiveAmplitude, 1) + " mm (" + String(progress * 100, 0) + "%)");
+        engine->debug("🔄 Amplitude transition: " + String(effectiveAmplitude, 1) + " mm (" + String(progress * 100, 0) + "%)");
         lastAmpTransitionLog = currentMs;
       }
     } else {
       // Transition complete
       oscillationState.isAmplitudeTransitioning = false;
       effectiveAmplitude = oscillation.amplitudeMM;
-      LOG_I("✅ Amplitude transition terminée: " + String(effectiveAmplitude, 1) + " mm");
+      engine->info("✅ Amplitude transition terminée: " + String(effectiveAmplitude, 1) + " mm");
     }
   }
   
   // Consolidated debug logging: every 5s (reduced from multiple 2s logs)
   static unsigned long lastDebugMs = 0;
   if (currentMs - lastDebugMs > OSC_DEBUG_LOG_INTERVAL_MS) {
-    LOG_D("� OSC: amp=" + String(effectiveAmplitude, 1) + "/" + String(oscillation.amplitudeMM, 1) + 
+    engine->debug("� OSC: amp=" + String(effectiveAmplitude, 1) + "/" + String(oscillation.amplitudeMM, 1) + 
           "mm, center=" + String(oscillation.centerPositionMM, 1) + 
           "mm, rampIn=" + String(oscillationState.isRampingIn) + 
           ", rampOut=" + String(oscillationState.isRampingOut));
@@ -3308,7 +2473,7 @@ float calculateOscillationPosition() {
       
       // ✅ SEQUENCE MODE: Set state to READY and notify sequencer
       if (seqState.isRunning) {
-        currentState = STATE_READY;
+        config.currentState = STATE_READY;
         currentMovement = MOVEMENT_VAET;  // Reset to VA-ET-VIENT for sequencer
         onMovementComplete();  // CRITICAL: Notify sequencer that oscillation is complete
       }
@@ -3332,14 +2497,14 @@ float calculateOscillationPosition() {
       // Log transition progress (every 200ms)
       static unsigned long lastCenterTransitionLog = 0;
       if (currentMs - lastCenterTransitionLog > OSC_TRANSITION_LOG_INTERVAL_MS) {
-        LOG_D("🎯 Centre transition: " + String(effectiveCenterMM, 1) + " mm (" + String(progress * 100, 0) + "%)");
+        engine->debug("🎯 Centre transition: " + String(effectiveCenterMM, 1) + " mm (" + String(progress * 100, 0) + "%)");
         lastCenterTransitionLog = currentMs;
       }
     } else {
       // Transition complete
       oscillationState.isCenterTransitioning = false;
       effectiveCenterMM = oscillation.centerPositionMM;
-      LOG_I("✅ Centre transition terminée: " + String(effectiveCenterMM, 1) + " mm");
+      engine->info("✅ Centre transition terminée: " + String(effectiveCenterMM, 1) + " mm");
     }
   }
   
@@ -3347,16 +2512,16 @@ float calculateOscillationPosition() {
   float targetPositionMM = effectiveCenterMM + (waveValue * effectiveAmplitude);
   
   // Clamp to physical limits with warning
-  float minPositionMM = minStep / STEPS_PER_MM;
-  float maxPositionMM = maxStep / STEPS_PER_MM;
+  float minPositionMM = config.minStep / STEPS_PER_MM;
+  float maxPositionMM = config.maxStep / STEPS_PER_MM;
   
   if (targetPositionMM < minPositionMM) {
-    LOG_W("⚠️ OSC: Limité par START (" + String(targetPositionMM, 1) + "→" + String(minPositionMM, 1) + "mm)");
+    engine->warn("⚠️ OSC: Limité par START (" + String(targetPositionMM, 1) + "→" + String(minPositionMM, 1) + "mm)");
     targetPositionMM = minPositionMM;
   }
   
   if (targetPositionMM > maxPositionMM) {
-    LOG_W("⚠️ OSC: Limité par END (" + String(targetPositionMM, 1) + "→" + String(maxPositionMM, 1) + "mm)");
+    engine->warn("⚠️ OSC: Limité par END (" + String(targetPositionMM, 1) + "→" + String(maxPositionMM, 1) + "mm)");
     targetPositionMM = maxPositionMM;
   }
   
@@ -3374,18 +2539,18 @@ void checkPositionDrift(float targetPositionMM) {
     float driftMM = abs(currentPositionMM - expectedPositionMM);
     
     if (driftMM > DRIFT_WARNING_THRESHOLD_MM) {
-      LOG_W("⚠️ DRIFT: " + String(driftMM, 1) + "mm (pos=" + String(currentPositionMM, 1) + 
+      engine->warn("⚠️ DRIFT: " + String(driftMM, 1) + "mm (pos=" + String(currentPositionMM, 1) + 
             "mm, target=" + String(expectedPositionMM, 1) + "mm)");
       
       // Critical drift: stop for safety
       if (driftMM > DRIFT_CRITICAL_THRESHOLD_MM) {
-        LOG_E("🚨 DRIFT CRITIQUE - Arrêt");
+        engine->error("🚨 DRIFT CRITIQUE - Arrêt");
         isPaused = true;
         sendError("❌ Drift: " + String(driftMM, 1) + "mm");
       }
     } else {
       // Consolidated: only log if drift is actually detected (reduced noise)
-      LOG_D("✅ Position OK: " + String(driftMM, 2) + "mm");
+      engine->debug("✅ Position OK: " + String(driftMM, 2) + "mm");
     }
     
     lastDriftCheckMs = currentMs;
@@ -3395,7 +2560,7 @@ void checkPositionDrift(float targetPositionMM) {
 // Check if oscillation amplitude is valid given center position and effective limits
 bool validateOscillationAmplitude(float centerMM, float amplitudeMM, String& errorMsg) {
   // Use effective max distance (respects limitation percentage)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   float minRequired = centerMM - amplitudeMM;
   float maxRequired = centerMM + amplitudeMM;
@@ -3432,7 +2597,7 @@ void doOscillationStep() {
     static bool firstCall = true;
     if (firstCall) {
       float currentMM = currentStep / STEPS_PER_MM;
-      LOG_D("🚀 Début positionnement: Position=" + String(currentMM, 1) + 
+      engine->debug("🚀 Début positionnement: Position=" + String(currentMM, 1) + 
             "mm → Cible=" + String(targetPositionMM, 1) + 
             "mm (erreur=" + String(errorSteps) + " steps = " + 
             String(errorSteps / STEPS_PER_MM, 1) + "mm)");
@@ -3476,7 +2641,7 @@ void doOscillationStep() {
     if (absErrorSteps < (long)(OSC_INITIAL_POSITIONING_TOLERANCE_MM * STEPS_PER_MM)) {
       oscillationState.isInitialPositioning = false;
       oscillationState.startTimeMs = millis();  // Reset timer
-      LOG_D("✅ Positionnement terminé");
+      engine->debug("✅ Positionnement terminé");
     }
     
     return;  // Ne pas calculer la position oscillante pendant le positionnement
@@ -3490,7 +2655,7 @@ void doOscillationStep() {
     // Log only once when cycles complete
     static bool cyclesCompleteLogged = false;
     if (!cyclesCompleteLogged) {
-      LOG_D("✅ OSC: Cycles complete! " + String(oscillationState.completedCycles) + "/" + String(oscillation.cycleCount));
+      engine->debug("✅ OSC: Cycles complete! " + String(oscillationState.completedCycles) + "/" + String(oscillation.cycleCount));
       cyclesCompleteLogged = true;
     }
     
@@ -3518,13 +2683,13 @@ void doOscillationStep() {
   long targetStep = (long)(targetPositionMM * STEPS_PER_MM);
   
   // Safety check contacts
-  if (targetStep >= maxStep && digitalRead(PIN_END_CONTACT) == LOW) {
+  if (targetStep >= config.maxStep && digitalRead(PIN_END_CONTACT) == LOW) {
     sendError("❌ OSCILLATION: Contact end atteint de manière inattendue");
     isPaused = true;
     return;
   }
   
-  if (targetStep <= minStep && digitalRead(PIN_START_CONTACT) == LOW) {
+  if (targetStep <= config.minStep && digitalRead(PIN_START_CONTACT) == LOW) {
     sendError("❌ OSCILLATION: Contact start atteint de manière inattendue");
     isPaused = true;
     return;
@@ -3566,7 +2731,7 @@ void doOscillationStep() {
     long absErrorSteps = abs(errorSteps);
     if (absErrorSteps < (long)(5.0 * STEPS_PER_MM)) {
       oscillationState.isInitialPositioning = false;
-      LOG_D("✓ Positionnement initial terminé, début oscillation");
+      engine->debug("✓ Positionnement initial terminé, début oscillation");
     }
     
     bool moveForward = (errorSteps > 0);
@@ -3603,7 +2768,7 @@ void doOscillationStep() {
     // Log warning uniquement la première fois que le catch-up s'active
     static bool catchUpWarningLogged = false;
     if (!catchUpWarningLogged) {
-      LOG_W("⚠️ OSC Catch-up activé: erreur de " + String(errorMM, 1) + "mm (seuil: " + String(OSC_CATCH_UP_THRESHOLD_MM, 1) + "mm)");
+      engine->warn("⚠️ OSC Catch-up activé: erreur de " + String(errorMM, 1) + "mm (seuil: " + String(OSC_CATCH_UP_THRESHOLD_MM, 1) + "mm)");
       catchUpWarningLogged = true;
     }
   } else {
@@ -3643,7 +2808,7 @@ void startOscillation() {
   String errorMsg;
   if (!validateOscillationAmplitude(oscillation.centerPositionMM, oscillation.amplitudeMM, errorMsg)) {
     sendError("❌ " + errorMsg);
-    currentState = STATE_ERROR;
+    config.currentState = STATE_ERROR;
     return;
   }
   
@@ -3683,17 +2848,17 @@ void startOscillation() {
   // Conflict safety is handled in WebSocket handlers (startMovement, enablePursuitMode, etc.)
   
   // Start movement
-  currentState = STATE_RUNNING;
+  config.currentState = STATE_RUNNING;
   isPaused = false;
   
-  // Set movement type (executionContext remains unchanged - can be STANDALONE or SEQUENCER)
+  // Set movement type (config.executionContext remains unchanged - can be STANDALONE or SEQUENCER)
   currentMovement = MOVEMENT_OSC;
   
   String waveformName = "SINE";
   if (oscillation.waveform == OSC_TRIANGLE) waveformName = "TRIANGLE";
   if (oscillation.waveform == OSC_SQUARE) waveformName = "SQUARE";
   
-  LOG_I(String("✅ Oscillation started:\n") +
+  engine->info(String("✅ Oscillation started:\n") +
         "   Centre: " + String(oscillation.centerPositionMM, 1) + " mm\n" +
         "   Amplitude: ±" + String(oscillation.amplitudeMM, 1) + " mm\n" +
         "   Fréquence: " + String(oscillation.frequencyHz, 3) + " Hz\n" +
@@ -3703,20 +2868,20 @@ void startOscillation() {
 }
 
 void returnToStart() {
-  LOG_I("🔄 Returning to start...");
+  engine->info("🔄 Returning to start...");
   
-  if (currentState == STATE_RUNNING || currentState == STATE_PAUSED) {
+  if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
     stopMovement();
     delay(100);
   }
   
   // Allow returnToStart even from ERROR state (recovery mechanism)
-  if (currentState == STATE_ERROR) {
-    LOG_I("   → Recovering from ERROR state");
+  if (config.currentState == STATE_ERROR) {
+    engine->info("   → Recovering from ERROR state");
   }
   
   digitalWrite(PIN_ENABLE, LOW);  // Enable motor
-  currentState = STATE_CALIBRATING;
+  config.currentState = STATE_CALIBRATING;
   sendStatus();  // Show calibration overlay
   delay(50);
   
@@ -3735,12 +2900,12 @@ void returnToStart() {
   
   // Reset position variables (already done in returnToStartContact, but explicit here)
   currentStep = 0;
-  minStep = 0;
+  config.minStep = 0;
   
-  LOG_I("✓ Return to start complete - Position synchronized with calibration");
+  engine->info("✓ Return to start complete - Position synchronized with calibration");
   
   // Keep motor enabled - HSS86 needs to stay synchronized
-  currentState = STATE_READY;
+  config.currentState = STATE_READY;
 }
 
 // ============================================================================
@@ -3754,7 +2919,7 @@ void returnToStart() {
  * @param maxLimit Output: effective maximum limit (mm)
  */
 inline void calculateChaosLimits(float& minLimit, float& maxLimit) {
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   minLimit = max(chaos.centerPositionMM - chaos.amplitudeMM, 0.0f);
   maxLimit = min(chaos.centerPositionMM + chaos.amplitudeMM, maxAllowed);
 }
@@ -3824,7 +2989,7 @@ void generateChaosPattern() {
   
   // Safety: if no patterns enabled, enable all
   if (enabledCount == 0) {
-    LOG_W("⚠️ No patterns enabled, enabling all");
+    engine->warn("⚠️ No patterns enabled, enabling all");
     for (int i = 0; i < 11; i++) {
       chaos.patternsEnabled[i] = true;
       enabledPatterns[i] = i;
@@ -3958,7 +3123,7 @@ void generateChaosPattern() {
         effectiveMaxLimit
       );
       
-      LOG_D("💓 PULSE Phase 1 (OUT): from=" + String(chaosState.pulseCenterMM, 1) + 
+      engine->debug("💓 PULSE Phase 1 (OUT): from=" + String(chaosState.pulseCenterMM, 1) + 
             "mm → target=" + String(chaosState.targetPositionMM, 1) + 
             "mm (will return to " + String(chaosState.pulseCenterMM, 1) + "mm)");
       break;
@@ -4052,7 +3217,7 @@ void generateChaosPattern() {
       // Target will be calculated continuously in processChaosExecution()
       chaosState.targetPositionMM = chaos.centerPositionMM;  // Start at center
       
-      LOG_D("🌊 WAVE: amplitude=" + String(chaosState.waveAmplitude, 1) + 
+      engine->debug("🌊 WAVE: amplitude=" + String(chaosState.waveAmplitude, 1) + 
             "mm, freq=" + String(chaosState.waveFrequency, 3) + 
             "Hz, duration=" + String(patternDuration) + "ms");
       break;
@@ -4269,7 +3434,7 @@ void generateChaosPattern() {
   // Debug output with full chaos config visibility
   String patternName[] = {"ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST", "WAVE", "PENDULUM", "SPIRAL", "CALM", "BRUTE_FORCE", "LIBERATOR"};
   float currentPos = currentStep / (float)STEPS_PER_MM;
-  LOG_D(String("🎲 Chaos #") + String(chaosState.patternsExecuted) + ": " + 
+  engine->debug(String("🎲 Chaos #") + String(chaosState.patternsExecuted) + ": " + 
         patternName[chaosState.currentPattern] + 
         " | Config: center=" + String(chaos.centerPositionMM, 1) + 
         "mm amplitude=" + String(chaos.amplitudeMM, 1) + "mm" +
@@ -4329,7 +3494,7 @@ void processChaosExecution() {
       
       // Phase transition handled in isAtTarget switch below
       String patternName = (chaosState.currentPattern == CHAOS_BRUTE_FORCE) ? "BRUTE_FORCE" : "LIBERATOR";
-      LOG_D(String(chaosState.currentPattern == CHAOS_BRUTE_FORCE ? "🔨" : "🔓") + " " + 
+      engine->debug(String(chaosState.currentPattern == CHAOS_BRUTE_FORCE ? "🔨" : "🔓") + " " + 
             patternName + " pause complete, resuming");
     } else {
       // Still paused, don't move
@@ -4341,11 +3506,11 @@ void processChaosExecution() {
   if (chaos.durationSeconds > 0) {
     unsigned long elapsed = (millis() - chaosState.startTime) / 1000;
     if (elapsed >= chaos.durationSeconds) {
-  LOG_I("⏱️ Chaos duration complete: " + String(elapsed) + "s");
-  LOG_D(String("processChaosExecution(): executionContext=") + executionContextName(executionContext) + " seqState.isRunning=" + String(seqState.isRunning));
+  engine->info("⏱️ Chaos duration complete: " + String(elapsed) + "s");
+  engine->debug(String("processChaosExecution(): config.executionContext=") + executionContextName(config.executionContext) + " seqState.isRunning=" + String(seqState.isRunning));
       
       // Use unified completion handler
-      if (executionContext == CONTEXT_SEQUENCER) {
+      if (config.executionContext == CONTEXT_SEQUENCER) {
         // Sequencer mode: just mark as done and return control
         // ⚠️ CRITICAL: Do NOT disable motor in sequencer mode - HSS would lose position!
         chaosState.isRunning = false;
@@ -4369,7 +3534,7 @@ void processChaosExecution() {
     targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
     
     String patternNames[] = {"ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST", "WAVE", "PENDULUM", "SPIRAL", "CALM", "BRUTE_FORCE", "LIBERATOR"};
-    LOG_D(String("🎲 Pattern: ") + patternNames[chaosState.currentPattern] + 
+    engine->debug(String("🎲 Pattern: ") + patternNames[chaosState.currentPattern] + 
           " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
           "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
   }
@@ -4390,7 +3555,7 @@ void processChaosExecution() {
     chaosState.targetPositionMM = chaos.centerPositionMM + (chaosState.waveAmplitude * sineValue);
     
     // Clamp to limits
-    float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+    float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
     float effectiveMinLimit = max(chaos.centerPositionMM - chaos.amplitudeMM, 0.0f);
     float effectiveMaxLimit = min(chaos.centerPositionMM + chaos.amplitudeMM, maxAllowed);
     
@@ -4415,7 +3580,7 @@ void processChaosExecution() {
         // Pause complete, resume breathing
         chaosState.isPaused = false;
         chaosState.patternStartTime = millis();  // Reset pattern time
-        LOG_D("😮 CALM: pause complete, resuming breathing");
+        engine->debug("😮 CALM: pause complete, resuming breathing");
       }
       // During pause, don't move - keep current position
       return;
@@ -4429,7 +3594,7 @@ void processChaosExecution() {
     chaosState.targetPositionMM = chaos.centerPositionMM + (chaosState.waveAmplitude * sineValue);
     
     // Clamp to limits
-    float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+    float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
     float effectiveMinLimit = max(chaos.centerPositionMM - chaos.amplitudeMM, 0.0f);
     float effectiveMaxLimit = min(chaos.centerPositionMM + chaos.amplitudeMM, maxAllowed);
     
@@ -4453,14 +3618,14 @@ void processChaosExecution() {
       chaosState.pauseStartTime = millis();
       // Random pause duration from config range
       chaosState.pauseDuration = random(CALM_PAUSE.pauseMin, CALM_PAUSE.pauseMax);
-      LOG_D("😌 CALM: entering pause for " + String(chaosState.pauseDuration) + "ms");
+      engine->debug("😌 CALM: entering pause for " + String(chaosState.pauseDuration) + "ms");
     }
     
     // No need to wait for isAtTarget - CALM is continuously calculated
   }
   
   // Calculate effective limits for continuous patterns (respect effective distance limit)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   float effectiveMinLimit = max(chaos.centerPositionMM - chaos.amplitudeMM, 0.0f);
   float effectiveMaxLimit = min(chaos.centerPositionMM + chaos.amplitudeMM, maxAllowed);
   
@@ -4480,7 +3645,7 @@ void processChaosExecution() {
           chaosState.targetPositionMM = chaosState.pulseCenterMM;
           targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
           
-          LOG_D("💓 PULSE Phase 2 (RETURN): from=" + String(currentPos, 1) + 
+          engine->debug("💓 PULSE Phase 2 (RETURN): from=" + String(currentPos, 1) + 
                 "mm → return to " + String(chaosState.pulseCenterMM, 1) + "mm");
         } else {
           // Phase 2 completed (RETURN) → Force new pattern immediately
@@ -4489,7 +3654,7 @@ void processChaosExecution() {
           
           if (elapsed >= MIN_PATTERN_DURATION) {
             chaosState.nextPatternChangeTime = millis();
-            LOG_D("💓 PULSE complete after " + String(elapsed) + "ms → force new pattern");
+            engine->debug("💓 PULSE complete after " + String(elapsed) + "ms → force new pattern");
           }
         }
         break;
@@ -4518,7 +3683,7 @@ void processChaosExecution() {
         
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        LOG_D("⚖️ PENDULUM alternate: dir=" + String(chaosState.movingForward ? "UP" : "DOWN") + 
+        engine->debug("⚖️ PENDULUM alternate: dir=" + String(chaosState.movingForward ? "UP" : "DOWN") + 
               " target=" + String(chaosState.targetPositionMM, 1) + "mm");
         break;
       }
@@ -4558,7 +3723,7 @@ void processChaosExecution() {
         
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        LOG_D("🌀 SPIRAL: progress=" + String(progress * 100, 0) + "%" +
+        engine->debug("🌀 SPIRAL: progress=" + String(progress * 100, 0) + "%" +
               " radius=" + String(currentRadius, 1) + "mm" +
               " dir=" + String(chaosState.movingForward ? "UP" : "DOWN") +
               " target=" + String(chaosState.targetPositionMM, 1) + "mm");
@@ -4585,7 +3750,7 @@ void processChaosExecution() {
         
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        LOG_D("🌊 SWEEP alternate: " + String(chaosState.movingForward ? "UP" : "DOWN") +
+        engine->debug("🌊 SWEEP alternate: " + String(chaosState.movingForward ? "UP" : "DOWN") +
               " target=" + String(chaosState.targetPositionMM, 1) + "mm");
         break;
       }
@@ -4627,7 +3792,7 @@ void processChaosExecution() {
           }
           targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
           
-          LOG_D("🔨 BRUTE_FORCE Phase 1 (slow out): speed=" + String(chaosState.currentSpeedLevel, 1) +
+          engine->debug("🔨 BRUTE_FORCE Phase 1 (slow out): speed=" + String(chaosState.currentSpeedLevel, 1) +
                 " target=" + String(chaosState.targetPositionMM, 1) + "mm");
                 
         } else if (chaosState.brutePhase == 1) {
@@ -4636,7 +3801,7 @@ void processChaosExecution() {
           chaosState.isPaused = true;
           chaosState.pauseStartTime = millis();
           
-          LOG_D("🔨 BRUTE_FORCE Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
+          engine->debug("🔨 BRUTE_FORCE Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
           
         } else {
           // Phase 2 completed (pause) → Start Phase 0 (fast in)
@@ -4667,7 +3832,7 @@ void processChaosExecution() {
           }
           targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
           
-          LOG_D("🔨 BRUTE_FORCE Phase 0 (fast in): speed=" + String(chaosState.currentSpeedLevel, 1) +
+          engine->debug("🔨 BRUTE_FORCE Phase 0 (fast in): speed=" + String(chaosState.currentSpeedLevel, 1) +
                 " target=" + String(chaosState.targetPositionMM, 1) + "mm");
         }
         break;
@@ -4703,7 +3868,7 @@ void processChaosExecution() {
           }
           targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
           
-          LOG_D("🔓 LIBERATOR Phase 1 (fast out): speed=" + String(chaosState.currentSpeedLevel, 1) +
+          engine->debug("🔓 LIBERATOR Phase 1 (fast out): speed=" + String(chaosState.currentSpeedLevel, 1) +
                 " target=" + String(chaosState.targetPositionMM, 1) + "mm");
                 
         } else if (chaosState.liberatorPhase == 1) {
@@ -4712,7 +3877,7 @@ void processChaosExecution() {
           chaosState.isPaused = true;
           chaosState.pauseStartTime = millis();
           
-          LOG_D("🔓 LIBERATOR Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
+          engine->debug("🔓 LIBERATOR Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
           
         } else {
           // Phase 2 completed (pause) → Start Phase 0 (slow in)
@@ -4743,7 +3908,7 @@ void processChaosExecution() {
           }
           targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
           
-          LOG_D("🔓 LIBERATOR Phase 0 (slow in): speed=" + String(chaosState.currentSpeedLevel, 1) +
+          engine->debug("🔓 LIBERATOR Phase 0 (slow in): speed=" + String(chaosState.currentSpeedLevel, 1) +
                 " target=" + String(chaosState.targetPositionMM, 1) + "mm");
         }
         break;
@@ -4767,7 +3932,7 @@ void processChaosExecution() {
           chaosState.nextPatternChangeTime = millis();
           
           String patternNames[] = {"ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST", "WAVE", "PENDULUM", "SPIRAL", "CALM", "BRUTE_FORCE", "LIBERATOR"};
-          LOG_D("🎯 Discrete pattern " + patternNames[chaosState.currentPattern] + 
+          engine->debug("🎯 Discrete pattern " + patternNames[chaosState.currentPattern] + 
                 " reached target after " + String(elapsed) + "ms → force new pattern");
         }
         // Else: keep waiting at target (short wait acceptable)
@@ -4799,29 +3964,29 @@ void processChaosExecution() {
  * Start chaos mode
  */
 void startChaos() {
-  if (currentState != STATE_READY && currentState != STATE_PAUSED) {
-    LOG_E("❌ Cannot start chaos: system not ready");
+  if (config.currentState != STATE_READY && config.currentState != STATE_PAUSED) {
+    engine->error("❌ Cannot start chaos: system not ready");
     return;
   }
   
   // Stop any other modes ONLY if not being called from sequencer
   // NEW ARCHITECTURE: Check execution context instead of flag
-  if (seqState.isRunning && executionContext != CONTEXT_SEQUENCER) {
-    LOG_D("startChaos(): stopping sequence because chaos started outside of sequencer");
+  if (seqState.isRunning && config.executionContext != CONTEXT_SEQUENCER) {
+    engine->debug("startChaos(): stopping sequence because chaos started outside of sequencer");
     stopSequenceExecution();
   }
   
   // Validate configuration (use effective max distance to respect limitation)
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   if (chaos.amplitudeMM <= 0 || chaos.amplitudeMM > maxAllowed) {
-    LOG_E("❌ Invalid amplitude: " + String(chaos.amplitudeMM) + " mm (max: " + String(maxAllowed, 1) + " mm)");
+    engine->error("❌ Invalid amplitude: " + String(chaos.amplitudeMM) + " mm (max: " + String(maxAllowed, 1) + " mm)");
     return;
   }
   
   if (chaos.centerPositionMM < chaos.amplitudeMM || 
       chaos.centerPositionMM > maxAllowed - chaos.amplitudeMM) {
-    LOG_E("❌ Invalid center: " + String(chaos.centerPositionMM) + 
+    engine->error("❌ Invalid center: " + String(chaos.centerPositionMM) + 
       " mm (amplitude: " + String(chaos.amplitudeMM) + " mm, max: " + String(maxAllowed, 1) + " mm)");
     return;
   }
@@ -4844,7 +4009,7 @@ void startChaos() {
   // Move to center position first if not already there
   float currentPosMM = currentStep / (float)STEPS_PER_MM;
   if (abs(currentPosMM - chaos.centerPositionMM) > 1.0) {  // More than 1mm away
-    LOG_I("🎯 Déplacement vers le centre: " + String(chaos.centerPositionMM, 1) + " mm");
+    engine->info("🎯 Déplacement vers le centre: " + String(chaos.centerPositionMM, 1) + " mm");
     targetStep = (long)(chaos.centerPositionMM * STEPS_PER_MM);
     
     // Wait until reached center (blocking for initial positioning)
@@ -4865,7 +4030,7 @@ void startChaos() {
     }
     
     if (currentStep != targetStep) {
-      LOG_W("⚠️ Timeout lors du positionnement au centre");
+      engine->warn("⚠️ Timeout lors du positionnement au centre");
     }
   }
   
@@ -4879,31 +4044,31 @@ void startChaos() {
   
   // ✅ FIX P2a: Log first pattern details (like subsequent patterns)
   String patternNames[] = {"ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST", "WAVE", "PENDULUM", "SPIRAL", "CALM", "BRUTE_FORCE", "LIBERATOR"};
-  LOG_D(String("🎲 Pattern: ") + patternNames[chaosState.currentPattern] + 
+  engine->debug(String("🎲 Pattern: ") + patternNames[chaosState.currentPattern] + 
         " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
         "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
   
-  currentState = STATE_RUNNING;
+  config.currentState = STATE_RUNNING;
   isPaused = false;
   
-  // Set movement type (executionContext remains unchanged - can be STANDALONE or SEQUENCER)
+  // Set movement type (config.executionContext remains unchanged - can be STANDALONE or SEQUENCER)
   currentMovement = MOVEMENT_CHAOS;
   
   digitalWrite(PIN_ENABLE, LOW);  // Enable motor
   
   // Log chaos start (avoid String concatenations to prevent memory issues)
-  LOG_I("🎲 Chaos mode started");
-  LOG_I("   Centre: " + String(chaos.centerPositionMM, 1) + " mm");
-  LOG_I("   Amplitude: ±" + String(chaos.amplitudeMM, 1) + " mm");
-  LOG_I("   Vitesse max: " + String(chaos.maxSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0));
-  LOG_I("   Degré de folie: " + String(chaos.crazinessPercent, 0) + " %");
+  engine->info("🎲 Chaos mode started");
+  engine->info("   Centre: " + String(chaos.centerPositionMM, 1) + " mm");
+  engine->info("   Amplitude: ±" + String(chaos.amplitudeMM, 1) + " mm");
+  engine->info("   Vitesse max: " + String(chaos.maxSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0));
+  engine->info("   Degré de folie: " + String(chaos.crazinessPercent, 0) + " %");
   if (chaos.durationSeconds > 0) {
-    LOG_I("   Durée: " + String(chaos.durationSeconds) + " s");
+    engine->info("   Durée: " + String(chaos.durationSeconds) + " s");
   } else {
-    LOG_I("   Durée: INFINIE");
+    engine->info("   Durée: INFINIE");
   }
   if (chaos.seed > 0) {
-    LOG_I("   Seed: " + String(chaos.seed));
+    engine->info("   Seed: " + String(chaos.seed));
   }
 }
 
@@ -4915,14 +4080,14 @@ void stopChaos() {
   
   chaosState.isRunning = false;
   
-  LOG_I(String("🛑 Chaos mode stopped:\n") +
+  engine->info(String("🛑 Chaos mode stopped:\n") +
         "   Patterns exécutés: " + String(chaosState.patternsExecuted) + "\n" +
         "   Min position: " + String(chaosState.minReachedMM, 1) + " mm\n" +
         "   Max position: " + String(chaosState.maxReachedMM, 1) + " mm\n" +
         "   Plage couverte: " + String(chaosState.maxReachedMM - chaosState.minReachedMM, 1) + " mm");
   
   // Stop movement
-  currentState = STATE_READY;
+  config.currentState = STATE_READY;
   currentMovement = MOVEMENT_VAET;
   isPaused = true;
 }
@@ -4937,7 +4102,7 @@ void stopChaos() {
  */
 bool handleBasicCommands(const char* cmd, JsonDocument& doc) {
   if (strcmp(cmd, "calibrate") == 0) {
-    LOG_I("Command: Calibration");
+    engine->info("Command: Calibration");
     startCalibration();
     return true;
   }
@@ -4951,19 +4116,19 @@ bool handleBasicCommands(const char* cmd, JsonDocument& doc) {
     if (!validateAndReport(validateMotionRange(motion.startPositionMM, dist, errorMsg), errorMsg)) return true;
     if (!validateAndReport(validateSpeed(spd, errorMsg), errorMsg)) return true;
     
-    LOG_I("Command: Start movement (" + String(dist, 1) + "mm @ speed " + String(spd, 1) + ")");
+    engine->info("Command: Start movement (" + String(dist, 1) + "mm @ speed " + String(spd, 1) + ")");
     startMovement(dist, spd);
     return true;
   }
   
   if (strcmp(cmd, "pause") == 0) {
-    LOG_D("Command: Pause/Resume");
+    engine->debug("Command: Pause/Resume");
     togglePause();
     return true;
   }
   
   if (strcmp(cmd, "stop") == 0) {
-    LOG_I("Command: Stop");
+    engine->info("Command: Stop");
     stopMovement();
     return true;
   }
@@ -4974,19 +4139,19 @@ bool handleBasicCommands(const char* cmd, JsonDocument& doc) {
   }
   
   if (strcmp(cmd, "returnToStart") == 0) {
-    LOG_D("Command: Return to start");
+    engine->debug("Command: Return to start");
     returnToStart();
     return true;
   }
   
   if (strcmp(cmd, "resetTotalDistance") == 0) {
-    LOG_D("Command: Reset total distance");
+    engine->debug("Command: Reset total distance");
     resetTotalDistance();
     return true;
   }
   
   if (strcmp(cmd, "saveStats") == 0) {
-    LOG_D("Command: Save stats");
+    engine->debug("Command: Save stats");
     saveCurrentSessionStats();
     return true;
   }
@@ -5001,7 +4166,7 @@ bool handleBasicCommands(const char* cmd, JsonDocument& doc) {
     }
     
     // Only allow changes in READY state
-    if (currentState != STATE_READY) {
+    if (config.currentState != STATE_READY) {
       sendError("⚠️ Modification limite impossible - Système doit être en état PRÊT");
       return true;
     }
@@ -5009,9 +4174,9 @@ bool handleBasicCommands(const char* cmd, JsonDocument& doc) {
     maxDistanceLimitPercent = percent;
     updateEffectiveMaxDistance();
     
-    LOG_I(String("✅ Limite course: ") + String(percent, 0) + "% (" + 
+    engine->info(String("✅ Limite course: ") + String(percent, 0) + "% (" + 
           String(effectiveMaxDistanceMM, 1) + " mm / " + 
-          String(totalDistanceMM, 1) + " mm)");
+          String(config.totalDistanceMM, 1) + " mm)");
     
     sendStatus();
     return true;
@@ -5031,7 +4196,7 @@ bool handleConfigCommands(const char* cmd, JsonDocument& doc) {
     String errorMsg;
     if (!validateAndReport(validateDistance(dist, errorMsg), errorMsg)) return true;
     
-    LOG_D("Command: Set distance (" + String(dist, 1) + "mm)");
+    engine->debug("Command: Set distance (" + String(dist, 1) + "mm)");
     setDistance(dist);
     return true;
   }
@@ -5042,7 +4207,7 @@ bool handleConfigCommands(const char* cmd, JsonDocument& doc) {
     String errorMsg;
     if (!validateAndReport(validatePosition(startPos, errorMsg), errorMsg)) return true;
     
-    LOG_D("Command: Set start position (" + String(startPos, 1) + "mm)");
+    engine->debug("Command: Set start position (" + String(startPos, 1) + "mm)");
     setStartPosition(startPos);
     return true;
   }
@@ -5053,7 +4218,7 @@ bool handleConfigCommands(const char* cmd, JsonDocument& doc) {
     String errorMsg;
     if (!validateAndReport(validateSpeed(spd, errorMsg), errorMsg)) return true;
     
-    LOG_D("Command: Set forward speed (" + String(spd, 1) + ")");
+    engine->debug("Command: Set forward speed (" + String(spd, 1) + ")");
     setSpeedForward(spd);
     return true;
   }
@@ -5064,7 +4229,7 @@ bool handleConfigCommands(const char* cmd, JsonDocument& doc) {
     String errorMsg;
     if (!validateAndReport(validateSpeed(spd, errorMsg), errorMsg)) return true;
     
-    LOG_D("Command: Set backward speed (" + String(spd, 1) + ")");
+    engine->debug("Command: Set backward speed (" + String(spd, 1) + ")");
     setSpeedBackward(spd);
     return true;
   }
@@ -5098,7 +4263,7 @@ bool handleDecelZoneCommands(const char* cmd, JsonDocument& doc, const String& m
     String zones = "";
     if (decelZone.enableStart) zones += "START ";
     if (decelZone.enableEnd) zones += "END";
-    LOG_D("✅ Decel config: " + String(decelZone.enabled ? "ON" : "OFF") + 
+    engine->debug("✅ Decel config: " + String(decelZone.enabled ? "ON" : "OFF") + 
           (decelZone.enabled ? " | zones=" + zones + "| size=" + String(decelZone.zoneMM, 1) + 
            "mm | effect=" + String(decelZone.effectPercent, 0) + "%" : ""));
     
@@ -5115,11 +4280,11 @@ bool handleDecelZoneCommands(const char* cmd, JsonDocument& doc, const String& m
  */
 bool handlePursuitCommands(const char* cmd, JsonDocument& doc) {
   if (strcmp(cmd, "enablePursuitMode") == 0) {
-    if (currentState == STATE_CALIBRATING) {
+    if (config.currentState == STATE_CALIBRATING) {
       sendError("⚠️ Impossible d'activer le mode Pursuit: calibration en cours");
       return true;
     }
-    if (currentState == STATE_ERROR) {
+    if (config.currentState == STATE_ERROR) {
       sendError("⚠️ Impossible d'activer le mode Pursuit: système en état erreur");
       return true;
     }
@@ -5130,24 +4295,24 @@ bool handlePursuitCommands(const char* cmd, JsonDocument& doc) {
     
     // Set movement type and context
     currentMovement = MOVEMENT_PURSUIT;
-    executionContext = CONTEXT_STANDALONE;
+    config.executionContext = CONTEXT_STANDALONE;
     
-    if (currentState == STATE_RUNNING) {
-      currentState = STATE_READY;
+    if (config.currentState == STATE_RUNNING) {
+      config.currentState = STATE_READY;
     }
     
-    LOG_D("✅ Mode Pursuit activé");
+    engine->debug("✅ Mode Pursuit activé");
     sendStatus();
     return true;
   }
   
   if (strcmp(cmd, "pursuitMove") == 0) {
     if (currentMovement != MOVEMENT_PURSUIT) {
-      LOG_W("pursuitMove ignored: not in PURSUIT mode");
+      engine->warn("pursuitMove ignored: not in PURSUIT mode");
       return true;
     }
-    if (currentState == STATE_CALIBRATING) {
-      LOG_W("pursuitMove ignored: calibration in progress");
+    if (config.currentState == STATE_CALIBRATING) {
+      engine->warn("pursuitMove ignored: calibration in progress");
       return true;
     }
     
@@ -5171,17 +4336,17 @@ bool handlePursuitCommands(const char* cmd, JsonDocument& doc) {
  */
 bool handleChaosCommands(const char* cmd, JsonDocument& doc, const String& message) {
   if (message.indexOf("\"cmd\":\"startChaos\"") > 0) {
-    if (currentState == STATE_CALIBRATING) {
+    if (config.currentState == STATE_CALIBRATING) {
       sendError("⚠️ Impossible de démarrer le mode Chaos: calibration en cours");
       return true;
     }
-    if (currentState == STATE_ERROR) {
+    if (config.currentState == STATE_ERROR) {
       sendError("⚠️ Impossible de démarrer le mode Chaos: système en état erreur");
       return true;
     }
     
     // Parse configuration (use effective max distance for default center)
-    float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+    float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
     chaos.centerPositionMM = doc["centerPositionMM"] | (effectiveMax / 2.0);
     chaos.amplitudeMM = doc["amplitudeMM"] | 50.0;
     chaos.maxSpeedLevel = doc["maxSpeedLevel"] | 10.0;
@@ -5206,12 +4371,12 @@ bool handleChaosCommands(const char* cmd, JsonDocument& doc, const String& messa
       }
     }
     
-    LOG_I("🌪️ Starting Chaos mode: center=" + String(chaos.centerPositionMM, 1) + 
+    engine->info("🌪️ Starting Chaos mode: center=" + String(chaos.centerPositionMM, 1) + 
           "mm, amplitude=±" + String(chaos.amplitudeMM, 1) + "mm, speed=" + 
           String(chaos.maxSpeedLevel, 1) + ", craziness=" + String(chaos.crazinessPercent, 0) + "%");
     
   startChaos();
-  LOG_D(String("startChaos() called from WS cmd - executionContext=") + executionContextName(executionContext) + " seqState.isRunning=" + String(seqState.isRunning));
+  engine->debug(String("startChaos() called from WS cmd - config.executionContext=") + executionContextName(config.executionContext) + " seqState.isRunning=" + String(seqState.isRunning));
     return true;
   }
   
@@ -5250,7 +4415,7 @@ bool handleChaosCommands(const char* cmd, JsonDocument& doc, const String& messa
     }
     
     // Compact single-line log
-    LOG_D("✅ Chaos config: center=" + String(chaos.centerPositionMM, 1) + "mm | amp=±" + 
+    engine->debug("✅ Chaos config: center=" + String(chaos.centerPositionMM, 1) + "mm | amp=±" + 
           String(chaos.amplitudeMM, 1) + "mm | speed=" + String(chaos.maxSpeedLevel, 1) + 
           "/" + String(MAX_SPEED_LEVEL, 0) + " | craziness=" + String(chaos.crazinessPercent, 0) + "% | duration=" + 
           String(chaos.durationSeconds) + "s" + (chaosState.isRunning ? " | ✓ Applied live" : 
@@ -5300,7 +4465,7 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
     
     // Log changes for debugging
     if (paramsChanged) {
-      LOG_D("📝 OSC config: center=" + String(oscillation.centerPositionMM, 1) + 
+      engine->debug("📝 OSC config: center=" + String(oscillation.centerPositionMM, 1) + 
             "mm | amp=" + String(oscillation.amplitudeMM, 1) + 
             "mm | freq=" + String(oscillation.frequencyHz, 3) + "Hz" +
             (currentMovement == MOVEMENT_OSC && !isPaused ? " | ⚡ Live update (smooth transition)" : ""));
@@ -5311,7 +4476,7 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
         oscillationState.centerTransitionStartMs = millis();
         oscillationState.oldCenterMM = oldCenter;
         oscillationState.targetCenterMM = oscillation.centerPositionMM;
-        LOG_I("🎯 Début transition centre: " + String(oldCenter, 1) + "mm → " + String(oscillation.centerPositionMM, 1) + "mm");
+        engine->info("🎯 Début transition centre: " + String(oldCenter, 1) + "mm → " + String(oscillation.centerPositionMM, 1) + "mm");
       }
       
       // 🎯 SMOOTH AMPLITUDE TRANSITION: Start amplitude interpolation during active oscillation
@@ -5320,7 +4485,7 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
         oscillationState.amplitudeTransitionStartMs = millis();
         oscillationState.oldAmplitudeMM = oldAmplitude;
         oscillationState.targetAmplitudeMM = oscillation.amplitudeMM;
-        LOG_I("🎯 Début transition amplitude: " + String(oldAmplitude, 1) + "mm → " + String(oscillation.amplitudeMM, 1) + "mm");
+        engine->info("🎯 Début transition amplitude: " + String(oldAmplitude, 1) + "mm → " + String(oscillation.amplitudeMM, 1) + "mm");
       }
       
       // 🔥 REAL-TIME UPDATE: Disable ramps for immediate effect during active oscillation
@@ -5335,13 +4500,13 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
       return true;
     }
     
-    LOG_D("✅ Configuration oscillation mise à jour (prise en compte immédiate)");
+    engine->debug("✅ Configuration oscillation mise à jour (prise en compte immédiate)");
     sendStatus();
     return true;
   }
   
   if (message.indexOf("\"cmd\":\"startOscillation\"") > 0) {
-    if (currentState == STATE_INIT || currentState == STATE_CALIBRATING) {
+    if (config.currentState == STATE_INIT || config.currentState == STATE_CALIBRATING) {
       sendError("⚠️ Calibration requise avant de démarrer l'oscillation");
       return true;
     }
@@ -5350,7 +4515,7 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
       stopSequenceExecution();
     }
     
-    if (currentState == STATE_RUNNING) {
+    if (config.currentState == STATE_RUNNING) {
       stopMovement();
       // No delay needed - state already updated
     }
@@ -5446,7 +4611,7 @@ bool handleSequencerCommands(const char* cmd, JsonDocument& doc, const String& m
   
   if (message.indexOf("\"cmd\":\"updateSequenceLine\"") > 0) {
     int lineId = doc["lineId"] | -1;
-    LOG_I("📝 UPDATE: Received lineId=" + String(lineId));
+    engine->info("📝 UPDATE: Received lineId=" + String(lineId));
     
     SequenceLine updatedLine = parseSequenceLineFromJson(doc);
     
@@ -5457,9 +4622,9 @@ bool handleSequencerCommands(const char* cmd, JsonDocument& doc, const String& m
       return true;
     }
     
-    LOG_I("📝 UPDATE: Looking for lineId=" + String(lineId) + " in table");
+    engine->info("📝 UPDATE: Looking for lineId=" + String(lineId) + " in table");
     for (int i = 0; i < sequenceLineCount; i++) {
-      LOG_I("   Line " + String(i) + ": ID=" + String(sequenceTable[i].lineId));
+      engine->info("   Line " + String(i) + ": ID=" + String(sequenceTable[i].lineId));
     }
     
     updateSequenceLine(lineId, updatedLine);
@@ -5545,9 +4710,13 @@ bool handleSequencerCommands(const char* cmd, JsonDocument& doc, const String& m
   }
 
   if (message.indexOf("\"cmd\":\"toggleDebug\"") > 0) {
-    // Toggle between INFO and DEBUG
-    currentLogLevel = (currentLogLevel == LOG_DEBUG) ? LOG_INFO : LOG_DEBUG;
-    LOG_I(String("Log level set to: ") + (currentLogLevel == LOG_DEBUG ? "DEBUG" : "INFO"));
+    // Toggle between INFO and DEBUG via UtilityEngine
+    if (engine) {
+      LogLevel current = engine->getLogLevel();
+      LogLevel next = (current == LOG_DEBUG) ? LOG_INFO : LOG_DEBUG;
+      engine->setLogLevel(next);
+      engine->info(String("Log level set to: ") + (next == LOG_DEBUG ? "DEBUG" : "INFO"));
+    }
     return true;
   }
   
@@ -5589,13 +4758,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
   // Client will request status via getStatus command once JS is ready
   if (type == WStype_CONNECTED) {
     IPAddress ip = webSocket.remoteIP(num);
-    LOG_I(String("WebSocket client #") + String(num) + " connected from " + 
+    engine->info(String("WebSocket client #") + String(num) + " connected from " + 
           String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]));
   }
   
   // When a client disconnects
   if (type == WStype_DISCONNECTED) {
-    LOG_I(String("WebSocket client #") + String(num) + " disconnected");
+    engine->info(String("WebSocket client #") + String(num) + " disconnected");
     
     // Save session stats on disconnect (user closed browser, etc.)
     saveCurrentSessionStats();
@@ -5612,7 +4781,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     
     const char* cmd = doc["cmd"];
     if (!cmd) {
-      LOG_W("Commande WebSocket sans champ 'cmd'");
+      engine->warn("Commande WebSocket sans champ 'cmd'");
       return;
     }
     
@@ -5644,7 +4813,7 @@ bool parseJsonCommand(const String& jsonStr, JsonDocument& doc) {
   DeserializationError error = deserializeJson(doc, jsonStr);
   
   if (error) {
-    LOG_E("JSON parse error: " + String(error.c_str()));
+    engine->error("JSON parse error: " + String(error.c_str()));
     sendError("❌ Commande JSON invalide: " + String(error.c_str()));
     return false;
   }
@@ -5670,7 +4839,7 @@ int addSequenceLine(SequenceLine newLine) {
   sequenceTable[sequenceLineCount] = newLine;
   sequenceLineCount++;
   
-  LOG_I("✅ Ligne ajoutée: ID=" + String(newLine.lineId) + " | Pos:" + 
+  engine->info("✅ Ligne ajoutée: ID=" + String(newLine.lineId) + " | Pos:" + 
         String(newLine.startPositionMM, 1) + "mm, Dist:" + String(newLine.distanceMM, 1) + "mm");
   
   return newLine.lineId;
@@ -5700,7 +4869,7 @@ bool deleteSequenceLine(int lineId) {
   }
   
   sequenceLineCount--;
-  LOG_I("🗑️ Ligne supprimée: ID=" + String(lineId));
+  engine->info("🗑️ Ligne supprimée: ID=" + String(lineId));
   
   return true;
 }
@@ -5715,7 +4884,7 @@ bool updateSequenceLine(int lineId, SequenceLine updatedLine) {
       updatedLine.lineId = lineId;  // Keep original ID
       sequenceTable[i] = updatedLine;
       
-      LOG_I("✏️ Ligne mise à jour: ID=" + String(lineId));
+      engine->info("✏️ Ligne mise à jour: ID=" + String(lineId));
       return true;
     }
   }
@@ -5749,7 +4918,7 @@ bool moveSequenceLine(int lineId, int direction) {
   sequenceTable[idx] = sequenceTable[newIdx];
   sequenceTable[newIdx] = temp;
   
-  LOG_I(String("↕️ Ligne déplacée: ID=") + String(lineId) + " | " + 
+  engine->info(String("↕️ Ligne déplacée: ID=") + String(lineId) + " | " + 
         String(idx + 1) + " → " + String(newIdx + 1));
   
   return true;
@@ -5762,7 +4931,7 @@ bool toggleSequenceLine(int lineId, bool enabled) {
   for (int i = 0; i < sequenceLineCount; i++) {
     if (sequenceTable[i].lineId == lineId) {
       sequenceTable[i].enabled = enabled;
-      LOG_I(String(enabled ? "✓" : "✗") + " Ligne ID=" + String(lineId) + 
+      engine->info(String(enabled ? "✓" : "✗") + " Ligne ID=" + String(lineId) + 
             (enabled ? " activée" : " désactivée"));
       return true;
     }
@@ -5789,7 +4958,7 @@ int duplicateSequenceLine(int lineId) {
  * Returns error message if invalid, empty string if valid
  */
 String validateSequenceLinePhysics(const SequenceLine& line) {
-  float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   
   switch (line.movementType) {
     case MOVEMENT_VAET: {
@@ -5885,7 +5054,7 @@ SequenceLine parseSequenceLineFromJson(JsonVariantConst obj) {
   line.decelMode = (DecelMode)(obj["decelMode"] | 0);
   
   // OSCILLATION fields (use effective max distance for default center)
-  float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   line.oscCenterPositionMM = obj["oscCenterPositionMM"] | (effectiveMax / 2.0);
   line.oscAmplitudeMM = obj["oscAmplitudeMM"] | 50.0;
   line.oscWaveform = (OscillationWaveform)(obj["oscWaveform"] | 0);
@@ -5950,7 +5119,7 @@ void broadcastSequenceTable() {
 void clearSequenceTable() {
   sequenceLineCount = 0;
   nextLineId = 1;
-  LOG_I("🗑️ Tableau vidé");
+  engine->info("🗑️ Tableau vidé");
 }
 
 /**
@@ -6024,7 +5193,7 @@ String exportSequenceToJson() {
  */
 int importSequenceFromJson(String jsonData) {
   // Debug: Show first 200 chars of received JSON
-  LOG_D(String("📤 JSON reçu (") + String(jsonData.length()) + " chars): " + 
+  engine->debug(String("📤 JSON reçu (") + String(jsonData.length()) + " chars): " + 
         jsonData.substring(0, min(200, (int)jsonData.length())));
   
   // Clear existing table
@@ -6049,7 +5218,7 @@ int importSequenceFromJson(String jsonData) {
   }
   
   JsonArray linesArray = importDoc["lines"].as<JsonArray>();
-  LOG_I(String("📥 Import: ") + String(lineCount) + " lignes");
+  engine->info(String("📥 Import: ") + String(lineCount) + " lignes");
   
   // Reset nextLineId to find the maximum
   int maxLineId = 0;
@@ -6058,7 +5227,7 @@ int importSequenceFromJson(String jsonData) {
   // Parse each line object from array
   for (JsonObject lineObj : linesArray) {
     if (sequenceLineCount >= MAX_SEQUENCE_LINES) {
-      LOG_W("⚠️ Table pleine, arrêt import");
+      engine->warn("⚠️ Table pleine, arrêt import");
       break;
     }
     
@@ -6082,8 +5251,8 @@ int importSequenceFromJson(String jsonData) {
   // Update nextLineId to avoid ID conflicts when adding new lines
   nextLineId = maxLineId + 1;
   
-  LOG_I(String("✅ ") + String(importedCount) + " lignes importées");
-  LOG_I(String("📢 nextLineId mis à jour: ") + String(nextLineId));
+  engine->info(String("✅ ") + String(importedCount) + " lignes importées");
+  engine->info(String("📢 nextLineId mis à jour: ") + String(nextLineId));
   
   return importedCount;
 }
@@ -6108,7 +5277,7 @@ void startSequenceExecution(bool loopMode) {
     return;
   }
   
-  if (currentState != STATE_READY) {
+  if (config.currentState != STATE_READY) {
     sendError("❌ Système pas prêt (calibration requise?)");
     return;
   }
@@ -6124,7 +5293,7 @@ void startSequenceExecution(bool loopMode) {
   seqState.sequenceStartTime = millis();
   
   // Set execution context
-  executionContext = CONTEXT_SEQUENCER;
+  config.executionContext = CONTEXT_SEQUENCER;
   currentMovement = MOVEMENT_VAET;
   
   // Skip to first enabled line
@@ -6133,7 +5302,7 @@ void startSequenceExecution(bool loopMode) {
     seqState.currentLineIndex++;
   }
   
-  LOG_I(String("═══════════════════════════════════════════\n") +
+  engine->info(String("═══════════════════════════════════════════\n") +
         "▶️ SÉQUENCE DÉMARRÉE - Mode: " + (loopMode ? "BOUCLE INFINIE" : "LECTURE UNIQUE") + "\n" +
         "   isLoopMode = " + (seqState.isLoopMode ? "TRUE" : "FALSE") + "\n" +
         "   Lignes actives: " + String(enabledCount) + " / " + String(sequenceLineCount) + "\n" +
@@ -6151,23 +5320,23 @@ void startSequenceExecution(bool loopMode) {
  * STANDALONE context: Set STATE_IDLE (movement complete, stop)
  */
 void onMovementComplete() {
-  if (executionContext == CONTEXT_SEQUENCER) {
+  if (config.executionContext == CONTEXT_SEQUENCER) {
     // Running from sequencer: increment cycle counter
     seqState.currentCycleInLine++;
-    currentState = STATE_READY;  // Signal sequencer that cycle is complete
+    config.currentState = STATE_READY;  // Signal sequencer that cycle is complete
     
-    LOG_I("✅ Cycle terminé - retour séquenceur");
+    engine->info("✅ Cycle terminé - retour séquenceur");
     sendSequenceStatus();
   } else {
     // Standalone mode: movement is complete, return to ready state
-    currentState = STATE_READY;
+    config.currentState = STATE_READY;
     
     // Auto-increment daily statistics with distance traveled
     if (motion.targetDistanceMM > 0) {
       incrementDailyStats(motion.targetDistanceMM);
     }
     
-    LOG_I("✅ Mouvement terminé (STANDALONE)");
+    engine->info("✅ Mouvement terminé (STANDALONE)");
   }
 }
 
@@ -6218,13 +5387,13 @@ void positionForNextLine() {
   if (!needsPositioning) return;
   
   // Validate target position against effective limits
-  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : totalDistanceMM;
+  float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   if (targetPositionMM < 0) {
-    LOG_W("⚠️ Position cible négative (" + String(targetPositionMM, 1) + "mm) - ajustée à 0mm");
+    engine->warn("⚠️ Position cible négative (" + String(targetPositionMM, 1) + "mm) - ajustée à 0mm");
     targetPositionMM = 0;
   }
   if (targetPositionMM > maxAllowed) {
-    LOG_W("⚠️ Position cible (" + String(targetPositionMM, 1) + "mm) dépasse limite (" + String(maxAllowed, 1) + "mm) - ajustée");
+    engine->warn("⚠️ Position cible (" + String(targetPositionMM, 1) + "mm) dépasse limite (" + String(maxAllowed, 1) + "mm) - ajustée");
     targetPositionMM = maxAllowed;
   }
   
@@ -6233,7 +5402,7 @@ void positionForNextLine() {
   
   // Only move if we're not already at target (tolerance: 1mm)
   if (abs(currentPosMM - targetPositionMM) > 1.0) {
-    LOG_I("🎯 Repositionnement: " + String(currentPosMM, 1) + "mm → " + String(targetPositionMM, 1) + "mm");
+    engine->info("🎯 Repositionnement: " + String(currentPosMM, 1) + "mm → " + String(targetPositionMM, 1) + "mm");
     
     // ⚠️ CRITICAL: Stop previous movement completely before repositioning
     chaosState.isRunning = false;
@@ -6271,12 +5440,12 @@ void positionForNextLine() {
     }
     
     // ✅ Repositioning complete - restore state
-    currentState = STATE_READY;
+    config.currentState = STATE_READY;
     
     if (currentStep != targetStep) {
-      LOG_W("⚠️ Timeout repositionnement - position: " + String(currentStep / (float)STEPS_PER_MM, 1) + "mm");
+      engine->warn("⚠️ Timeout repositionnement - position: " + String(currentStep / (float)STEPS_PER_MM, 1) + "mm");
     } else {
-      LOG_I("✅ Repositionnement terminé");
+      engine->info("✅ Repositionnement terminé");
     }
   }
 }
@@ -6286,15 +5455,15 @@ void positionForNextLine() {
  */
 void stopSequenceExecution() {
   if (!seqState.isRunning) return;
-  LOG_D("stopSequenceExecution() called - seqState.currentLineIndex=" + String(seqState.currentLineIndex) + " currentCycle=" + String(seqState.currentCycleInLine));
+  engine->debug("stopSequenceExecution() called - seqState.currentLineIndex=" + String(seqState.currentLineIndex) + " currentCycle=" + String(seqState.currentCycleInLine));
   
   seqState.isRunning = false;
-  LOG_D("seqState.isRunning set to false in stopSequenceExecution");
+  engine->debug("seqState.isRunning set to false in stopSequenceExecution");
   seqState.isPaused = false;
   seqState.isWaitingPause = false;
   
   // NEW ARCHITECTURE: Reset execution context to standalone
-  executionContext = CONTEXT_STANDALONE;
+  config.executionContext = CONTEXT_STANDALONE;
   
   // Stop current movement if any
   stopMovement();
@@ -6304,7 +5473,7 @@ void stopSequenceExecution() {
   String loopInfo = seqState.isLoopMode ? 
     String("\n   Boucles complétées: ") + String(seqState.loopCount) : "";
   
-  LOG_I(String("═══════════════════════════════════════════\n") +
+  engine->info(String("═══════════════════════════════════════════\n") +
         "⏹️ SÉQUENCE ARRÊTÉE\n" +
         "   Durée: " + String(elapsedSec) + "s" + loopInfo + "\n" +
         "═══════════════════════════════════════════");
@@ -6321,11 +5490,11 @@ void toggleSequencePause() {
   if (seqState.isPaused) {
     // Pause current movement
     isPaused = true;
-    LOG_I("⏸️ Séquence en pause");
+    engine->info("⏸️ Séquence en pause");
   } else {
     // Resume movement
     isPaused = false;
-    LOG_I("▶️ Séquence reprise");
+    engine->info("▶️ Séquence reprise");
   }
 }
 
@@ -6339,7 +5508,7 @@ void skipToNextSequenceLine() {
   seqState.currentCycleInLine = sequenceTable[seqState.currentLineIndex].cycleCount;
   stopMovement();
   
-  LOG_I("⏭️ Ligne suivante...");
+  engine->info("⏭️ Ligne suivante...");
 }
 
 /**
@@ -6408,28 +5577,28 @@ bool checkAndHandleSequenceEnd() {
       seqState.currentLineIndex = 0;
       seqState.loopCount++;
       
-      LOG_I("───────────────────────────────────────────");
-      LOG_I("🔁 Boucle #" + String(seqState.loopCount) + " terminée - Redémarrage...");
-      LOG_I("───────────────────────────────────────────");
+      engine->info("───────────────────────────────────────────");
+      engine->info("🔁 Boucle #" + String(seqState.loopCount) + " terminée - Redémarrage...");
+      engine->info("───────────────────────────────────────────");
     }
     // Single read mode: stop
     else {
       unsigned long elapsedSec = (millis() - seqState.sequenceStartTime) / 1000;
       
-      LOG_I("═══════════════════════════════════════════");
-      LOG_I("✅ SÉQUENCE TERMINÉE (LECTURE UNIQUE)!");
-      LOG_I("   Lignes exécutées: " + String(sequenceLineCount));
-      LOG_I("   Durée totale: " + String(elapsedSec) + "s");
-      LOG_I("   Mode: " + String(seqState.isLoopMode ? "BOUCLE" : "UNIQUE"));
-      LOG_I("═══════════════════════════════════════════");
+      engine->info("═══════════════════════════════════════════");
+      engine->info("✅ SÉQUENCE TERMINÉE (LECTURE UNIQUE)!");
+      engine->info("   Lignes exécutées: " + String(sequenceLineCount));
+      engine->info("   Durée totale: " + String(elapsedSec) + "s");
+      engine->info("   Mode: " + String(seqState.isLoopMode ? "BOUCLE" : "UNIQUE"));
+      engine->info("═══════════════════════════════════════════");
       
       // ⚠️ NOUVELLE ARCHITECTURE: Retour automatique à 0.0mm et nettoyage complet
       seqState.isRunning = false;
-      executionContext = CONTEXT_STANDALONE;
+      config.executionContext = CONTEXT_STANDALONE;
       
       // Retour au contact START (position 0.0mm) si pas déjà là
       if (currentStep != 0) {
-        LOG_I("🏠 Retour automatique au contact START...");
+        engine->info("🏠 Retour automatique au contact START...");
         long startReturnStep = currentStep;
         
         setMotorDirection(false);  // Backward to START
@@ -6449,7 +5618,7 @@ bool checkAndHandleSequenceEnd() {
         }
         
         float returnedMM = (startReturnStep - currentStep) / STEPS_PER_MM;
-        LOG_I("✓ Retour terminé: " + String(returnedMM, 1) + "mm → Position 0.0mm");
+        engine->info("✓ Retour terminé: " + String(returnedMM, 1) + "mm → Position 0.0mm");
       }
       
       // Nettoyage complet des variables
@@ -6458,9 +5627,9 @@ bool checkAndHandleSequenceEnd() {
       targetStep = 0;
       movingForward = true;
       hasReachedStartStep = false;
-      currentState = STATE_READY;
+      config.currentState = STATE_READY;
       
-      LOG_I("✓ Système prêt pour le prochain cycle");
+      engine->info("✓ Système prêt pour le prochain cycle");
       sendSequenceStatus();
       return false;  // Sequence ended
     }
@@ -6477,13 +5646,13 @@ bool checkAndHandleSequenceEnd() {
     if (seqState.isLoopMode) {
       seqState.currentLineIndex = 0;
       seqState.loopCount++;
-      LOG_I("🔁 Boucle #" + String(seqState.loopCount) + " - Redémarrage...");
+      engine->info("🔁 Boucle #" + String(seqState.loopCount) + " - Redémarrage...");
     } else {
       seqState.isRunning = false;
       
       // ⚠️ CRITICAL: Stop motor and reset execution context
       stopMovement();
-      executionContext = CONTEXT_STANDALONE;
+      config.executionContext = CONTEXT_STANDALONE;
       
       sendSequenceStatus();
       return false;  // Sequence ended
@@ -6526,7 +5695,7 @@ void processSequenceExecution() {
   }
   
   // Check if current movement is complete and we can start next action
-  if (currentState == STATE_READY && !seqState.isWaitingPause) {
+  if (config.currentState == STATE_READY && !seqState.isWaitingPause) {
     
     SequenceLine* currentLine = &sequenceTable[seqState.currentLineIndex];
     
@@ -6548,7 +5717,7 @@ void processSequenceExecution() {
         seqState.isWaitingPause = true;
         seqState.pauseEndTime = millis() + currentLine->pauseAfterMs;
         
-        LOG_I("⏸️ Pause ligne: " + String(currentLine->pauseAfterMs / 1000.0, 1) + "s");
+        engine->info("⏸️ Pause ligne: " + String(currentLine->pauseAfterMs / 1000.0, 1) + "s");
         
         sendSequenceStatus();
         return;
@@ -6613,10 +5782,10 @@ void processSequenceExecution() {
         startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
         targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
         
-        currentState = STATE_RUNNING;
+        config.currentState = STATE_RUNNING;
         isPaused = false;
         
-        // Set movement type (executionContext already == CONTEXT_SEQUENCER)
+        // Set movement type (config.executionContext already == CONTEXT_SEQUENCER)
         currentMovement = MOVEMENT_VAET;
         
         // Determine starting direction
@@ -6640,7 +5809,7 @@ void processSequenceExecution() {
         // DON'T increment here - will be incremented in onMovementComplete()
         seqState.lineStartTime = millis();
         
-        LOG_I(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
+        engine->info(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
               " | 🔄 VA-ET-VIENT | Cycle " + String(seqState.currentCycleInLine + 1) + "/" + String(currentLine->cycleCount) + 
               " | " + String(currentLine->startPositionMM, 1) + "mm → " + 
               String(currentLine->startPositionMM + currentLine->distanceMM, 1) + "mm | Speed: " + 
@@ -6672,7 +5841,7 @@ void processSequenceExecution() {
         
         seqState.lineStartTime = millis();
         
-        // NEW ARCHITECTURE: No need to set flag, executionContext already == CONTEXT_SEQUENCER
+        // NEW ARCHITECTURE: No need to set flag, config.executionContext already == CONTEXT_SEQUENCER
         // (set by startSequence at beginning)
         
         // Start oscillation (will set currentMovement = MOVEMENT_OSC)
@@ -6710,14 +5879,14 @@ void processSequenceExecution() {
         
         oscillationState.accumulatedPhase = initialPhase;
         oscillationState.lastPhaseUpdateMs = millis();  // ✅ Reset timing to avoid huge deltaTime on first call
-        LOG_D("📍 Oscillation démarre depuis position actuelle: " + String(currentPosMM, 1) + 
+        engine->debug("📍 Oscillation démarre depuis position actuelle: " + String(currentPosMM, 1) + 
               "mm (phase initiale: " + String(initialPhase, 3) + ", relativePos: " + String(relativePos, 2) + ")");
         
         String waveformName = "SINE";
         if (currentLine->oscWaveform == OSC_TRIANGLE) waveformName = "TRIANGLE";
         if (currentLine->oscWaveform == OSC_SQUARE) waveformName = "SQUARE";
         
-        LOG_I(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
+        engine->info(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
               " | 〰️ OSCILLATION (" + String(currentLine->cycleCount) + " cycles internes)" +
               " | Centre: " + String(currentLine->oscCenterPositionMM, 1) + "mm | Amp: ±" + 
               String(currentLine->oscAmplitudeMM, 1) + "mm | " + waveformName + " @ " + 
@@ -6747,13 +5916,13 @@ void processSequenceExecution() {
         // (CHAOS always executes 1 cycle per line)
         seqState.lineStartTime = millis();
         
-        // NEW ARCHITECTURE: No need to set flag, executionContext already == CONTEXT_SEQUENCER
+        // NEW ARCHITECTURE: No need to set flag, config.executionContext already == CONTEXT_SEQUENCER
         // (set by startSequence at beginning)
         
         // Start chaos mode (will set currentMovement = MOVEMENT_CHAOS)
         startChaos();
         
-        LOG_I(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
+        engine->info(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
               " | 🌀 CHAOS | Cycle " + String(seqState.currentCycleInLine + 1) + "/" + String(currentLine->cycleCount) + " | Durée: " + String(currentLine->chaosDurationSeconds) + "s | Centre: " + 
               String(currentLine->chaosCenterPositionMM, 1) + "mm ±" + 
               String(currentLine->chaosAmplitudeMM, 1) + "mm | Speed: " + 
@@ -6767,7 +5936,7 @@ void processSequenceExecution() {
         // CALIBRATION MODE (full calibration sequence)
         // ════════════════════════════════════════════════════════════════
         
-        LOG_I(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
+        engine->info(String("▶️ Ligne ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) + 
               " | 📏 CALIBRATION | Lancement calibration complète...");
         
         // Mark sequence as waiting for calibration
@@ -6801,7 +5970,7 @@ void sendStatus() {
   // Validation state
   bool canStart = true;
   String errorMessage = "";
-  if (totalDistanceMM == 0) {
+  if (config.totalDistanceMM == 0) {
     canStart = false;
     errorMessage = "Recalibration nécessaire";
   } else if (motion.targetDistanceMM <= 0) {
@@ -6809,17 +5978,17 @@ void sendStatus() {
     errorMessage = "Définir distance";
   }
   
-  bool canCalibrate = (currentState == STATE_READY || currentState == STATE_INIT || currentState == STATE_ERROR);
+  bool canCalibrate = (config.currentState == STATE_READY || config.currentState == STATE_INIT || config.currentState == STATE_ERROR);
   
   // Use ArduinoJson for efficient JSON construction
   // Typical size: ~1800 bytes, allocate 2048 for safety
   JsonDocument doc;
   
   // Root level fields
-  doc["state"] = (int)currentState;
+  doc["state"] = (int)config.currentState;
   doc["currentStep"] = currentStep;
   doc["positionMM"] = serialized(String(positionMM, 2));
-  doc["totalDistMM"] = serialized(String(totalDistanceMM, 2));
+  doc["totalDistMM"] = serialized(String(config.totalDistanceMM, 2));
   doc["maxDistLimitPercent"] = serialized(String(maxDistanceLimitPercent, 0));
   doc["effectiveMaxDistMM"] = serialized(String(effectiveMaxDistanceMM, 2));
   
@@ -6862,7 +6031,7 @@ void sendStatus() {
   
   // Architecture fields
   doc["movementType"] = (int)currentMovement;
-  doc["executionContext"] = (int)executionContext;
+  doc["config.executionContext"] = (int)config.executionContext;
   doc["operationMode"] = (int)currentMovement;  // Legacy
   doc["pursuitActive"] = pursuit.isMoving;
   
