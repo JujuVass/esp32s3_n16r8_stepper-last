@@ -1011,6 +1011,19 @@
     </div>
   </div>
 
+  <!-- Reboot Overlay -->
+  <div class="overlay" id="rebootOverlay">
+    <div class="overlay-content">
+      <div class="overlay-icon">🔄</div>
+      <div class="overlay-title">Redémarrage en cours...</div>
+      <div class="overlay-message" id="rebootMessage">Reconnexion automatique dans quelques secondes</div>
+      <div class="spinner"></div>
+      <div id="rebootStatus" style="color: #999; font-size: 14px; margin-top: 15px;">
+        Veuillez patienter (~10-15 secondes)
+      </div>
+    </div>
+  </div>
+
   <!-- Playlist Management Modal -->
   <div class="modal" id="playlistModal" onclick="closePlaylistModalOnOverlayClick(event)">
     <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
@@ -1342,7 +1355,12 @@
         </div>
         
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
-          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">📶 WiFi</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="color: #666; font-size: 11px;">📶 WiFi</div>
+            <button id="btnRefreshWifi" style="background: #2196F3; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;" title="Reconnecter le WiFi">
+              🔄
+            </button>
+          </div>
           <div id="sysWifi" style="font-weight: bold; color: #333; font-size: 15px;">-- dBm</div>
           <div id="sysWifiQuality" style="font-size: 11px; color: #666; margin-top: 2px;">--</div>
         </div>
@@ -1351,6 +1369,13 @@
           <div style="color: #666; font-size: 11px; margin-bottom: 4px;">⚡ Uptime</div>
           <div id="sysUptime" style="font-weight: bold; color: #333; font-size: 15px;">--</div>
         </div>
+      </div>
+
+      <!-- Reboot Button -->
+      <div style="margin-top: 15px;">
+        <button id="btnReboot" class="button btn-danger" style="width: 100%; padding: 12px; font-size: 14px; font-weight: bold;">
+          🔄 Redémarrer l'ESP32
+        </button>
       </div>
     </div>
 
@@ -2754,6 +2779,9 @@
       
       // Calibration overlay
       DOM.calibrationOverlay = document.getElementById('calibrationOverlay');
+      
+      // Reboot overlay
+      DOM.rebootOverlay = document.getElementById('rebootOverlay');
       
       // Chaos stats
       DOM.chaosStats = document.getElementById('chaosStats');
@@ -7546,6 +7574,161 @@ Détecte la limite physique`;
       document.getElementById('btnShowSystem').style.background = '#2196F3';
       document.getElementById('btnShowSystem').style.color = 'white';
     });
+
+    document.getElementById('btnRefreshWifi').addEventListener('click', function() {
+      if (confirm('📶 Reconnecter le WiFi?\n\nCela peut interrompre brièvement la connexion (~2-3 secondes).\n\nVoulez-vous continuer?')) {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '⏳';
+        btn.style.opacity = '0.5';
+        
+        console.log('📶 Sending WiFi reconnect command...');
+        
+        // Send reconnect command (expect network error as WiFi disconnects)
+        fetch('/api/system/wifi/reconnect', { method: 'POST' })
+          .then(response => response.json())
+          .then(data => {
+            console.log('📶 WiFi reconnect command sent:', data);
+          })
+          .catch(error => {
+            // Expected error: network will be interrupted during WiFi reconnect
+            console.log('📶 WiFi reconnect in progress (network interruption expected)');
+          });
+        
+        // Wait for WiFi to reconnect (3 seconds)
+        setTimeout(function() {
+          btn.disabled = false;
+          btn.innerHTML = '✅';
+          btn.style.opacity = '1';
+          
+          // Reset button after 2 seconds
+          setTimeout(function() {
+            btn.innerHTML = originalText;
+          }, 2000);
+        }, 3000);
+      }
+    });
+
+    document.getElementById('btnReboot').addEventListener('click', function() {
+      if (confirm('⚠️ Redémarrer l\'ESP32?\n\nLa connexion sera interrompue pendant ~10-15 secondes.\n\nVoulez-vous continuer?')) {
+        // Show reboot overlay
+        document.getElementById('rebootOverlay').style.display = 'flex';
+        
+        // Send reboot command
+        fetch('/api/system/reboot', { method: 'POST' })
+          .then(response => response.json())
+          .then(data => {
+            console.log('🔄 Reboot command sent:', data);
+          })
+          .catch(error => {
+            console.log('🔄 Reboot initiated (connection lost as expected)');
+          });
+        
+        // Close WebSocket properly
+        if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+          AppState.ws.close();
+        }
+        
+        // Wait 10 seconds then try to reconnect
+        setTimeout(function() {
+          reconnectAfterReboot();
+        }, 10000);
+      }
+    });
+
+    function reconnectAfterReboot() {
+      let attempts = 0;
+      const maxAttempts = 30; // Try for 30 seconds
+      let httpConnected = false;
+      let wsConnected = false;
+      
+      const updateRebootStatus = function(message, subMessage) {
+        const msgEl = document.getElementById('rebootMessage');
+        const statusEl = document.getElementById('rebootStatus');
+        if (msgEl) msgEl.textContent = message;
+        if (statusEl) statusEl.textContent = subMessage || '';
+      };
+      
+      const tryReconnect = function() {
+        attempts++;
+        console.log('🔄 Reconnection attempt ' + attempts + '/' + maxAttempts);
+        updateRebootStatus('Tentative de reconnexion...', 'Essai ' + attempts + '/' + maxAttempts);
+        
+        // Test HTTP connection first using ping endpoint
+        fetch('/api/ping', { 
+          method: 'GET',
+          cache: 'no-cache'
+        })
+          .then(response => {
+            if (!response.ok) throw new Error('HTTP not ready');
+            return response.json();
+          })
+          .then(data => {
+            console.log('✅ HTTP connection restored! Uptime:', data.uptime, 'ms');
+            httpConnected = true;
+            updateRebootStatus('HTTP OK - Reconnexion WebSocket...', '🌐 Connexion en cours...');
+            
+            // Now try WebSocket connection
+            if (!wsConnected) {
+              console.log('🔌 Attempting WebSocket reconnection...');
+              
+              // Try to reconnect WebSocket
+              try {
+                connectWebSocket();
+                
+                // Wait a bit to see if WebSocket connects
+                setTimeout(function() {
+                  if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+                    wsConnected = true;
+                    console.log('✅ WebSocket reconnected!');
+                    updateRebootStatus('Connexion rétablie !', '✅ Rechargement de la page...');
+                    
+                    // Both HTTP and WS are connected - wait 2 more seconds for stability
+                    console.log('⏳ Waiting for system stability...');
+                    setTimeout(function() {
+                      console.log('✅ System stable - reloading page...');
+                      document.getElementById('rebootOverlay').style.display = 'none';
+                      location.reload(true); // Force reload from server
+                    }, 2000);
+                  } else {
+                    // WebSocket not ready yet, keep trying
+                    console.log('⚠️ WebSocket not ready, retrying...');
+                    if (attempts < maxAttempts) {
+                      setTimeout(tryReconnect, 1000);
+                    } else {
+                      document.getElementById('rebootOverlay').style.display = 'none';
+                      alert('❌ HTTP OK mais WebSocket ne répond pas.\n\nRecherger la page manuellement (F5).');
+                    }
+                  }
+                }, 1500);
+                
+              } catch (err) {
+                console.error('❌ WebSocket connection error:', err);
+                if (attempts < maxAttempts) {
+                  setTimeout(tryReconnect, 1000);
+                } else {
+                  document.getElementById('rebootOverlay').style.display = 'none';
+                  alert('❌ Impossible de reconnecter le WebSocket.\n\nVeuillez recharger la page manuellement (F5).');
+                }
+              }
+            }
+          })
+          .catch(error => {
+            console.log('⚠️ ESP32 not ready yet:', error.message);
+            if (attempts < maxAttempts) {
+              setTimeout(tryReconnect, 1000);
+            } else {
+              document.getElementById('rebootOverlay').style.display = 'none';
+              alert('❌ Impossible de se reconnecter à l\'ESP32.\n\nVeuillez recharger la page manuellement (F5).');
+            }
+          });
+      };
+      
+      tryReconnect();
+    }
 
     document.getElementById('btnClearStats').addEventListener('click', function() {
       if (confirm('⚠️ Supprimer TOUTES les statistiques?\n\nCette action est irréversible et ne supprime PAS le compteur de distance (RAZ).')) {

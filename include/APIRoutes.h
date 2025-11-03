@@ -561,6 +561,47 @@ void setupAPIRoutes() {
     server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"All logs cleared\"}");
   });
 
+  // ============================================================================
+  // SYSTEM MANAGEMENT ROUTES
+  // ============================================================================
+  
+  // GET /api/ping - Simple health check endpoint
+  server.on("/api/ping", HTTP_GET, []() {
+    server.send(200, "application/json", "{\"status\":\"ok\",\"uptime\":" + String(millis()) + "}");
+  });
+  
+  // POST /api/system/reboot - Reboot ESP32
+  server.on("/api/system/reboot", HTTP_POST, []() {
+    engine->info("🔄 Reboot requested via API");
+    
+    // Send success response before rebooting
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"Rebooting ESP32...\"}");
+    
+    // Flush logs before reboot
+    engine->flushLogBuffer(true);
+    
+    // Small delay to ensure response is sent
+    delay(500);
+    
+    // Reboot ESP32
+    ESP.restart();
+  });
+  
+  // POST /api/system/wifi/reconnect - Reconnect WiFi
+  server.on("/api/system/wifi/reconnect", HTTP_POST, []() {
+    engine->info("📶 WiFi reconnect requested via API");
+    
+    // Send success response before disconnecting
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"Reconnecting WiFi...\"}");
+    
+    // Disconnect and reconnect WiFi
+    WiFi.disconnect();
+    delay(100);
+    WiFi.reconnect();
+    
+    engine->info("📶 WiFi reconnection initiated");
+  });
+
   // Handle 404 - try to serve files from LittleFS (including /logs/*)
   server.onNotFound([]() {
     String uri = server.uri();
