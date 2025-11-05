@@ -298,7 +298,7 @@ void setupAPIRoutes() {
     
     // Initialize mode array if doesn't exist
     JsonArray modeArray;
-    if (!playlistDoc.containsKey(mode) || playlistDoc[mode].isNull()) {
+    if (!playlistDoc[mode].is<JsonArray>() || playlistDoc[mode].isNull()) {
       modeArray = playlistDoc.to<JsonObject>()[mode].to<JsonArray>();
       engine->debug("📋 Created new array for mode: " + String(mode));
     } else {
@@ -383,7 +383,7 @@ void setupAPIRoutes() {
     file.close();
     
     // Find and remove preset
-    if (!playlistDoc.containsKey(mode)) {
+    if (!playlistDoc[mode].is<JsonArray>()) {
       sendJsonApiError(404, "Mode not found");
       return;
     }
@@ -461,7 +461,7 @@ void setupAPIRoutes() {
     file.close();
     
     // Find and update preset
-    if (!playlistDoc.containsKey(mode)) {
+    if (!playlistDoc[mode].is<JsonArray>()) {
       sendJsonApiError(404, "Mode not found");
       return;
     }
@@ -600,6 +600,59 @@ void setupAPIRoutes() {
     WiFi.reconnect();
     
     engine->info("📶 WiFi reconnection initiated");
+  });
+  
+  // ========================================================================
+  // LOGGING PREFERENCES API
+  // ========================================================================
+  
+  // GET /api/system/logging/preferences - Get current logging preferences
+  server.on("/api/system/logging/preferences", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["loggingEnabled"] = engine->isLoggingEnabled();
+    doc["logLevel"] = (int)engine->getLogLevel();
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  
+  // POST /api/system/logging/preferences - Update logging preferences
+  server.on("/api/system/logging/preferences", HTTP_POST, []() {
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"error\":\"Missing body\"}");
+      return;
+    }
+    
+    String body = server.arg("plain");
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, body);
+    
+    if (err) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    
+    // Update logging enabled state
+    if (doc["loggingEnabled"].is<bool>()) {
+      bool enabled = doc["loggingEnabled"];
+      engine->setLoggingEnabled(enabled);
+      engine->info(enabled ? "✅ Logging ENABLED" : "❌ Logging DISABLED");
+    }
+    
+    // Update log level (0=ERROR, 1=WARN, 2=INFO, 3=DEBUG)
+    if (doc["logLevel"].is<int>()) {
+      int level = doc["logLevel"];
+      if (level >= 0 && level <= 3) {
+        engine->setLogLevel((LogLevel)level);
+        engine->info("📊 Log level set to: " + String(level));
+      }
+    }
+    
+    // Save to EEPROM
+    engine->saveLoggingPreferences();
+    
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"Logging preferences saved\"}");
   });
 
   // Handle 404 - try to serve files from LittleFS (including /logs/*)

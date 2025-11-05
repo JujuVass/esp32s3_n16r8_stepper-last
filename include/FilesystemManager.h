@@ -173,7 +173,7 @@ public:
    */
   void listFilesRecursive() {
     JsonDocument doc;
-    JsonArray filesArray = doc.createNestedArray("files");
+    JsonArray filesArray = doc["files"].to<JsonArray>();
     
     uint32_t usedBytes = 0;
     uint32_t totalBytes = LittleFS.totalBytes();

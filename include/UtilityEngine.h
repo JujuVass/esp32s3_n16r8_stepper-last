@@ -243,6 +243,29 @@ public:
    */
   LogLevel getLogLevel() const { return currentLogLevel; }
   
+  /**
+   * Enable or disable all logging (console + file)
+   * @param enabled true = logs active, false = logs disabled
+   */
+  void setLoggingEnabled(bool enabled) { loggingEnabled = enabled; }
+  
+  /**
+   * Check if logging is enabled
+   */
+  bool isLoggingEnabled() const { return loggingEnabled; }
+  
+  /**
+   * Save logging preferences to EEPROM
+   * - Byte 0: loggingEnabled (0=disabled, 1=enabled)
+   * - Byte 1: currentLogLevel (0-3)
+   */
+  void saveLoggingPreferences();
+  
+  /**
+   * Load logging preferences from EEPROM
+   */
+  void loadLoggingPreferences();
+  
   // ========================================================================
   // FILESYSTEM INTERFACE
   // ========================================================================
@@ -464,6 +487,7 @@ private:
   
   // Logging state
   LogLevel currentLogLevel;
+  bool loggingEnabled;  // Master switch for all logging
   LogEntry logBuffer[LOG_BUFFER_SIZE];
   int logBufferWriteIndex;
   unsigned long lastLogFlush;

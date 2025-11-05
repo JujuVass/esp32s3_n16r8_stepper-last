@@ -5,7 +5,13 @@
 #include "UtilityEngine.h"
 #include "Types.h"  // For SystemState enum
 #include <ArduinoJson.h>  // For JSON serialization/deserialization
+#include <EEPROM.h>  // For logging preferences persistence
 #include <math.h>
+
+// EEPROM addresses for logging preferences
+#define EEPROM_SIZE 64
+#define EEPROM_ADDR_LOGGING_ENABLED 0
+#define EEPROM_ADDR_LOG_LEVEL 1
 
 // Forward declarations for external use
 // NOTE: currentState moved to SystemConfig struct - accessed via config.currentState
@@ -19,6 +25,7 @@ UtilityEngine::UtilityEngine(WebSocketsServer& webSocketServer)
   : webSocket(webSocketServer),
     littleFsMounted(false),
     currentLogLevel(LOG_INFO),
+    loggingEnabled(true),  // Default: logs enabled
     logBufferWriteIndex(0),
     lastLogFlush(0) {
   
@@ -26,6 +33,12 @@ UtilityEngine::UtilityEngine(WebSocketsServer& webSocketServer)
   for (int i = 0; i < LOG_BUFFER_SIZE; i++) {
     logBuffer[i].valid = false;
   }
+  
+  // Initialize EEPROM
+  EEPROM.begin(EEPROM_SIZE);
+  
+  // Load logging preferences from EEPROM
+  loadLoggingPreferences();
 }
 
 // ============================================================================
@@ -101,6 +114,9 @@ void UtilityEngine::shutdown() {
 // ============================================================================
 
 void UtilityEngine::log(LogLevel level, const String& message) {
+  // Master switch: if logging disabled, skip everything
+  if (!loggingEnabled) return;
+  
   if (level > currentLogLevel) return;  // Skip if below current level
   
   const char* prefix = getLevelPrefix(level);
@@ -652,7 +668,7 @@ bool UtilityEngine::loadSystemConfig(SystemConfig& config, const String& configP
   info("📂 Loading system configuration from: " + configPath);
   
   // Create a large JSON document to hold all config data
-  StaticJsonDocument<4096> doc;
+  JsonDocument doc;
   
   // Use Phase 3.1 JSON helper to load file
   if (!loadJsonFile(configPath, doc)) {
@@ -778,7 +794,7 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   info("💾 Saving system configuration to: " + configPath);
   
   // Create a large JSON document
-  StaticJsonDocument<4096> doc;
+  JsonDocument doc;
   
   // ========================================================================
   // SAVE STATE
@@ -819,7 +835,7 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   // ========================================================================
   // SAVE MOTION CONFIG
   // ========================================================================
-  JsonObject motionObj = doc.createNestedObject("motion");
+  JsonObject motionObj = doc["motion"].to<JsonObject>();
   motionObj["startPositionMM"] = config.motion.startPositionMM;
   motionObj["targetDistanceMM"] = config.motion.targetDistanceMM;
   motionObj["speedLevelForward"] = config.motion.speedLevelForward;
@@ -828,7 +844,7 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   // ========================================================================
   // SAVE OSCILLATION CONFIG & STATE
   // ========================================================================
-  JsonObject oscObj = doc.createNestedObject("oscillation");
+  JsonObject oscObj = doc["oscillation"].to<JsonObject>();
   oscObj["centerPositionMM"] = config.oscillation.centerPositionMM;
   oscObj["amplitudeMM"] = config.oscillation.amplitudeMM;
   oscObj["waveform"] = (int)config.oscillation.waveform;
@@ -841,14 +857,14 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   // ========================================================================
   // SAVE PURSUIT CONFIG
   // ========================================================================
-  JsonObject pursuitObj = doc.createNestedObject("pursuit");
+  JsonObject pursuitObj = doc["pursuit"].to<JsonObject>();
   pursuitObj["targetStep"] = config.pursuit.targetStep;
   pursuitObj["maxSpeedLevel"] = config.pursuit.maxSpeedLevel;
   
   // ========================================================================
   // SAVE DECELERATION ZONE
   // ========================================================================
-  JsonObject decelObj = doc.createNestedObject("decelZone");
+  JsonObject decelObj = doc["decelZone"].to<JsonObject>();
   decelObj["enabled"] = config.decelZone.enabled;
   decelObj["zoneMM"] = config.decelZone.zoneMM;
   decelObj["effectPercent"] = config.decelZone.effectPercent;
@@ -857,7 +873,7 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   // ========================================================================
   // SAVE CHAOS CONFIG & STATE
   // ========================================================================
-  JsonObject chaosObj = doc.createNestedObject("chaos");
+  JsonObject chaosObj = doc["chaos"].to<JsonObject>();
   chaosObj["centerPositionMM"] = config.chaos.centerPositionMM;
   chaosObj["amplitudeMM"] = config.chaos.amplitudeMM;
   chaosObj["maxSpeedLevel"] = config.chaos.maxSpeedLevel;
@@ -880,6 +896,57 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   }
   
   return success;
+}
+
+// ============================================================================
+// LOGGING PREFERENCES - EEPROM PERSISTENCE
+// ============================================================================
+
+/**
+ * Save logging preferences to EEPROM
+ * EEPROM Layout:
+ * - Byte 0: loggingEnabled (0=disabled, 1=enabled)
+ * - Byte 1: currentLogLevel (0-3: ERROR, WARN, INFO, DEBUG)
+ */
+void UtilityEngine::saveLoggingPreferences() {
+  EEPROM.write(EEPROM_ADDR_LOGGING_ENABLED, loggingEnabled ? 1 : 0);
+  EEPROM.write(EEPROM_ADDR_LOG_LEVEL, (uint8_t)currentLogLevel);
+  EEPROM.commit();
+  
+  Serial.println("[UtilityEngine] 💾 Logging preferences saved to EEPROM");
+}
+
+/**
+ * Load logging preferences from EEPROM
+ * Reads saved preferences or uses defaults if uninitialized (0xFF)
+ */
+void UtilityEngine::loadLoggingPreferences() {
+  uint8_t enabledByte = EEPROM.read(EEPROM_ADDR_LOGGING_ENABLED);
+  uint8_t levelByte = EEPROM.read(EEPROM_ADDR_LOG_LEVEL);
+  
+  // Check if EEPROM is uninitialized (fresh ESP32)
+  if (enabledByte == 0xFF) {
+    // First boot: use defaults and save them
+    loggingEnabled = true;
+    currentLogLevel = LOG_INFO;
+    saveLoggingPreferences();
+    Serial.println("[UtilityEngine] 🔧 First boot: initialized EEPROM with default logging preferences");
+  } else {
+    // Load saved preferences
+    loggingEnabled = (enabledByte == 1);
+    
+    // Validate log level (0-3 range)
+    if (levelByte <= LOG_DEBUG) {
+      currentLogLevel = (LogLevel)levelByte;
+    } else {
+      currentLogLevel = LOG_INFO;  // Fallback to default
+    }
+    
+    Serial.print("[UtilityEngine] 📂 Loaded logging preferences from EEPROM: ");
+    Serial.print(loggingEnabled ? "ENABLED" : "DISABLED");
+    Serial.print(", Level: ");
+    Serial.println(getLevelPrefix(currentLogLevel));
+  }
 }
 
 

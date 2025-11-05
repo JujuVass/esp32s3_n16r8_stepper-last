@@ -30,35 +30,12 @@
 // ============================================================================
 // LOGGING SYSTEM - Managed by UtilityEngine
 // ============================================================================
-// All logging now handled through UtilityEngine.h
-// Use: engine.info(), engine.error(), engine.warn(), engine.debug()
-// Or legacy macros (will be replaced in Phase 2)
+// All logging handled through UtilityEngine.h
+// Use: engine->info(), engine->error(), engine->warn(), engine->debug()
 // ============================================================================
 
 // Global UtilityEngine instance (initialized in setup)
 UtilityEngine* engine = nullptr;
-
-// ========================================================================
-// COMPATIBILITY WRAPPERS - For code still referencing old global state
-// ========================================================================
-// These allow existing code to work without changes during Phase 2 migration
-// After full migration, these can be removed
-
-// Variables that were managed by the old logging system
-// Now managed internally by UtilityEngine, but exposed here for compatibility
-bool littleFsMounted = false;  // Redundant but kept for backward compat
-File globalLogFile;             // Wrapper only (not used by engine)
-String currentLogFileName = "";  // Wrapper only (not used by engine)
-LogLevel currentLogLevel = LOG_INFO;  // Wrapper only (engine manages this)
-
-// Compatibility wrapper function (bridges old code to new engine)
-void logMessage(LogLevel level, const String& message) {
-  if (engine) {
-    engine->log(level, message);
-  }
-}
-
-// Legacy convenience macros (will be replaced in Phase 2)
 
 // ============================================================================
 // NOTE: Hardware configuration moved to Config.h
@@ -188,6 +165,31 @@ long lastStepForDistance = 0;
 bool needsInitialCalibration = true;
 
 // ============================================================================
+// SINE LOOKUP TABLE (Optional Performance Optimization)
+// ============================================================================
+#ifdef USE_SINE_LOOKUP_TABLE
+float sineTable[SINE_TABLE_SIZE];
+
+void initSineTable() {
+  for (int i = 0; i < SINE_TABLE_SIZE; i++) {
+    sineTable[i] = -cos((i / (float)SINE_TABLE_SIZE) * 2.0 * PI);
+  }
+  engine->debug("✅ Sine lookup table initialized (" + String(SINE_TABLE_SIZE) + " points, " + String(SINE_TABLE_SIZE * 4) + " bytes)");
+}
+
+// Fast sine lookup with linear interpolation
+inline float fastSine(float phase) {
+  float indexFloat = phase * SINE_TABLE_SIZE;
+  int index = (int)indexFloat % SINE_TABLE_SIZE;
+  int nextIndex = (index + 1) % SINE_TABLE_SIZE;
+  
+  // Linear interpolation for smooth transitions
+  float fraction = indexFloat - (int)indexFloat;
+  return sineTable[index] + (sineTable[nextIndex] - sineTable[index]) * fraction;
+}
+#endif
+
+// ============================================================================
 // WEB SERVER INSTANCES
 // ============================================================================
 WebServer server(80);
@@ -212,13 +214,7 @@ bool toggleSequenceLine(int lineId);
 void clearSequenceTable();
 String exportSequenceToJson();
 int importSequenceFromJson(String jsonData);
-void startSequence(bool loopMode);
-void stopSequence();
-void pauseSequence();
-void nextSequenceLine();
 int duplicateSequenceLine(int lineId);
-void updateSequenceStatus();
-void executeSequencerLine(SequenceLine* line);
 
 // Functions
 void stepMotor();
@@ -244,15 +240,11 @@ float speedLevelToCyclesPerMin(float speedLevel);
 float cyclesPerMinToSpeedLevel(float cpm);
 
 // ============================================================================
-// LOG BUFFER FLUSH IMPLEMENTATION - Managed by UtilityEngine
+// STATS ON-DEMAND TRACKING
 // ============================================================================
-// Legacy wrapper for backward compatibility during Phase 2 migration
-// All flushing now handled by UtilityEngine::flushLogBuffer()
-void flushLogBuffer() {
-  if (engine) {
-    engine->flushLogBuffer();
-  }
-}
+// Track if frontend has requested system stats (for optimization)
+bool statsRequested = false;
+unsigned long lastStatsRequestTime = 0;
 
 // ============================================================================
 // UTILITY HELPERS
@@ -516,7 +508,7 @@ void setup() {
   // SETUP API ROUTES (Phase 3.4 - extracted from main)
   // ============================================================================
   setupAPIRoutes();
-  engine->info("✅ API Routes initialized (Phase 3.4):");
+  engine->info("✅ API Routes initialized :");
   engine->info("   GET  /               - Web interface");
   engine->info("   GET  /style.css      - Stylesheet");
   engine->info("   GET  /api/stats      - Daily statistics");
@@ -527,6 +519,13 @@ void setup() {
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   engine->info("WebSocket server started on port 81");
+  
+  // ============================================================================
+  // INITIALIZE SINE LOOKUP TABLE (Optional)
+  // ============================================================================
+  #ifdef USE_SINE_LOOKUP_TABLE
+  initSineTable();
+  #endif
   
   config.currentState = STATE_READY;
   engine->info("\n╔════════════════════════════════════════════════════════╗");
@@ -689,7 +688,9 @@ void loop() {
   // ═══════════════════════════════════════════════════════════════════════════
   // LOG BUFFER FLUSH (Every 5 seconds)
   // ═══════════════════════════════════════════════════════════════════════════
-  flushLogBuffer();
+  if (engine) {
+    engine->flushLogBuffer();
+  }
   
   // ═══════════════════════════════════════════════════════════════════════════
   // STATUS LOGGING (Periodic summary)
@@ -1901,6 +1902,18 @@ void stopMovement() {
     return;
   }
   
+  // Stop oscillation if running (important for sequence stop)
+  if (currentMovement == MOVEMENT_OSC) {
+    currentMovement = MOVEMENT_VAET;  // Reset to default mode
+    engine->debug("🌊 Oscillation stopped by stopMovement()");
+  }
+  
+  // Stop chaos if running (important for sequence stop)
+  if (chaosState.isRunning) {
+    chaosState.isRunning = false;
+    engine->debug("⚡ Chaos stopped by stopMovement()");
+  }
+  
   // Stop simple mode
   if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
     // CRITICAL: Keep motor enabled to maintain HSS86 synchronization
@@ -2359,7 +2372,11 @@ float calculateOscillationPosition() {
     case OSC_SINE:
       // Use -cos to start at maximum (like a wave crest)
       // cos(0) = 1, cos(PI) = -1, cos(2*PI) = 1
-      waveValue = -cos(phase * 2.0 * PI);
+      #ifdef USE_SINE_LOOKUP_TABLE
+      waveValue = fastSine(phase);  // Lookup table (2µs)
+      #else
+      waveValue = -cos(phase * 2.0 * PI);  // Hardware FPU (15µs)
+      #endif
       break;
       
     case OSC_TRIANGLE:
@@ -2512,35 +2529,6 @@ float calculateOscillationPosition() {
   return targetPositionMM;
 }
 
-// 🛡️ Check for position drift and take corrective action if needed
-void checkPositionDrift(float targetPositionMM) {
-  static unsigned long lastDriftCheckMs = 0;
-  unsigned long currentMs = millis();
-  
-  if (currentMs - lastDriftCheckMs > DRIFT_CHECK_INTERVAL_MS) {
-    float currentPositionMM = currentStep / STEPS_PER_MM;
-    float expectedPositionMM = targetPositionMM;
-    float driftMM = abs(currentPositionMM - expectedPositionMM);
-    
-    if (driftMM > DRIFT_WARNING_THRESHOLD_MM) {
-      engine->warn("⚠️ DRIFT: " + String(driftMM, 1) + "mm (pos=" + String(currentPositionMM, 1) + 
-            "mm, target=" + String(expectedPositionMM, 1) + "mm)");
-      
-      // Critical drift: stop for safety
-      if (driftMM > DRIFT_CRITICAL_THRESHOLD_MM) {
-        engine->error("🚨 DRIFT CRITIQUE - Arrêt");
-        isPaused = true;
-        sendError("❌ Drift: " + String(driftMM, 1) + "mm");
-      }
-    } else {
-      // Consolidated: only log if drift is actually detected (reduced noise)
-      engine->debug("✅ Position OK: " + String(driftMM, 2) + "mm");
-    }
-    
-    lastDriftCheckMs = currentMs;
-  }
-}
-
 // Check if oscillation amplitude is valid given center position and effective limits
 bool validateOscillationAmplitude(float centerMM, float amplitudeMM, String& errorMsg) {
   // Use effective max distance (respects limitation percentage)
@@ -2570,7 +2558,7 @@ void doOscillationStep() {
   // Constantes de timing pour les différentes phases
   const unsigned long POSITIONING_STEP_DELAY_MICROS = 1000;  // Positionnement initial lent (25mm/s)
   
-  // � POSITIONNEMENT INITIAL: Aller d'abord au centre avant de commencer l'oscillation
+  // POSITIONNEMENT INITIAL: Aller d'abord au centre avant de commencer l'oscillation
   if (oscillationState.isInitialPositioning) {
     // Cible = centre (pas de sinusoïde pendant le positionnement initial)
     float targetPositionMM = oscillation.centerPositionMM;
@@ -4730,6 +4718,25 @@ bool handleSequencerCommands(const char* cmd, JsonDocument& doc, const String& m
     return true;
   }
   
+  // ========================================================================
+  // STATS ON-DEMAND COMMAND (Phase 2 Optimization)
+  // ========================================================================
+  
+  if (message.indexOf("\"cmd\":\"requestStats\"") > 0) {
+    bool enable = doc["enable"] | false;
+    statsRequested = enable;
+    lastStatsRequestTime = millis();
+    
+    engine->debug(String("📊 Stats tracking: ") + (enable ? "ENABLED" : "DISABLED"));
+    
+    // If enabling, immediately send stats in next status update
+    if (enable) {
+      sendStatus();
+    }
+    
+    return true;
+  }
+  
   return false;  // Command not handled by this handler
 }
 
@@ -5943,13 +5950,13 @@ void sendStatus() {
   // Only broadcast if clients are connected (early exit optimization)
   if (webSocket.connectedClients() == 0) return;
   
+  // ============================================================================
+  // COMMON FIELDS (all modes)
+  // ============================================================================
+  
   // Calculate derived values
   float positionMM = currentStep / STEPS_PER_MM;
   float totalTraveledMM = totalDistanceTraveled / STEPS_PER_MM;
-  float cyclesPerMinForward = speedLevelToCyclesPerMin(motion.speedLevelForward);
-  float cyclesPerMinBackward = speedLevelToCyclesPerMin(motion.speedLevelBackward);
-  float avgCyclesPerMin = (cyclesPerMinForward + cyclesPerMinBackward) / 2.0;
-  float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
   
   // Validation state
   bool canStart = true;
@@ -5965,145 +5972,186 @@ void sendStatus() {
   bool canCalibrate = (config.currentState == STATE_READY || config.currentState == STATE_INIT || config.currentState == STATE_ERROR);
   
   // Use ArduinoJson for efficient JSON construction
-  // Typical size: ~1800 bytes, allocate 2048 for safety
+  // Mode-specific optimization: Only send relevant data per movement type
   JsonDocument doc;
   
-  // Root level fields
+  // Root level fields (ALWAYS sent regardless of mode)
   doc["state"] = (int)config.currentState;
   doc["currentStep"] = currentStep;
   doc["positionMM"] = serialized(String(positionMM, 2));
   doc["totalDistMM"] = serialized(String(config.totalDistanceMM, 2));
   doc["maxDistLimitPercent"] = serialized(String(maxDistanceLimitPercent, 0));
   doc["effectiveMaxDistMM"] = serialized(String(effectiveMaxDistanceMM, 2));
-  
-  // Motion object (nested)
-  JsonObject motionObj = doc["motion"].to<JsonObject>();
-  motionObj["startPositionMM"] = serialized(String(motion.startPositionMM, 2));
-  motionObj["targetDistanceMM"] = serialized(String(motion.targetDistanceMM, 2));
-  motionObj["speedLevelForward"] = serialized(String(motion.speedLevelForward, 1));
-  motionObj["speedLevelBackward"] = serialized(String(motion.speedLevelBackward, 1));
-  
-  // Legacy fields (backward compatibility)
-  doc["startPositionMM"] = serialized(String(motion.startPositionMM, 2));
-  doc["targetDistMM"] = serialized(String(motion.targetDistanceMM, 2));
-  doc["targetDistanceMM"] = serialized(String(motion.targetDistanceMM, 2));
-  doc["speedLevelForward"] = serialized(String(motion.speedLevelForward, 1));
-  doc["speedLevelBackward"] = serialized(String(motion.speedLevelBackward, 1));
-  doc["speedLevelAvg"] = serialized(String(avgSpeedLevel, 1));
-  doc["cyclesPerMinForward"] = serialized(String(cyclesPerMinForward, 1));
-  doc["cyclesPerMinBackward"] = serialized(String(cyclesPerMinBackward, 1));
-  doc["cyclesPerMinAvg"] = serialized(String(avgCyclesPerMin, 1));
   doc["isPaused"] = isPaused;
   doc["totalTraveled"] = serialized(String(totalTraveledMM, 2));
   doc["canStart"] = canStart;
   doc["canCalibrate"] = canCalibrate;
   doc["errorMessage"] = errorMessage;
-  doc["hasPending"] = pendingMotion.hasChanges;
-  
-  // PendingMotion object (nested)
-  JsonObject pendingObj = doc["pendingMotion"].to<JsonObject>();
-  pendingObj["startPositionMM"] = serialized(String(pendingMotion.startPositionMM, 2));
-  pendingObj["distanceMM"] = serialized(String(pendingMotion.distanceMM, 2));
-  pendingObj["speedLevelForward"] = serialized(String(pendingMotion.speedLevelForward, 1));
-  pendingObj["speedLevelBackward"] = serialized(String(pendingMotion.speedLevelBackward, 1));
-  
-  // Legacy pending fields
-  doc["pendingStartPos"] = serialized(String(pendingMotion.startPositionMM, 2));
-  doc["pendingDist"] = serialized(String(pendingMotion.distanceMM, 2));
-  doc["pendingSpeedLevelForward"] = serialized(String(pendingMotion.speedLevelForward, 1));
-  doc["pendingSpeedLevelBackward"] = serialized(String(pendingMotion.speedLevelBackward, 1));
-  
-  // Architecture fields
   doc["movementType"] = (int)currentMovement;
   doc["config.executionContext"] = (int)config.executionContext;
   doc["operationMode"] = (int)currentMovement;  // Legacy
   doc["pursuitActive"] = pursuit.isMoving;
   
-  // Deceleration zone
-  JsonObject decelObj = doc["decelZone"].to<JsonObject>();
-  decelObj["enabled"] = decelZone.enabled;
-  decelObj["enableStart"] = decelZone.enableStart;
-  decelObj["enableEnd"] = decelZone.enableEnd;
-  decelObj["zoneMM"] = serialized(String(decelZone.zoneMM, 1));
-  decelObj["effectPercent"] = serialized(String(decelZone.effectPercent, 0));
-  decelObj["mode"] = (int)decelZone.mode;
+  // ============================================================================
+  // MODE-SPECIFIC FIELDS (Phase 1 Optimization)
+  // ============================================================================
   
-  // Oscillation config
-  JsonObject oscObj = doc["oscillation"].to<JsonObject>();
-  oscObj["centerPositionMM"] = serialized(String(oscillation.centerPositionMM, 2));
-  oscObj["amplitudeMM"] = serialized(String(oscillation.amplitudeMM, 2));
-  oscObj["waveform"] = (int)oscillation.waveform;
-  oscObj["frequencyHz"] = serialized(String(oscillation.frequencyHz, 3));
-  
-  // Calculate effective frequency (capped if exceeds max speed)
-  float effectiveFrequencyHz = oscillation.frequencyHz;
-  if (oscillation.amplitudeMM > 0.0) {
-    float maxAllowedFreq = OSC_MAX_SPEED_MM_S / (2.0 * PI * oscillation.amplitudeMM);
-    if (oscillation.frequencyHz > maxAllowedFreq) {
-      effectiveFrequencyHz = maxAllowedFreq;
+  if (currentMovement == MOVEMENT_VAET || currentMovement == MOVEMENT_PURSUIT) {
+    // ========================================================================
+    // VA-ET-VIENT / PURSUIT MODE
+    // ========================================================================
+    
+    // Motion-specific derived values
+    float cyclesPerMinForward = speedLevelToCyclesPerMin(motion.speedLevelForward);
+    float cyclesPerMinBackward = speedLevelToCyclesPerMin(motion.speedLevelBackward);
+    float avgCyclesPerMin = (cyclesPerMinForward + cyclesPerMinBackward) / 2.0;
+    float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
+    
+    // Motion object (nested)
+    JsonObject motionObj = doc["motion"].to<JsonObject>();
+    motionObj["startPositionMM"] = serialized(String(motion.startPositionMM, 2));
+    motionObj["targetDistanceMM"] = serialized(String(motion.targetDistanceMM, 2));
+    motionObj["speedLevelForward"] = serialized(String(motion.speedLevelForward, 1));
+    motionObj["speedLevelBackward"] = serialized(String(motion.speedLevelBackward, 1));
+    
+    // Legacy fields (backward compatibility)
+    doc["startPositionMM"] = serialized(String(motion.startPositionMM, 2));
+    doc["targetDistMM"] = serialized(String(motion.targetDistanceMM, 2));
+    doc["targetDistanceMM"] = serialized(String(motion.targetDistanceMM, 2));
+    doc["speedLevelForward"] = serialized(String(motion.speedLevelForward, 1));
+    doc["speedLevelBackward"] = serialized(String(motion.speedLevelBackward, 1));
+    doc["speedLevelAvg"] = serialized(String(avgSpeedLevel, 1));
+    doc["cyclesPerMinForward"] = serialized(String(cyclesPerMinForward, 1));
+    doc["cyclesPerMinBackward"] = serialized(String(cyclesPerMinBackward, 1));
+    doc["cyclesPerMinAvg"] = serialized(String(avgCyclesPerMin, 1));
+    
+    // Pending motion
+    doc["hasPending"] = pendingMotion.hasChanges;
+    if (pendingMotion.hasChanges) {
+      JsonObject pendingObj = doc["pendingMotion"].to<JsonObject>();
+      pendingObj["startPositionMM"] = serialized(String(pendingMotion.startPositionMM, 2));
+      pendingObj["distanceMM"] = serialized(String(pendingMotion.distanceMM, 2));
+      pendingObj["speedLevelForward"] = serialized(String(pendingMotion.speedLevelForward, 1));
+      pendingObj["speedLevelBackward"] = serialized(String(pendingMotion.speedLevelBackward, 1));
+      
+      // Legacy pending fields
+      doc["pendingStartPos"] = serialized(String(pendingMotion.startPositionMM, 2));
+      doc["pendingDist"] = serialized(String(pendingMotion.distanceMM, 2));
+      doc["pendingSpeedLevelForward"] = serialized(String(pendingMotion.speedLevelForward, 1));
+      doc["pendingSpeedLevelBackward"] = serialized(String(pendingMotion.speedLevelBackward, 1));
+    } else {
+      doc["hasPending"] = false;
+    }
+    
+    // Deceleration zone (only if enabled)
+    if (decelZone.enabled) {
+      JsonObject decelObj = doc["decelZone"].to<JsonObject>();
+      decelObj["enabled"] = true;
+      decelObj["enableStart"] = decelZone.enableStart;
+      decelObj["enableEnd"] = decelZone.enableEnd;
+      decelObj["zoneMM"] = serialized(String(decelZone.zoneMM, 1));
+      decelObj["effectPercent"] = serialized(String(decelZone.effectPercent, 0));
+      decelObj["mode"] = (int)decelZone.mode;
+    } else {
+      doc["decelZone"]["enabled"] = false;
     }
   }
-  oscObj["effectiveFrequencyHz"] = serialized(String(effectiveFrequencyHz, 3));  // Actual frequency after speed limiting
-  oscObj["actualSpeedMMS"] = serialized(String(actualOscillationSpeedMMS, 1));  // Real speed considering hardware limits
-  oscObj["enableRampIn"] = oscillation.enableRampIn;
-  oscObj["rampInDurationMs"] = serialized(String(oscillation.rampInDurationMs, 0));
-  oscObj["enableRampOut"] = oscillation.enableRampOut;
-  oscObj["rampOutDurationMs"] = serialized(String(oscillation.rampOutDurationMs, 0));
-  oscObj["cycleCount"] = oscillation.cycleCount;
-  oscObj["returnToCenter"] = oscillation.returnToCenter;
-  
-  // Oscillation state
-  JsonObject oscStateObj = doc["oscillationState"].to<JsonObject>();
-  oscStateObj["currentAmplitude"] = serialized(String(oscillationState.currentAmplitude, 2));
-  oscStateObj["completedCycles"] = oscillationState.completedCycles;
-  oscStateObj["isRampingIn"] = oscillationState.isRampingIn;
-  oscStateObj["isRampingOut"] = oscillationState.isRampingOut;
-  
-  // Chaos config
-  JsonObject chaosObj = doc["chaos"].to<JsonObject>();
-  chaosObj["centerPositionMM"] = serialized(String(chaos.centerPositionMM, 2));
-  chaosObj["amplitudeMM"] = serialized(String(chaos.amplitudeMM, 2));
-  chaosObj["maxSpeedLevel"] = serialized(String(chaos.maxSpeedLevel, 1));
-  chaosObj["crazinessPercent"] = serialized(String(chaos.crazinessPercent, 0));
-  chaosObj["durationSeconds"] = chaos.durationSeconds;
-  chaosObj["seed"] = chaos.seed;
-  
-  JsonArray patternsArray = chaosObj["patternsEnabled"].to<JsonArray>();
-  for (int i = 0; i < 8; i++) {
-    patternsArray.add(chaos.patternsEnabled[i]);
+  else if (currentMovement == MOVEMENT_OSC) {
+    // ========================================================================
+    // OSCILLATION MODE
+    // ========================================================================
+    
+    // Oscillation config
+    JsonObject oscObj = doc["oscillation"].to<JsonObject>();
+    oscObj["centerPositionMM"] = serialized(String(oscillation.centerPositionMM, 2));
+    oscObj["amplitudeMM"] = serialized(String(oscillation.amplitudeMM, 2));
+    oscObj["waveform"] = (int)oscillation.waveform;
+    oscObj["frequencyHz"] = serialized(String(oscillation.frequencyHz, 3));
+    
+    // Calculate effective frequency (capped if exceeds max speed)
+    float effectiveFrequencyHz = oscillation.frequencyHz;
+    if (oscillation.amplitudeMM > 0.0) {
+      float maxAllowedFreq = OSC_MAX_SPEED_MM_S / (2.0 * PI * oscillation.amplitudeMM);
+      if (oscillation.frequencyHz > maxAllowedFreq) {
+        effectiveFrequencyHz = maxAllowedFreq;
+      }
+    }
+    oscObj["effectiveFrequencyHz"] = serialized(String(effectiveFrequencyHz, 3));
+    oscObj["actualSpeedMMS"] = serialized(String(actualOscillationSpeedMMS, 1));
+    oscObj["enableRampIn"] = oscillation.enableRampIn;
+    oscObj["rampInDurationMs"] = serialized(String(oscillation.rampInDurationMs, 0));
+    oscObj["enableRampOut"] = oscillation.enableRampOut;
+    oscObj["rampOutDurationMs"] = serialized(String(oscillation.rampOutDurationMs, 0));
+    oscObj["cycleCount"] = oscillation.cycleCount;
+    oscObj["returnToCenter"] = oscillation.returnToCenter;
+    
+    // Oscillation state (minimal if no ramping, full if ramping)
+    JsonObject oscStateObj = doc["oscillationState"].to<JsonObject>();
+    oscStateObj["completedCycles"] = oscillationState.completedCycles;  // Always needed
+    
+    if (oscillation.enableRampIn || oscillation.enableRampOut) {
+      // Full state if ramping enabled
+      oscStateObj["currentAmplitude"] = serialized(String(oscillationState.currentAmplitude, 2));
+      oscStateObj["isRampingIn"] = oscillationState.isRampingIn;
+      oscStateObj["isRampingOut"] = oscillationState.isRampingOut;
+    }
+  }
+  else if (currentMovement == MOVEMENT_CHAOS) {
+    // ========================================================================
+    // CHAOS MODE
+    // ========================================================================
+    
+    // Chaos config
+    JsonObject chaosObj = doc["chaos"].to<JsonObject>();
+    chaosObj["centerPositionMM"] = serialized(String(chaos.centerPositionMM, 2));
+    chaosObj["amplitudeMM"] = serialized(String(chaos.amplitudeMM, 2));
+    chaosObj["maxSpeedLevel"] = serialized(String(chaos.maxSpeedLevel, 1));
+    chaosObj["crazinessPercent"] = serialized(String(chaos.crazinessPercent, 0));
+    chaosObj["durationSeconds"] = chaos.durationSeconds;
+    chaosObj["seed"] = chaos.seed;
+    
+    JsonArray patternsArray = chaosObj["patternsEnabled"].to<JsonArray>();
+    for (int i = 0; i < 8; i++) {
+      patternsArray.add(chaos.patternsEnabled[i]);
+    }
+    
+    // Chaos state
+    JsonObject chaosStateObj = doc["chaosState"].to<JsonObject>();
+    chaosStateObj["isRunning"] = chaosState.isRunning;
+    chaosStateObj["currentPattern"] = (int)chaosState.currentPattern;
+    
+    const char* patternNames[] = {"ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST", "WAVE", "PENDULUM", "SPIRAL", "BREATHING", "BRUTE_FORCE", "LIBERATOR"};
+    chaosStateObj["patternName"] = patternNames[chaosState.currentPattern];
+    
+    chaosStateObj["targetPositionMM"] = serialized(String(chaosState.targetPositionMM, 2));
+    chaosStateObj["currentSpeedLevel"] = serialized(String(chaosState.currentSpeedLevel, 1));
+    chaosStateObj["minReachedMM"] = serialized(String(chaosState.minReachedMM, 2));
+    chaosStateObj["maxReachedMM"] = serialized(String(chaosState.maxReachedMM, 2));
+    chaosStateObj["patternsExecuted"] = chaosState.patternsExecuted;
+    
+    if (chaosState.isRunning && chaos.durationSeconds > 0) {
+      unsigned long elapsed = (millis() - chaosState.startTime) / 1000;
+      chaosStateObj["elapsedSeconds"] = elapsed;
+    }
   }
   
-  // Chaos state
-  JsonObject chaosStateObj = doc["chaosState"].to<JsonObject>();
-  chaosStateObj["isRunning"] = chaosState.isRunning;
-  chaosStateObj["currentPattern"] = (int)chaosState.currentPattern;
+  // ============================================================================
+  // SYSTEM STATS (Phase 2 Optimization - On-Demand)
+  // ============================================================================
   
-  const char* patternNames[] = {"ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST", "WAVE", "PENDULUM", "SPIRAL", "BREATHING", "BRUTE_FORCE", "LIBERATOR"};
-  chaosStateObj["patternName"] = patternNames[chaosState.currentPattern];
-  
-  chaosStateObj["targetPositionMM"] = serialized(String(chaosState.targetPositionMM, 2));
-  chaosStateObj["currentSpeedLevel"] = serialized(String(chaosState.currentSpeedLevel, 1));
-  chaosStateObj["minReachedMM"] = serialized(String(chaosState.minReachedMM, 2));
-  chaosStateObj["maxReachedMM"] = serialized(String(chaosState.maxReachedMM, 2));
-  chaosStateObj["patternsExecuted"] = chaosState.patternsExecuted;
-  
-  if (chaosState.isRunning && chaos.durationSeconds > 0) {
-    unsigned long elapsed = (millis() - chaosState.startTime) / 1000;
-    chaosStateObj["elapsedSeconds"] = elapsed;
+  if (statsRequested) {
+    JsonObject systemObj = doc["system"].to<JsonObject>();
+    systemObj["cpuFreqMHz"] = ESP.getCpuFreqMHz();
+    systemObj["heapTotal"] = ESP.getHeapSize();
+    systemObj["heapFree"] = ESP.getFreeHeap();
+    systemObj["heapUsedPercent"] = serialized(String(100.0 - (100.0 * ESP.getFreeHeap() / ESP.getHeapSize()), 1));
+    systemObj["psramTotal"] = ESP.getPsramSize();
+    systemObj["psramFree"] = ESP.getFreePsram();
+    systemObj["psramUsedPercent"] = serialized(String(100.0 - (100.0 * ESP.getFreePsram() / ESP.getPsramSize()), 1));
+    systemObj["wifiRssi"] = WiFi.RSSI();
+    systemObj["temperatureC"] = serialized(String(temperatureRead(), 1));
+    systemObj["uptimeSeconds"] = millis() / 1000;
   }
-  
-  // System stats
-  JsonObject systemObj = doc["system"].to<JsonObject>();
-  systemObj["cpuFreqMHz"] = ESP.getCpuFreqMHz();
-  systemObj["heapTotal"] = ESP.getHeapSize();
-  systemObj["heapFree"] = ESP.getFreeHeap();
-  systemObj["heapUsedPercent"] = serialized(String(100.0 - (100.0 * ESP.getFreeHeap() / ESP.getHeapSize()), 1));
-  systemObj["psramTotal"] = ESP.getPsramSize();
-  systemObj["psramFree"] = ESP.getFreePsram();
-  systemObj["psramUsedPercent"] = serialized(String(100.0 - (100.0 * ESP.getFreePsram() / ESP.getPsramSize()), 1));
-  systemObj["wifiRssi"] = WiFi.RSSI();
-  systemObj["temperatureC"] = serialized(String(temperatureRead(), 1));
-  systemObj["uptimeSeconds"] = millis() / 1000;
   
   // Serialize to String and broadcast
   String output;

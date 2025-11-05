@@ -1371,6 +1371,33 @@
         </div>
       </div>
 
+      <!-- Logging Configuration -->
+      <div style="margin-top: 15px; background: #f5f5f5; padding: 12px; border-radius: 6px;">
+        <div style="font-weight: bold; color: #333; font-size: 13px; margin-bottom: 10px;">📋 Configuration des logs</div>
+        
+        <!-- Enable/Disable Logging -->
+        <div style="margin-bottom: 10px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="chkLoggingEnabled" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="font-size: 13px; color: #333;">Activer les logs (console + fichiers)</span>
+          </label>
+          <div style="font-size: 11px; color: #666; margin-left: 26px; margin-top: 4px;">
+            ⚠️ Désactiver réduit l'utilisation CPU mais supprime tous les logs
+          </div>
+        </div>
+        
+        <!-- Debug Level Toggle -->
+        <div style="margin-bottom: 4px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="chkDebugLevel" style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="font-size: 13px; color: #333;">Activer logs DEBUG (verbose)</span>
+          </label>
+          <div style="font-size: 11px; color: #666; margin-left: 26px; margin-top: 4px;">
+            ℹ️ Niveau INFO (messages normaux) par défaut
+          </div>
+        </div>
+      </div>
+
       <!-- Reboot Button -->
       <div style="margin-top: 15px;">
         <button id="btnReboot" class="button btn-danger" style="width: 100%; padding: 12px; font-size: 14px; font-weight: bold;">
@@ -2487,6 +2514,12 @@
       milestone: {
         current: null,  // Current milestone object
         lastThreshold: 0  // Last threshold passed (for notifications)
+      },
+      
+      // Stats panel tracking (for on-demand system stats)
+      statsPanel: {
+        isVisible: false,  // Is stats panel currently visible
+        lastToggle: 0      // Last toggle timestamp
       }
     };
     
@@ -5282,14 +5315,17 @@
         }
       } else if (currentMode === 'simple' && data.motion && data.cyclesPerMinForward !== undefined && data.cyclesPerMinBackward !== undefined) {
         // SIMPLE MODE: Show forward/backward speeds with cycles/min
-        const avgCpm = ((data.cyclesPerMinForward + data.cyclesPerMinBackward) / 2).toFixed(0);
-        speedElement.innerHTML = 
-          '↗️ ' + data.motion.speedLevelForward.toFixed(1) + 
-          '&nbsp;&nbsp;•&nbsp;&nbsp;' +
-          '↙️ ' + data.motion.speedLevelBackward.toFixed(1);
-        
-        if (cpmSpan) {
-          cpmSpan.textContent = '(' + avgCpm + ' c/min)';
+        // Defense: Check motion fields exist before accessing
+        if (data.motion.speedLevelForward !== undefined && data.motion.speedLevelBackward !== undefined) {
+          const avgCpm = ((data.cyclesPerMinForward + data.cyclesPerMinBackward) / 2).toFixed(0);
+          speedElement.innerHTML = 
+            '↗️ ' + data.motion.speedLevelForward.toFixed(1) + 
+            '&nbsp;&nbsp;•&nbsp;&nbsp;' +
+            '↙️ ' + data.motion.speedLevelBackward.toFixed(1);
+          
+          if (cpmSpan) {
+            cpmSpan.textContent = '(' + avgCpm + ' c/min)';
+          }
         }
       }
       
@@ -5359,75 +5395,93 @@
       
       // Sync input values with server state (but not if user is editing)
       // Also check activeElement to prevent overwriting during typing
-      if (AppState.editing.input !== 'startPosition' && document.activeElement !== DOM.startPosition) {
-        DOM.startPosition.value = data.motion.startPositionMM.toFixed(1);
+      // Defense: Check data.motion exists before accessing fields
+      if (data.motion) {
+        if (AppState.editing.input !== 'startPosition' && document.activeElement !== DOM.startPosition && data.motion.startPositionMM !== undefined) {
+          DOM.startPosition.value = data.motion.startPositionMM.toFixed(1);
+        }
       }
-      if (AppState.editing.input !== 'distance' && document.activeElement !== DOM.distance) {
+      
+      if (data.targetDistMM !== undefined && AppState.editing.input !== 'distance' && document.activeElement !== DOM.distance) {
         DOM.distance.value = data.targetDistMM.toFixed(1);
       }
+      
       // Update speed values based on unified/separate mode
       const isSeparateMode = document.getElementById('speedModeSeparate')?.checked || false;
       
-      if (isSeparateMode) {
-        // SEPARATE MODE: update forward and backward individually
-        if (AppState.editing.input !== 'speedForward' && document.activeElement !== DOM.speedForward) {
-          DOM.speedForward.value = data.motion.speedLevelForward.toFixed(1);
-        }
-        if (AppState.editing.input !== 'speedBackward' && document.activeElement !== DOM.speedBackward) {
-          DOM.speedBackward.value = data.motion.speedLevelBackward.toFixed(1);
-        }
-        // Speed info removed in compact mode
-        if (DOM.speedForwardInfo) {
-          DOM.speedForwardInfo.textContent = 
-            '≈ ' + data.cyclesPerMinForward.toFixed(0) + ' cycles/min';
-        }
-        if (DOM.speedBackwardInfo) {
-          DOM.speedBackwardInfo.textContent = 
-            '≈ ' + data.cyclesPerMinBackward.toFixed(0) + ' cycles/min';
-        }
-      } else {
-        // UNIFIED MODE: show current speed (should be same for both directions)
-        if (AppState.editing.input !== 'speedUnified' && document.activeElement !== DOM.speedUnified) {
-          // Use backward speed as reference (shows what user just changed)
-          // In unified mode, both speeds should be identical, but we show backward
-          // to ensure the displayed value reflects the most recent change
-          DOM.speedUnified.value = data.motion.speedLevelBackward.toFixed(1);
+      // Defense: Check data.motion exists before accessing speed fields
+      if (data.motion) {
+        if (isSeparateMode) {
+          // SEPARATE MODE: update forward and backward individually
+          if (AppState.editing.input !== 'speedForward' && document.activeElement !== DOM.speedForward && data.motion.speedLevelForward !== undefined) {
+            DOM.speedForward.value = data.motion.speedLevelForward.toFixed(1);
+          }
+          if (AppState.editing.input !== 'speedBackward' && document.activeElement !== DOM.speedBackward && data.motion.speedLevelBackward !== undefined) {
+            DOM.speedBackward.value = data.motion.speedLevelBackward.toFixed(1);
+          }
+          // Speed info removed in compact mode
+          if (DOM.speedForwardInfo && data.cyclesPerMinForward !== undefined) {
+            DOM.speedForwardInfo.textContent = 
+              '≈ ' + data.cyclesPerMinForward.toFixed(0) + ' cycles/min';
+          }
+          if (DOM.speedBackwardInfo && data.cyclesPerMinBackward !== undefined) {
+            DOM.speedBackwardInfo.textContent = 
+              '≈ ' + data.cyclesPerMinBackward.toFixed(0) + ' cycles/min';
+          }
+        } else {
+          // UNIFIED MODE: show current speed (should be same for both directions)
+          if (AppState.editing.input !== 'speedUnified' && document.activeElement !== DOM.speedUnified) {
+            // Use backward speed as reference (shows what user just changed)
+            // In unified mode, both speeds should be identical, but we show backward
+            // to ensure the displayed value reflects the most recent change
+            if (data.motion.speedLevelBackward !== undefined) {
+              DOM.speedUnified.value = data.motion.speedLevelBackward.toFixed(1);
+            }
+            
+            // Also keep separate fields in sync (hidden but used when switching modes)
+            if (data.motion.speedLevelForward !== undefined) {
+              DOM.speedForward.value = data.motion.speedLevelForward.toFixed(1);
+            }
+            if (data.motion.speedLevelBackward !== undefined) {
+              DOM.speedBackward.value = data.motion.speedLevelBackward.toFixed(1);
+            }
+          }
           
-          // Also keep separate fields in sync (hidden but used when switching modes)
-          DOM.speedForward.value = data.motion.speedLevelForward.toFixed(1);
-          DOM.speedBackward.value = data.motion.speedLevelBackward.toFixed(1);
-        }
-        
-        // Speed info removed in compact mode
-        if (DOM.speedUnifiedInfo) {
-          const avgCyclesPerMin = (data.cyclesPerMinForward + data.cyclesPerMinBackward) / 2.0;
-          DOM.speedUnifiedInfo.textContent = 
-            '≈ ' + avgCyclesPerMin.toFixed(0) + ' cycles/min';
+          // Speed info removed in compact mode
+          if (DOM.speedUnifiedInfo && data.cyclesPerMinForward !== undefined && data.cyclesPerMinBackward !== undefined) {
+            const avgCyclesPerMin = (data.cyclesPerMinForward + data.cyclesPerMinBackward) / 2.0;
+            DOM.speedUnifiedInfo.textContent = 
+              '≈ ' + avgCyclesPerMin.toFixed(0) + ' cycles/min';
+          }
         }
       }
       
       // Update max values and presets
       // Use effective max distance (factored) if available, otherwise total
-      const effectiveMax = (data.effectiveMaxDistMM && data.effectiveMaxDistMM > 0) ? data.effectiveMaxDistMM : data.totalDistMM;
-      const maxAvailable = effectiveMax - data.motion.startPositionMM;
-      
-      DOM.startPosition.max = effectiveMax;
-      DOM.distance.max = maxAvailable;
-      
-      // Show factored value if limit < 100% (only if elements exist)
-      if (DOM.maxStart) {
-        if (data.maxDistLimitPercent && data.maxDistLimitPercent < 100) {
-          DOM.maxStart.textContent = effectiveMax.toFixed(2) + ' (' + data.maxDistLimitPercent.toFixed(0) + '% de ' + data.totalDistMM.toFixed(2) + ')';
-        } else {
-          DOM.maxStart.textContent = effectiveMax.toFixed(2);
+      // Defense: Check data.motion exists before accessing startPositionMM
+      if (data.totalDistMM !== undefined) {
+        const effectiveMax = (data.effectiveMaxDistMM && data.effectiveMaxDistMM > 0) ? data.effectiveMaxDistMM : data.totalDistMM;
+        const startPos = (data.motion && data.motion.startPositionMM !== undefined) ? data.motion.startPositionMM : 0;
+        const maxAvailable = effectiveMax - startPos;
+        
+        DOM.startPosition.max = effectiveMax;
+        DOM.distance.max = maxAvailable;
+        
+        // Show factored value if limit < 100% (only if elements exist)
+        if (DOM.maxStart) {
+          if (data.maxDistLimitPercent && data.maxDistLimitPercent < 100) {
+            DOM.maxStart.textContent = effectiveMax.toFixed(2) + ' (' + data.maxDistLimitPercent.toFixed(0) + '% de ' + data.totalDistMM.toFixed(2) + ')';
+          } else {
+            DOM.maxStart.textContent = effectiveMax.toFixed(2);
+          }
         }
+        
+        if (DOM.maxDist) {
+          DOM.maxDist.textContent = maxAvailable.toFixed(2);
+        }
+        updateStartPresets(effectiveMax);
+        updateDistancePresets(maxAvailable);
       }
-      
-      if (DOM.maxDist) {
-        DOM.maxDist.textContent = maxAvailable.toFixed(2);
-      }
-      updateStartPresets(effectiveMax);
-      updateDistancePresets(maxAvailable);
       
       // Enable/disable start button
       const isRunning = data.state === SystemState.RUNNING;
@@ -5469,53 +5523,79 @@
         const section = document.getElementById('decelSection');
         const headerText = document.getElementById('decelHeaderText');
         
-        // Update section collapsed state and header text based on enabled
-        if (data.decelZone.enabled) {
-          section.classList.remove('collapsed');
-          headerText.textContent = '🎯 Décélération - activée';
-        } else {
-          section.classList.add('collapsed');
-          headerText.textContent = '🎯 Décélération - désactivée';
-        }
-        
-        document.getElementById('decelZoneStart').checked = data.decelZone.enableStart;
-        document.getElementById('decelZoneEnd').checked = data.decelZone.enableEnd;
-        
-        // Check if zone value was adapted by ESP32 (only if we just sent a request)
-        const decelZoneInput = document.getElementById('decelZoneMM');
-        const requestedZone = AppState.lastDecelZoneRequest;
-        const receivedZone = data.decelZone.zoneMM;
-        
-        if (requestedZone !== undefined && Math.abs(requestedZone - receivedZone) > 0.1) {
-          // Value was adapted - show notification once
-          showNotification(`⚠️ Zone ajustée: ${requestedZone.toFixed(0)}mm → ${receivedZone.toFixed(0)}mm (limite du mouvement)`, 'warning', 4000);
-          // Clear the request flag to avoid showing notification again
-          AppState.lastDecelZoneRequest = undefined;
-        }
-        
-        decelZoneInput.value = receivedZone;
-        document.getElementById('decelEffectPercent').value = data.decelZone.effectPercent;
-        document.getElementById('effectValue').textContent = data.decelZone.effectPercent.toFixed(0) + '%';
-        
-        // Update select dropdown for mode
-        const decelModeSelect = document.getElementById('decelModeSelect');
-        if (decelModeSelect) {
-          decelModeSelect.value = data.decelZone.mode.toString();
-        }
-        
-        // Update zone preset active state
-        document.querySelectorAll('[data-decel-zone]').forEach(btn => {
-          const btnValue = parseInt(btn.getAttribute('data-decel-zone'));
-          if (btnValue === data.decelZone.zoneMM) {
-            btn.classList.add('active');
-          } else {
-            btn.classList.remove('active');
+        // Defense: Only update full decelZone fields if enabled (Phase 1 optimization)
+        // When disabled, backend sends only {enabled: false} to save bandwidth
+        if (data.decelZone.enabled && data.decelZone.zoneMM !== undefined) {
+          // Update section collapsed state and header text based on enabled
+          if (section && headerText) {
+            section.classList.remove('collapsed');
+            headerText.textContent = '🎯 Décélération - activée';
           }
-        });
-        
-        // Redraw preview if enabled
-        if (data.decelZone.enabled) {
+          
+          // Safe access to optional fields
+          if (data.decelZone.enableStart !== undefined) {
+            const startCheckbox = document.getElementById('decelZoneStart');
+            if (startCheckbox) startCheckbox.checked = data.decelZone.enableStart;
+          }
+          if (data.decelZone.enableEnd !== undefined) {
+            const endCheckbox = document.getElementById('decelZoneEnd');
+            if (endCheckbox) endCheckbox.checked = data.decelZone.enableEnd;
+          }
+          
+          // Check if zone value was adapted by ESP32 (only if we just sent a request)
+          const decelZoneInput = document.getElementById('decelZoneMM');
+          const requestedZone = AppState.lastDecelZoneRequest;
+          const receivedZone = data.decelZone.zoneMM;
+          
+          if (requestedZone !== undefined && Math.abs(requestedZone - receivedZone) > 0.1) {
+            // Value was adapted - show notification once
+            showNotification(`⚠️ Zone ajustée: ${requestedZone.toFixed(0)}mm → ${receivedZone.toFixed(0)}mm (limite du mouvement)`, 'warning', 4000);
+            // Clear the request flag to avoid showing notification again
+            AppState.lastDecelZoneRequest = undefined;
+          }
+          
+          if (decelZoneInput) {
+            decelZoneInput.value = receivedZone;
+          }
+          
+          // Effect percent (safe access)
+          if (data.decelZone.effectPercent !== undefined) {
+            const effectPercentInput = document.getElementById('decelEffectPercent');
+            const effectValueSpan = document.getElementById('effectValue');
+            if (effectPercentInput) {
+              effectPercentInput.value = data.decelZone.effectPercent;
+            }
+            if (effectValueSpan) {
+              effectValueSpan.textContent = data.decelZone.effectPercent.toFixed(0) + '%';
+            }
+          }
+          
+          // Update select dropdown for mode
+          if (data.decelZone.mode !== undefined) {
+            const decelModeSelect = document.getElementById('decelModeSelect');
+            if (decelModeSelect) {
+              decelModeSelect.value = data.decelZone.mode.toString();
+            }
+          }
+          
+          // Update zone preset active state
+          document.querySelectorAll('[data-decel-zone]').forEach(btn => {
+            const btnValue = parseInt(btn.getAttribute('data-decel-zone'));
+            if (btnValue === data.decelZone.zoneMM) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+          
+          // Redraw preview if enabled
           drawDecelPreview();
+        } else {
+          // Disabled state
+          if (section && headerText) {
+            section.classList.add('collapsed');
+            headerText.textContent = '🎯 Décélération - désactivée';
+          }
         }
       }
       
@@ -5710,72 +5790,90 @@
     }
     
     function updateSystemStats(system) {
+      // Defense: Check system object exists before accessing fields
+      if (!system) {
+        console.warn('updateSystemStats: system object is undefined');
+        return;
+      }
+      
       // CPU frequency
-      document.getElementById('sysCpuFreq').textContent = system.cpuFreqMHz + ' MHz';
+      if (system.cpuFreqMHz !== undefined) {
+        document.getElementById('sysCpuFreq').textContent = system.cpuFreqMHz + ' MHz';
+      }
       
       // Temperature
-      const temp = parseFloat(system.temperatureC);
-      const tempEl = document.getElementById('sysTemp');
-      tempEl.textContent = temp.toFixed(1) + ' °C';
-      // Color coding based on temperature
-      if (temp > 80) {
-        tempEl.style.color = '#f44336'; // Red - hot
-      } else if (temp > 70) {
-        tempEl.style.color = '#FF9800'; // Orange - warm
-      } else {
-        tempEl.style.color = '#333'; // Normal
+      if (system.temperatureC !== undefined) {
+        const temp = parseFloat(system.temperatureC);
+        const tempEl = document.getElementById('sysTemp');
+        tempEl.textContent = temp.toFixed(1) + ' °C';
+        // Color coding based on temperature
+        if (temp > 80) {
+          tempEl.style.color = '#f44336'; // Red - hot
+        } else if (temp > 70) {
+          tempEl.style.color = '#FF9800'; // Orange - warm
+        } else {
+          tempEl.style.color = '#333'; // Normal
+        }
       }
       
       // RAM
-      const ramFreeMB = (system.heapFree / 1024).toFixed(1);
-      const ramTotalMB = (system.heapTotal / 1024).toFixed(1);
-      const ramUsedPercent = parseFloat(system.heapUsedPercent);
-      document.getElementById('sysRam').textContent = ramFreeMB + ' KB libre / ' + ramTotalMB + ' KB';
-      document.getElementById('sysRamPercent').textContent = ramUsedPercent.toFixed(1) + '% utilisé';
+      if (system.heapFree !== undefined && system.heapTotal !== undefined && system.heapUsedPercent !== undefined) {
+        const ramFreeMB = (system.heapFree / 1024).toFixed(1);
+        const ramTotalMB = (system.heapTotal / 1024).toFixed(1);
+        const ramUsedPercent = parseFloat(system.heapUsedPercent);
+        document.getElementById('sysRam').textContent = ramFreeMB + ' KB libre / ' + ramTotalMB + ' KB';
+        document.getElementById('sysRamPercent').textContent = ramUsedPercent.toFixed(1) + '% utilisé';
+      }
       
       // PSRAM
-      const psramFreeMB = (system.psramFree / 1024 / 1024).toFixed(1);
-      const psramTotalMB = (system.psramTotal / 1024 / 1024).toFixed(1);
-      const psramUsedPercent = parseFloat(system.psramUsedPercent);
-      document.getElementById('sysPsram').textContent = psramFreeMB + ' MB libre / ' + psramTotalMB + ' MB';
-      document.getElementById('sysPsramPercent').textContent = psramUsedPercent.toFixed(1) + '% utilisé';
+      if (system.psramFree !== undefined && system.psramTotal !== undefined && system.psramUsedPercent !== undefined) {
+        const psramFreeMB = (system.psramFree / 1024 / 1024).toFixed(1);
+        const psramTotalMB = (system.psramTotal / 1024 / 1024).toFixed(1);
+        const psramUsedPercent = parseFloat(system.psramUsedPercent);
+        document.getElementById('sysPsram').textContent = psramFreeMB + ' MB libre / ' + psramTotalMB + ' MB';
+        document.getElementById('sysPsramPercent').textContent = psramUsedPercent.toFixed(1) + '% utilisé';
+      }
       
       // WiFi
-      const rssi = system.wifiRssi;
-      let quality = 'Inconnu';
-      let qualityColor = '#666';
-      if (rssi >= -50) {
-        quality = 'Excellent';
-        qualityColor = '#4CAF50';
-      } else if (rssi >= -60) {
-        quality = 'Très bon';
-        qualityColor = '#8BC34A';
-      } else if (rssi >= -70) {
-        quality = 'Bon';
-        qualityColor = '#FFC107';
-      } else if (rssi >= -80) {
-        quality = 'Faible';
-        qualityColor = '#FF9800';
-      } else {
-        quality = 'Très faible';
-        qualityColor = '#f44336';
+      if (system.wifiRssi !== undefined) {
+        const rssi = system.wifiRssi;
+        let quality = 'Inconnu';
+        let qualityColor = '#666';
+        if (rssi >= -50) {
+          quality = 'Excellent';
+          qualityColor = '#4CAF50';
+        } else if (rssi >= -60) {
+          quality = 'Très bon';
+          qualityColor = '#8BC34A';
+        } else if (rssi >= -70) {
+          quality = 'Bon';
+          qualityColor = '#FFC107';
+        } else if (rssi >= -80) {
+          quality = 'Faible';
+          qualityColor = '#FF9800';
+        } else {
+          quality = 'Très faible';
+          qualityColor = '#f44336';
+        }
+        document.getElementById('sysWifi').textContent = rssi + ' dBm';
+        const qualityEl = document.getElementById('sysWifiQuality');
+        qualityEl.textContent = quality;
+        qualityEl.style.color = qualityColor;
       }
-      document.getElementById('sysWifi').textContent = rssi + ' dBm';
-      const qualityEl = document.getElementById('sysWifiQuality');
-      qualityEl.textContent = quality;
-      qualityEl.style.color = qualityColor;
       
       // Uptime
-      const uptimeSec = system.uptimeSeconds;
-      const hours = Math.floor(uptimeSec / 3600);
-      const minutes = Math.floor((uptimeSec % 3600) / 60);
-      const seconds = uptimeSec % 60;
-      const uptimeStr = hours > 0 
-        ? `${hours}h ${minutes}m ${seconds}s`
-        : minutes > 0
-          ? `${minutes}m ${seconds}s`
-          : `${seconds}s`;
-      document.getElementById('sysUptime').textContent = uptimeStr;
+      if (system.uptimeSeconds !== undefined) {
+        const uptimeSec = system.uptimeSeconds;
+        const hours = Math.floor(uptimeSec / 3600);
+        const minutes = Math.floor((uptimeSec % 3600) / 60);
+        const seconds = uptimeSec % 60;
+        const uptimeStr = hours > 0 
+          ? `${hours}h ${minutes}m ${seconds}s`
+          : minutes > 0
+            ? `${minutes}m ${seconds}s`
+            : `${seconds}s`;
+        document.getElementById('sysUptime').textContent = uptimeStr;
+      }
     }
     
     // ============================================================================
@@ -7412,6 +7510,18 @@ Détecte la limite physique`;
         this.style.color = 'white';
         // Load log files list
         loadLogFilesList();
+        // Load current debug level state
+        fetch('/api/system/logging/preferences')
+          .then(response => response.json())
+          .then(data => {
+            const chkDebug = document.getElementById('debugLevelCheckbox');
+            if (chkDebug) {
+              chkDebug.checked = (data.logLevel === 3); // DEBUG = 3
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error loading log level:', error);
+          });
       } else {
         panel.style.display = 'none';
         this.innerHTML = '📋 Logs';
@@ -7433,8 +7543,30 @@ Détecte la limite physique`;
     });
 
     document.getElementById('debugLevelCheckbox').addEventListener('change', function() {
-      // Toggle debug level on the ESP32
-      sendCommand('toggleDebug', {});
+      // Save debug level preference to EEPROM via API
+      const preferences = {
+        loggingEnabled: true,  // Keep logging enabled
+        logLevel: this.checked ? 3 : 2  // 3=DEBUG, 2=INFO
+      };
+      
+      fetch('/api/system/logging/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(preferences)
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log('💾 Log level saved:', this.checked ? 'DEBUG' : 'INFO');
+          
+          // Also update the checkbox in Sys panel
+          const chkDebug = document.getElementById('chkDebugLevel');
+          if (chkDebug) {
+            chkDebug.checked = this.checked;
+          }
+        })
+        .catch(error => {
+          console.error('❌ Error saving log level:', error);
+        });
     });
 
     document.getElementById('btnClearAllLogFiles').addEventListener('click', function() {
@@ -7531,18 +7663,49 @@ Détecte la limite physique`;
     
     document.getElementById('btnShowStats').addEventListener('click', function() {
       const panel = document.getElementById('statsPanel');
-      if (panel.style.display === 'none') {
+      const wasVisible = (panel.style.display !== 'none');
+      
+      if (!wasVisible) {
+        // Opening panel
         panel.style.display = 'block';
         this.innerHTML = '📊 Stats';
         this.style.background = '#e74c3c';
         this.style.color = 'white';
+        
+        // Update state and signal backend
+        AppState.statsPanel.isVisible = true;
+        AppState.statsPanel.lastToggle = Date.now();
+        
+        // Send WebSocket command to backend (enable stats sending)
+        if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+          AppState.ws.send(JSON.stringify({
+            cmd: 'requestStats',
+            enable: true
+          }));
+          console.log('📊 Stats requested from backend');
+        }
+        
         // Load stats data
         loadStatsData();
       } else {
+        // Closing panel
         panel.style.display = 'none';
         this.innerHTML = '📊 Stats';
         this.style.background = '#4CAF50';
         this.style.color = 'white';
+        
+        // Update state and signal backend
+        AppState.statsPanel.isVisible = false;
+        AppState.statsPanel.lastToggle = Date.now();
+        
+        // Send WebSocket command to backend (disable stats sending)
+        if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+          AppState.ws.send(JSON.stringify({
+            cmd: 'requestStats',
+            enable: false
+          }));
+          console.log('📊 Stats no longer needed');
+        }
       }
     });
 
@@ -7551,6 +7714,19 @@ Détecte la limite physique`;
       document.getElementById('btnShowStats').innerHTML = '📊 Stats';
       document.getElementById('btnShowStats').style.background = '#4CAF50';
       document.getElementById('btnShowStats').style.color = 'white';
+      
+      // Update state and signal backend
+      AppState.statsPanel.isVisible = false;
+      AppState.statsPanel.lastToggle = Date.now();
+      
+      // Send WebSocket command to backend (disable stats sending)
+      if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+        AppState.ws.send(JSON.stringify({
+          cmd: 'requestStats',
+          enable: false
+        }));
+        console.log('📊 Stats panel closed');
+      }
     });
 
     document.getElementById('btnShowSystem').addEventListener('click', function() {
@@ -7560,6 +7736,8 @@ Détecte la limite physique`;
         this.innerHTML = '⚙️ Sys';
         this.style.background = '#e74c3c';
         this.style.color = 'white';
+        // Load logging preferences when opening
+        loadLoggingPreferences();
       } else {
         panel.style.display = 'none';
         this.innerHTML = '⚙️ Sys';
@@ -7729,6 +7907,98 @@ Détecte la limite physique`;
       
       tryReconnect();
     }
+
+    // ========================================================================
+    // LOGGING PREFERENCES - EEPROM
+    // ========================================================================
+    
+    // Load logging preferences from ESP32
+    function loadLoggingPreferences() {
+      fetch('/api/system/logging/preferences')
+        .then(response => response.json())
+        .then(data => {
+          // Set checkboxes
+          const chkEnabled = document.getElementById('chkLoggingEnabled');
+          const chkDebug = document.getElementById('chkDebugLevel');
+          const btnShowLogs = document.getElementById('btnShowLogs');
+          
+          chkEnabled.checked = data.loggingEnabled;
+          chkDebug.checked = (data.logLevel === 3); // LOG_DEBUG = 3
+          
+          // Hide/show Logs button based on logging enabled state
+          if (!data.loggingEnabled) {
+            btnShowLogs.style.display = 'none';
+          } else {
+            btnShowLogs.style.display = '';
+          }
+          
+          console.log('📂 Loaded logging preferences:', data);
+        })
+        .catch(error => {
+          console.error('❌ Error loading logging preferences:', error);
+        });
+    }
+    
+    // Save logging preferences to ESP32 EEPROM
+    function saveLoggingPreferences() {
+      const chkEnabled = document.getElementById('chkLoggingEnabled');
+      const chkDebug = document.getElementById('chkDebugLevel');
+      
+      const preferences = {
+        loggingEnabled: chkEnabled.checked,
+        logLevel: chkDebug.checked ? 3 : 2  // 3=DEBUG, 2=INFO
+      };
+      
+      fetch('/api/system/logging/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(preferences)
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log('💾 Logging preferences saved:', data);
+          
+          // Update Logs button visibility
+          const btnShowLogs = document.getElementById('btnShowLogs');
+          if (!preferences.loggingEnabled) {
+            btnShowLogs.style.display = 'none';
+          } else {
+            btnShowLogs.style.display = '';
+          }
+        })
+        .catch(error => {
+          console.error('❌ Error saving logging preferences:', error);
+          alert('❌ Erreur lors de la sauvegarde des préférences de log');
+        });
+    }
+    
+    // Attach event handlers for checkboxes
+    document.getElementById('chkLoggingEnabled').addEventListener('change', function() {
+      saveLoggingPreferences();
+      
+      // Disable DEBUG checkbox if logging is disabled
+      const chkDebug = document.getElementById('chkDebugLevel');
+      chkDebug.disabled = !this.checked;
+      
+      if (!this.checked) {
+        console.log('🔇 Logging disabled - all logs (console + files) stopped');
+      } else {
+        console.log('🔊 Logging enabled');
+      }
+    });
+    
+    document.getElementById('chkDebugLevel').addEventListener('change', function() {
+      saveLoggingPreferences();
+      
+      if (this.checked) {
+        console.log('📊 Log level: DEBUG (verbose mode)');
+      } else {
+        console.log('📊 Log level: INFO (normal mode)');
+      }
+    });
+    
+    // Load preferences on startup
+    loadLoggingPreferences();
 
     document.getElementById('btnClearStats').addEventListener('click', function() {
       if (confirm('⚠️ Supprimer TOUTES les statistiques?\n\nCette action est irréversible et ne supprime PAS le compteur de distance (RAZ).')) {
@@ -8093,7 +8363,7 @@ Détecte la limite physique`;
       const frequency = parseFloat(document.getElementById('oscFrequency').value) || 0.5;
       
       // 🚀 SAFETY: Check if frequency would exceed speed limit
-      const MAX_SPEED_MM_S = maxSpeedLevel * 10.0; // 300 mm/s by default
+      const MAX_SPEED_MM_S = maxSpeedLevel * 20.0; // 300 mm/s by default
       const theoreticalSpeed = 2 * Math.PI * frequency * amplitude;
       
       if (amplitude > 0 && theoreticalSpeed > MAX_SPEED_MM_S) {
@@ -8324,7 +8594,7 @@ Détecte la limite physique`;
       const currentAmplitude = parseFloat(document.getElementById('oscAmplitude').value) || 0;
       
       // 🚀 MAX_SPEED_LEVEL constant (must match backend)
-      const MAX_SPEED_MM_S = maxSpeedLevel * 10.0; // 300 mm/s by default
+      const MAX_SPEED_MM_S = maxSpeedLevel * 20.0; // 300 mm/s by default
       
       // Validate center presets (must allow current amplitude)
       document.querySelectorAll('[data-osc-center]').forEach(btn => {

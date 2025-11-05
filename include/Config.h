@@ -94,9 +94,6 @@ const int CALIBRATION_ERROR_MARGIN_STEPS = 1000;
 // Why 50? Oscillation: max steps/call prevents WebSocket starvation (50 steps = ~8ms @ 6000 Hz)
 const int MAX_OSCILLATION_STEPS_PER_CALL = 50;
 
-// Why 50000? Return to start timeout: 50k steps = 8333mm @ 6 steps/mm (system max ~1500mm)
-const int RETURN_TO_START_MAX_STEPS = 50000;
-
 // ============================================================================
 // CONFIGURATION - Oscillation Mode Constants
 // ============================================================================
@@ -105,9 +102,13 @@ const float OSC_INITIAL_POSITIONING_TOLERANCE_MM = 2.0;  // ±2mm considered "at
 const float OSC_RAMP_START_DELAY_MS = 500.0;  // Wait 500ms before starting ramp-in
 
 // Step timing for oscillation phases
-const unsigned long OSC_POSITIONING_STEP_DELAY_MICROS = 1000;  // Slow initial positioning (25mm/s)
-const unsigned long OSC_MIN_STEP_DELAY_MICROS = 55;  // Minimum delay for oscillation (adaptive)
+const unsigned long OSC_POSITIONING_STEP_DELAY_MICROS = 2000;  // Slow initial positioning (25mm/s)
+const unsigned long OSC_MIN_STEP_DELAY_MICROS = 50;  // Minimum delay for oscillation (ultra-high resolution: 33kHz)
 const int OSC_MAX_STEPS_PER_CATCH_UP = 2;  // Max steps per loop iteration (anti-jerk)
+
+// Sine wave lookup table (optional performance optimization)
+#define USE_SINE_LOOKUP_TABLE true  // Enable pre-calculated sine table (saves ~13µs per call)
+const int SINE_TABLE_SIZE = 1024;  // 1024 points = 0.1% precision, 4KB RAM
 
 // Smooth transitions
 const unsigned long OSC_FREQ_TRANSITION_DURATION_MS = 1000;  // Smooth 1000ms frequency interpolation
@@ -120,12 +121,8 @@ const unsigned long OSC_DEBUG_LOG_INTERVAL_MS = 5000;  // General debug logs eve
 const unsigned long OSC_TRANSITION_LOG_INTERVAL_MS = 200;  // Transition logs every 200ms (was 100ms)
 
 // ============================================================================
-// CONFIGURATION - Drift Protection
+// CONFIGURATION - Chaos Mode
 // ============================================================================
-const unsigned long DRIFT_CHECK_INTERVAL_MS = 10000;  // Check every 10 seconds
-const float DRIFT_WARNING_THRESHOLD_MM = 3.0;  // Warn if drift > 3mm
-const float DRIFT_CRITICAL_THRESHOLD_MM = 10.0;  // Emergency stop if > 10mm
-
 // Why 50000µs? Chaos mode: max step delay = 50ms = 20 steps/sec (minimum sane speed)
 const unsigned long CHAOS_MAX_STEP_DELAY_MICROS = 50000;
 
@@ -163,13 +160,13 @@ const float MAX_SPEED_LEVEL = 35.0;  // Maximum speed level for all modes (1-30)
 
 // Adaptive speed limiting for oscillation (uses MAX_SPEED_LEVEL for consistency)
 // MAX_SPEED_LEVEL * 10.0 = max speed in mm/s (e.g., 30 * 10 = 300 mm/s)
-const float OSC_MAX_SPEED_MM_S = MAX_SPEED_LEVEL * 10.0;  // Maximum oscillation speed (adaptive delay kicks in above this)
+const float OSC_MAX_SPEED_MM_S = MAX_SPEED_LEVEL * 20.0;  // Maximum oscillation speed (adaptive delay kicks in above this)
 
 // ============================================================================
 // CONFIGURATION - Loop Timing
 // ============================================================================
-const unsigned long WEBSERVICE_INTERVAL_US = 3000;    // Service WebSocket every 3ms
-const unsigned long STATUS_UPDATE_INTERVAL_MS = 80;  // Send status every 80ms
+const unsigned long WEBSERVICE_INTERVAL_US = 5000;    // Service WebSocket every 3ms
+const unsigned long STATUS_UPDATE_INTERVAL_MS = 250;  // Send status every 80ms
 const unsigned long SUMMARY_LOG_INTERVAL_MS = 60000;  // Print summary every 60s
 
 // ============================================================================
