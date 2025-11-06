@@ -69,6 +69,9 @@ float effectiveMaxDistanceMM = 0.0;     // Calculated value used for validation
 MotionConfig motion;
 PendingMotionConfig pendingMotion;
 
+// Pause state for Simple mode (VAET)
+CyclePauseState motionPauseState;
+
 bool isPaused = false;
 bool movingForward = true;
 long startStep = 0;
@@ -108,6 +111,9 @@ DecelZoneConfig decelZone;  // Global deceleration zone configuration
 // ============================================================================
 OscillationConfig oscillation;
 OscillationState oscillationState;
+
+// Pause state for Oscillation mode
+CyclePauseState oscPauseState;
 
 // Global variable for actual oscillation speed (for display)
 float actualOscillationSpeedMMS = 0.0;  // Real speed considering hardware limits
@@ -355,6 +361,9 @@ void setup() {
   Serial.begin(115200);
   // Allow serial to initialize (non-critical, keep simple delay)
   delay(1000);
+  
+  // Initialize random seed for cycle pause random mode
+  randomSeed(analogRead(0) + esp_random());
   
   // ============================================================================
   // UTILITY ENGINE INITIALIZATION (MUST BE FIRST!)
@@ -605,6 +614,20 @@ void loop() {
     case MOVEMENT_VAET:
       // VA-ET-VIENT: Classic back-and-forth movement
       if (config.currentState == STATE_RUNNING && !isPaused) {
+        
+        // 🆕 NOUVEAU: Vérifier si en pause entre cycles
+        if (motionPauseState.isPausing) {
+          unsigned long elapsedMs = millis() - motionPauseState.pauseStartMs;
+          if (elapsedMs >= motionPauseState.currentPauseDuration) {
+            // Fin de pause, reprendre le mouvement
+            motionPauseState.isPausing = false;
+            movingForward = true;  // Reprendre direction forward
+            engine->debug("▶️ Fin pause cycle VAET");
+          }
+          // Pendant la pause, ne rien faire (pas de step)
+          break;
+        }
+        
         unsigned long currentMicros = micros();
         unsigned long currentDelay = movingForward ? stepDelayMicrosForward : stepDelayMicrosBackward;
         
@@ -1789,6 +1812,33 @@ void doStep() {
         targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
       }
       
+      // 🆕 NOUVEAU: Vérifier si pause entre cycles activée
+      if (motion.cyclePause.enabled) {
+        // Calculer durée de pause
+        if (motion.cyclePause.isRandom) {
+          // Mode aléatoire: tirer une valeur entre min et max
+          // 🆕 SÉCURITÉ: Garantir min ≤ max (défense en profondeur)
+          float minVal = min(motion.cyclePause.minPauseSec, motion.cyclePause.maxPauseSec);
+          float maxVal = max(motion.cyclePause.minPauseSec, motion.cyclePause.maxPauseSec);
+          float range = maxVal - minVal;
+          float randomOffset = (float)random(0, 10000) / 10000.0;  // 0.0 à 1.0
+          float pauseSec = minVal + (randomOffset * range);
+          motionPauseState.currentPauseDuration = (unsigned long)(pauseSec * 1000);
+        } else {
+          // Mode fixe
+          motionPauseState.currentPauseDuration = (unsigned long)(motion.cyclePause.pauseDurationSec * 1000);
+        }
+        
+        // Démarrer la pause
+        motionPauseState.isPausing = true;
+        motionPauseState.pauseStartMs = millis();
+        
+        engine->debug("⏸️ Pause cycle VAET: " + String(motionPauseState.currentPauseDuration) + "ms");
+        
+        // NE PAS reverser la direction maintenant, attendre la fin de la pause
+        return;
+      }
+      
       movingForward = true;
       // Direction will be set on next doStep() call when entering FORWARD block
       
@@ -1913,6 +1963,10 @@ void stopMovement() {
     chaosState.isRunning = false;
     engine->debug("⚡ Chaos stopped by stopMovement()");
   }
+  
+  // Reset pause states
+  motionPauseState.isPausing = false;
+  oscPauseState.isPausing = false;
   
   // Stop simple mode
   if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
@@ -2400,6 +2454,27 @@ float calculateOscillationPosition() {
     oscillationState.completedCycles++;
     engine->debug("🔄 Cycle " + String(oscillationState.completedCycles) + "/" + String(oscillation.cycleCount));
     
+    // 🆕 NOUVEAU: Vérifier si pause entre cycles activée
+    if (oscillation.cyclePause.enabled) {
+      // Calculer durée de pause
+      if (oscillation.cyclePause.isRandom) {
+        // 🆕 SÉCURITÉ: Garantir min ≤ max (défense en profondeur)
+        float minVal = min(oscillation.cyclePause.minPauseSec, oscillation.cyclePause.maxPauseSec);
+        float maxVal = max(oscillation.cyclePause.minPauseSec, oscillation.cyclePause.maxPauseSec);
+        float range = maxVal - minVal;
+        float randomOffset = (float)random(0, 10000) / 10000.0;
+        float pauseSec = minVal + (randomOffset * range);
+        oscPauseState.currentPauseDuration = (unsigned long)(pauseSec * 1000);
+      } else {
+        oscPauseState.currentPauseDuration = (unsigned long)(oscillation.cyclePause.pauseDurationSec * 1000);
+      }
+      
+      oscPauseState.isPausing = true;
+      oscPauseState.pauseStartMs = millis();
+      
+      engine->debug("⏸️ Pause cycle OSC: " + String(oscPauseState.currentPauseDuration) + "ms");
+    }
+    
     // ⚠️ Send status update to frontend when cycle completes (Bug #1 fix)
     if (config.executionContext == CONTEXT_SEQUENCER) {
       sendSequenceStatus();
@@ -2555,6 +2630,21 @@ bool validateOscillationAmplitude(float centerMM, float amplitudeMM, String& err
 
 // Execute one step of oscillation movement
 void doOscillationStep() {
+  // 🆕 NOUVEAU: Vérifier si en pause entre cycles
+  if (oscPauseState.isPausing) {
+    unsigned long elapsedMs = millis() - oscPauseState.pauseStartMs;
+    if (elapsedMs >= oscPauseState.currentPauseDuration) {
+      // Pause terminée - AJUSTER le timer pour éviter un "saut" de phase
+      unsigned long pauseDuration = elapsedMs;
+      oscillationState.lastPhaseUpdateMs = millis();  // Reset le timer pour éviter deltaMs énorme
+      
+      oscPauseState.isPausing = false;
+      engine->debug("▶️ Fin pause cycle OSC (" + String(pauseDuration) + "ms) - Phase gelée");
+    } else {
+      return;  // Pause en cours, ne rien faire
+    }
+  }
+  
   // Constantes de timing pour les différentes phases
   const unsigned long POSITIONING_STEP_DELAY_MICROS = 1000;  // Positionnement initial lent (25mm/s)
   
@@ -4247,6 +4337,68 @@ bool handleDecelZoneCommands(const char* cmd, JsonDocument& doc, const String& m
 }
 
 /**
+ * HANDLER 3.5/7: Cycle Pause Commands (Mode Simple + Oscillation)
+ * Handles pause between cycles configuration
+ */
+bool handleCyclePauseCommands(const char* cmd, JsonDocument& doc) {
+  if (strcmp(cmd, "updateCyclePause") == 0) {
+    bool enabled = doc["enabled"] | false;
+    bool isRandom = doc["isRandom"] | false;
+    float pauseDurationSec = doc["pauseDurationSec"] | 1.5;
+    float minPauseSec = doc["minPauseSec"] | 1.5;
+    float maxPauseSec = doc["maxPauseSec"] | 5.0;
+    
+    // Validate values
+    if (minPauseSec < 0.1) minPauseSec = 0.1;
+    if (maxPauseSec < minPauseSec) maxPauseSec = minPauseSec + 0.5;
+    if (pauseDurationSec < 0.1) pauseDurationSec = 0.1;
+    
+    // Apply to Motion (Mode Simple VAET)
+    motion.cyclePause.enabled = enabled;
+    motion.cyclePause.isRandom = isRandom;
+    motion.cyclePause.pauseDurationSec = pauseDurationSec;
+    motion.cyclePause.minPauseSec = minPauseSec;
+    motion.cyclePause.maxPauseSec = maxPauseSec;
+    
+    engine->info(String("⏸️ Pause cycle VAET: ") + (enabled ? "activée" : "désactivée") +
+          " | Mode: " + (isRandom ? "aléatoire" : "fixe") +
+          " | " + (isRandom ? String(minPauseSec, 1) + "-" + String(maxPauseSec, 1) + "s" : String(pauseDurationSec, 1) + "s"));
+    
+    sendStatus();
+    return true;
+  }
+  
+  if (strcmp(cmd, "updateCyclePauseOsc") == 0) {
+    bool enabled = doc["enabled"] | false;
+    bool isRandom = doc["isRandom"] | false;
+    float pauseDurationSec = doc["pauseDurationSec"] | 1.5;
+    float minPauseSec = doc["minPauseSec"] | 1.5;
+    float maxPauseSec = doc["maxPauseSec"] | 5.0;
+    
+    // Validate values
+    if (minPauseSec < 0.1) minPauseSec = 0.1;
+    if (maxPauseSec < minPauseSec) maxPauseSec = minPauseSec + 0.5;
+    if (pauseDurationSec < 0.1) pauseDurationSec = 0.1;
+    
+    // Apply to Oscillation
+    oscillation.cyclePause.enabled = enabled;
+    oscillation.cyclePause.isRandom = isRandom;
+    oscillation.cyclePause.pauseDurationSec = pauseDurationSec;
+    oscillation.cyclePause.minPauseSec = minPauseSec;
+    oscillation.cyclePause.maxPauseSec = maxPauseSec;
+    
+    engine->info(String("⏸️ Pause cycle OSC: ") + (enabled ? "activée" : "désactivée") +
+          " | Mode: " + (isRandom ? "aléatoire" : "fixe") +
+          " | " + (isRandom ? String(minPauseSec, 1) + "-" + String(maxPauseSec, 1) + "s" : String(pauseDurationSec, 1) + "s"));
+    
+    sendStatus();
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * HANDLER 4/7: Pursuit Mode Commands
  * Handles real-time position tracking mode
  */
@@ -4429,6 +4581,18 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
     oscillation.cycleCount = doc["cycleCount"] | oscillation.cycleCount;
     oscillation.returnToCenter = doc["returnToCenter"] | oscillation.returnToCenter;
     
+    // Cycle pause parameters (if provided)
+    if (doc["cyclePauseEnabled"].is<bool>()) {
+      oscillation.cyclePause.enabled = doc["cyclePauseEnabled"];
+      oscillation.cyclePause.isRandom = doc["cyclePauseIsRandom"] | false;
+      oscillation.cyclePause.pauseDurationSec = doc["cyclePauseDurationSec"] | 0.0f;
+      oscillation.cyclePause.minPauseSec = doc["cyclePauseMinSec"] | 0.5f;
+      oscillation.cyclePause.maxPauseSec = doc["cyclePauseMaxSec"] | 3.0f;
+      engine->debug("⏸️ OSC cycle pause: enabled=" + String(oscillation.cyclePause.enabled) + 
+                    ", random=" + String(oscillation.cyclePause.isRandom) + 
+                    ", duration=" + String(oscillation.cyclePause.pauseDurationSec, 1) + "s");
+    }
+    
     // Check if any oscillation parameter changed
     bool paramsChanged = (oldCenter != oscillation.centerPositionMM || 
                           oldAmplitude != oscillation.amplitudeMM ||
@@ -4473,6 +4637,67 @@ bool handleOscillationCommands(const char* cmd, JsonDocument& doc, const String&
     }
     
     engine->debug("✅ Configuration oscillation mise à jour (prise en compte immédiate)");
+    sendStatus();
+    return true;
+  }
+  
+  if (message.indexOf("\"cmd\":\"setCyclePause\"") > 0) {
+    const char* mode = doc["mode"];  // "simple" or "oscillation"
+    
+    if (mode && strcmp(mode, "simple") == 0) {
+      // Configure pause for Simple (VA-ET-VIENT) mode
+      motion.cyclePause.enabled = doc["enabled"] | false;
+      motion.cyclePause.isRandom = doc["isRandom"] | false;
+      motion.cyclePause.pauseDurationSec = doc["durationSec"] | 0.0f;
+      
+      // 🆕 SÉCURITÉ: Clamp min/max + garantir min ≤ max + limit 60s
+      float minSec = doc["minSec"] | 0.5f;
+      float maxSec = doc["maxSec"] | 3.0f;
+      
+      // Forcer min ≤ max
+      if (minSec > maxSec) {
+        float temp = minSec;
+        minSec = maxSec;
+        maxSec = temp;
+      }
+      
+      // Limiter à 60s maximum (anti-freeze)
+      motion.cyclePause.minPauseSec = min(minSec, 60.0f);
+      motion.cyclePause.maxPauseSec = min(maxSec, 60.0f);
+      
+      engine->debug("⏸️ Simple cycle pause: enabled=" + String(motion.cyclePause.enabled) + 
+                    ", random=" + String(motion.cyclePause.isRandom) + 
+                    ", duration=" + String(motion.cyclePause.pauseDurationSec, 1) + "s" +
+                    ", range=[" + String(motion.cyclePause.minPauseSec, 1) + "s-" + 
+                    String(motion.cyclePause.maxPauseSec, 1) + "s]");
+    } else if (mode && strcmp(mode, "oscillation") == 0) {
+      // Configure pause for Oscillation mode
+      oscillation.cyclePause.enabled = doc["enabled"] | false;
+      oscillation.cyclePause.isRandom = doc["isRandom"] | false;
+      oscillation.cyclePause.pauseDurationSec = doc["durationSec"] | 0.0f;
+      
+      // 🆕 SÉCURITÉ: Clamp min/max + garantir min ≤ max + limit 60s
+      float minSec = doc["minSec"] | 0.5f;
+      float maxSec = doc["maxSec"] | 3.0f;
+      
+      // Forcer min ≤ max
+      if (minSec > maxSec) {
+        float temp = minSec;
+        minSec = maxSec;
+        maxSec = temp;
+      }
+      
+      // Limiter à 60s maximum (anti-freeze)
+      oscillation.cyclePause.minPauseSec = min(minSec, 60.0f);
+      oscillation.cyclePause.maxPauseSec = min(maxSec, 60.0f);
+      
+      engine->debug("⏸️ OSC cycle pause: enabled=" + String(oscillation.cyclePause.enabled) + 
+                    ", random=" + String(oscillation.cyclePause.isRandom) + 
+                    ", duration=" + String(oscillation.cyclePause.pauseDurationSec, 1) + "s" +
+                    ", range=[" + String(oscillation.cyclePause.minPauseSec, 1) + "s-" + 
+                    String(oscillation.cyclePause.maxPauseSec, 1) + "s]");
+    }
+    
     sendStatus();
     return true;
   }
@@ -4745,12 +4970,14 @@ bool handleSequencerCommands(const char* cmd, JsonDocument& doc, const String& m
 // ============================================================================
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-  // When a client connects, don't send status yet
-  // Client will request status via getStatus command once JS is ready
+  // When a client connects
   if (type == WStype_CONNECTED) {
     IPAddress ip = webSocket.remoteIP(num);
     engine->info(String("WebSocket client #") + String(num) + " connected from " + 
           String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]));
+    
+    // Don't send status automatically - let client request it via getStatus command
+    // This ensures JS is fully loaded before receiving status data
   }
   
   // When a client disconnects
@@ -4784,6 +5011,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     if (handleBasicCommands(cmd, doc)) return;
     if (handleConfigCommands(cmd, doc)) return;
     if (handleDecelZoneCommands(cmd, doc, message)) return;
+    if (handleCyclePauseCommands(cmd, doc)) return;  // NEW: Cycle pause handler
     if (handlePursuitCommands(cmd, doc)) return;
     if (handleChaosCommands(cmd, doc, message)) return;
     if (handleOscillationCommands(cmd, doc, message)) return;
@@ -5044,6 +5272,13 @@ SequenceLine parseSequenceLineFromJson(JsonVariantConst obj) {
   line.decelEffectPercent = obj["decelEffectPercent"] | 50.0;
   line.decelMode = (DecelMode)(obj["decelMode"] | 0);
   
+  // VA-ET-VIENT cycle pause
+  line.vaetCyclePauseEnabled = obj["vaetCyclePauseEnabled"] | false;
+  line.vaetCyclePauseIsRandom = obj["vaetCyclePauseIsRandom"] | false;
+  line.vaetCyclePauseDurationSec = obj["vaetCyclePauseDurationSec"] | 0.0;
+  line.vaetCyclePauseMinSec = obj["vaetCyclePauseMinSec"] | 0.5;
+  line.vaetCyclePauseMaxSec = obj["vaetCyclePauseMaxSec"] | 3.0;
+  
   // OSCILLATION fields (use effective max distance for default center)
   float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
   line.oscCenterPositionMM = obj["oscCenterPositionMM"] | (effectiveMax / 2.0);
@@ -5055,6 +5290,13 @@ SequenceLine parseSequenceLineFromJson(JsonVariantConst obj) {
   line.oscEnableRampOut = obj["oscEnableRampOut"] | false;
   line.oscRampInDurationMs = obj["oscRampInDurationMs"] | 1000.0;
   line.oscRampOutDurationMs = obj["oscRampOutDurationMs"] | 1000.0;
+  
+  // OSCILLATION cycle pause
+  line.oscCyclePauseEnabled = obj["oscCyclePauseEnabled"] | false;
+  line.oscCyclePauseIsRandom = obj["oscCyclePauseIsRandom"] | false;
+  line.oscCyclePauseDurationSec = obj["oscCyclePauseDurationSec"] | 0.0;
+  line.oscCyclePauseMinSec = obj["oscCyclePauseMinSec"] | 0.5;
+  line.oscCyclePauseMaxSec = obj["oscCyclePauseMaxSec"] | 3.0;
   
   // CHAOS fields (use effective max distance for default center)
   line.chaosCenterPositionMM = obj["chaosCenterPositionMM"] | (effectiveMax / 2.0);
@@ -5145,6 +5387,13 @@ String exportSequenceToJson() {
     lineObj["decelEffectPercent"] = serialized(String(line->decelEffectPercent, 0));
     lineObj["decelMode"] = (int)line->decelMode;
     
+    // VA-ET-VIENT cycle pause
+    lineObj["vaetCyclePauseEnabled"] = line->vaetCyclePauseEnabled;
+    lineObj["vaetCyclePauseIsRandom"] = line->vaetCyclePauseIsRandom;
+    lineObj["vaetCyclePauseDurationSec"] = serialized(String(line->vaetCyclePauseDurationSec, 1));
+    lineObj["vaetCyclePauseMinSec"] = serialized(String(line->vaetCyclePauseMinSec, 1));
+    lineObj["vaetCyclePauseMaxSec"] = serialized(String(line->vaetCyclePauseMaxSec, 1));
+    
     // OSCILLATION fields
     lineObj["oscCenterPositionMM"] = serialized(String(line->oscCenterPositionMM, 1));
     lineObj["oscAmplitudeMM"] = serialized(String(line->oscAmplitudeMM, 1));
@@ -5154,6 +5403,13 @@ String exportSequenceToJson() {
     lineObj["oscEnableRampOut"] = line->oscEnableRampOut;
     lineObj["oscRampInDurationMs"] = serialized(String(line->oscRampInDurationMs, 0));
     lineObj["oscRampOutDurationMs"] = serialized(String(line->oscRampOutDurationMs, 0));
+    
+    // OSCILLATION cycle pause
+    lineObj["oscCyclePauseEnabled"] = line->oscCyclePauseEnabled;
+    lineObj["oscCyclePauseIsRandom"] = line->oscCyclePauseIsRandom;
+    lineObj["oscCyclePauseDurationSec"] = serialized(String(line->oscCyclePauseDurationSec, 1));
+    lineObj["oscCyclePauseMinSec"] = serialized(String(line->oscCyclePauseMinSec, 1));
+    lineObj["oscCyclePauseMaxSec"] = serialized(String(line->oscCyclePauseMaxSec, 1));
     
     // CHAOS fields
     lineObj["chaosCenterPositionMM"] = serialized(String(line->chaosCenterPositionMM, 1));
@@ -5760,6 +6016,13 @@ void processSequenceExecution() {
         decelZone.effectPercent = currentLine->decelEffectPercent;
         decelZone.mode = currentLine->decelMode;
         
+        // Apply cycle pause configuration from sequence line
+        motion.cyclePause.enabled = currentLine->vaetCyclePauseEnabled;
+        motion.cyclePause.isRandom = currentLine->vaetCyclePauseIsRandom;
+        motion.cyclePause.pauseDurationSec = currentLine->vaetCyclePauseDurationSec;
+        motion.cyclePause.minPauseSec = currentLine->vaetCyclePauseMinSec;
+        motion.cyclePause.maxPauseSec = currentLine->vaetCyclePauseMaxSec;
+        
         // Validate configuration
         validateDecelZone();
         
@@ -5829,6 +6092,13 @@ void processSequenceExecution() {
         oscillation.rampOutDurationMs = currentLine->oscRampOutDurationMs;
         oscillation.cycleCount = currentLine->cycleCount;  // Oscillation will execute THIS many cycles
         oscillation.returnToCenter = false;  // Don't return to center in sequencer (continue to next line)
+        
+        // Apply cycle pause configuration from sequence line
+        oscillation.cyclePause.enabled = currentLine->oscCyclePauseEnabled;
+        oscillation.cyclePause.isRandom = currentLine->oscCyclePauseIsRandom;
+        oscillation.cyclePause.pauseDurationSec = currentLine->oscCyclePauseDurationSec;
+        oscillation.cyclePause.minPauseSec = currentLine->oscCyclePauseMinSec;
+        oscillation.cyclePause.maxPauseSec = currentLine->oscCyclePauseMaxSec;
         
         seqState.lineStartTime = millis();
         
@@ -6014,6 +6284,24 @@ void sendStatus() {
     motionObj["speedLevelForward"] = serialized(String(motion.speedLevelForward, 1));
     motionObj["speedLevelBackward"] = serialized(String(motion.speedLevelBackward, 1));
     
+    // Cycle pause config & state
+    JsonObject pauseObj = motionObj["cyclePause"].to<JsonObject>();
+    pauseObj["enabled"] = motion.cyclePause.enabled;
+    pauseObj["isRandom"] = motion.cyclePause.isRandom;
+    pauseObj["pauseDurationSec"] = serialized(String(motion.cyclePause.pauseDurationSec, 1));
+    pauseObj["minPauseSec"] = serialized(String(motion.cyclePause.minPauseSec, 1));
+    pauseObj["maxPauseSec"] = serialized(String(motion.cyclePause.maxPauseSec, 1));
+    pauseObj["isPausing"] = motionPauseState.isPausing;
+    
+    // Calculate remaining time (server-side)
+    if (motionPauseState.isPausing) {
+      unsigned long elapsedMs = millis() - motionPauseState.pauseStartMs;
+      long remainingMs = (long)motionPauseState.currentPauseDuration - (long)elapsedMs;
+      pauseObj["remainingMs"] = max(0L, remainingMs);
+    } else {
+      pauseObj["remainingMs"] = 0;
+    }
+    
     // Legacy fields (backward compatibility)
     doc["startPositionMM"] = serialized(String(motion.startPositionMM, 2));
     doc["targetDistMM"] = serialized(String(motion.targetDistanceMM, 2));
@@ -6043,18 +6331,14 @@ void sendStatus() {
       doc["hasPending"] = false;
     }
     
-    // Deceleration zone (only if enabled)
-    if (decelZone.enabled) {
-      JsonObject decelObj = doc["decelZone"].to<JsonObject>();
-      decelObj["enabled"] = true;
-      decelObj["enableStart"] = decelZone.enableStart;
-      decelObj["enableEnd"] = decelZone.enableEnd;
-      decelObj["zoneMM"] = serialized(String(decelZone.zoneMM, 1));
-      decelObj["effectPercent"] = serialized(String(decelZone.effectPercent, 0));
-      decelObj["mode"] = (int)decelZone.mode;
-    } else {
-      doc["decelZone"]["enabled"] = false;
-    }
+    // Deceleration zone (always send, even if disabled, for UI sync)
+    JsonObject decelObj = doc["decelZone"].to<JsonObject>();
+    decelObj["enabled"] = decelZone.enabled;
+    decelObj["enableStart"] = decelZone.enableStart;
+    decelObj["enableEnd"] = decelZone.enableEnd;
+    decelObj["zoneMM"] = serialized(String(decelZone.zoneMM, 1));
+    decelObj["effectPercent"] = serialized(String(decelZone.effectPercent, 0));
+    decelObj["mode"] = (int)decelZone.mode;
   }
   else if (currentMovement == MOVEMENT_OSC) {
     // ========================================================================
@@ -6084,6 +6368,24 @@ void sendStatus() {
     oscObj["rampOutDurationMs"] = serialized(String(oscillation.rampOutDurationMs, 0));
     oscObj["cycleCount"] = oscillation.cycleCount;
     oscObj["returnToCenter"] = oscillation.returnToCenter;
+    
+    // Cycle pause config & state
+    JsonObject oscPauseObj = oscObj["cyclePause"].to<JsonObject>();
+    oscPauseObj["enabled"] = oscillation.cyclePause.enabled;
+    oscPauseObj["isRandom"] = oscillation.cyclePause.isRandom;
+    oscPauseObj["pauseDurationSec"] = serialized(String(oscillation.cyclePause.pauseDurationSec, 1));
+    oscPauseObj["minPauseSec"] = serialized(String(oscillation.cyclePause.minPauseSec, 1));
+    oscPauseObj["maxPauseSec"] = serialized(String(oscillation.cyclePause.maxPauseSec, 1));
+    oscPauseObj["isPausing"] = oscPauseState.isPausing;
+    
+    // Calculate remaining time (server-side)
+    if (oscPauseState.isPausing) {
+      unsigned long elapsedMs = millis() - oscPauseState.pauseStartMs;
+      long remainingMs = (long)oscPauseState.currentPauseDuration - (long)elapsedMs;
+      oscPauseObj["remainingMs"] = max(0L, remainingMs);
+    } else {
+      oscPauseObj["remainingMs"] = 0;
+    }
     
     // Oscillation state (minimal if no ramping, full if ramping)
     JsonObject oscStateObj = doc["oscillationState"].to<JsonObject>();

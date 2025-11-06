@@ -18,6 +18,9 @@ extern WebServer server;
 extern WebSocketsServer webSocket;
 extern UtilityEngine* engine;
 
+// Forward declaration for sequence import function (defined in main .ino)
+int importSequenceFromJson(String jsonData);
+
 // ============================================================================
 // HELPER FUNCTIONS (JSON responses)
 // ============================================================================
@@ -542,23 +545,39 @@ void setupAPIRoutes() {
   
   // POST /logs/clear - Clear all log files
   server.on("/logs/clear", HTTP_POST, []() {
+    int deletedCount = 0;
+    
     // Delete all files in /logs directory
     File logsDir = LittleFS.open("/logs");
     if (logsDir && logsDir.isDirectory()) {
       File logFile = logsDir.openNextFile();
       while (logFile) {
         if (!logFile.isDirectory()) {
-          String fullPath = "/logs/" + String(logFile.name());
-          LittleFS.remove(fullPath);
-          engine->info("🗑️ Deleted log: " + fullPath);
+          // Get file name (without directory path)
+          String fileName = String(logFile.name());
+          
+          // Close file before deleting
+          logFile.close();
+          
+          // Build full path and delete
+          String fullPath = "/logs/" + fileName;
+          if (LittleFS.remove(fullPath)) {
+            engine->info("🗑️ Deleted: " + fullPath);
+            deletedCount++;
+          } else {
+            engine->error("❌ Failed to delete: " + fullPath);
+          }
         }
+        
+        // Get next file
         logFile = logsDir.openNextFile();
       }
       logsDir.close();
     }
     
-    engine->info("📋 All log files cleared");
-    server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"All logs cleared\"}");
+    engine->info("📋 Deleted " + String(deletedCount) + " log files");
+    server.send(200, "application/json", 
+      "{\"status\":\"ok\",\"message\":\"" + String(deletedCount) + " logs deleted\",\"count\":" + String(deletedCount) + "}");
   });
 
   // ============================================================================
@@ -653,6 +672,22 @@ void setupAPIRoutes() {
     engine->saveLoggingPreferences();
     
     server.send(200, "application/json", "{\"success\":true,\"message\":\"Logging preferences saved\"}");
+  });
+
+  // ===== IMPORT SEQUENCE VIA HTTP POST (Bypass WebSocket size limit) =====
+  server.on("/api/sequence/import", HTTP_POST, []() {
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"error\":\"No JSON body provided\"}");
+      return;
+    }
+
+    String jsonData = server.arg("plain");
+    engine->info("📥 HTTP Import received: " + String(jsonData.length()) + " bytes");
+
+    // Call the existing import function
+    importSequenceFromJson(jsonData);
+
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"Sequence imported successfully\"}");
   });
 
   // Handle 404 - try to serve files from LittleFS (including /logs/*)

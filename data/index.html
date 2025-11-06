@@ -1573,6 +1573,67 @@
         </div>
       </div>
 
+      <!-- ===== CYCLE PAUSE SECTION ===== -->
+      <div class="section-collapsible collapsed" style="margin-bottom: 20px;">
+        <div class="section-collapsible-header" onclick="toggleCyclePauseSection()">
+          <span class="collapse-icon">▼</span> <span id="cyclePauseHeaderText">⏸️ Pause entre cycles - désactivée</span>
+        </div>
+        
+        <div class="section-collapsible-content">
+          <!-- Mode Selection: Fixed / Random -->
+          <div class="speed-control-inline" style="margin-bottom: 15px;">
+            <label class="label-inline">Mode:</label>
+            <label style="margin-right: 15px; font-size: 13px;">
+              <input type="radio" name="cyclePauseMode" value="fixed" id="pauseModeFixed" checked style="margin-right: 5px;">
+              ⏱️ Fixe
+            </label>
+            <label style="font-size: 13px;">
+              <input type="radio" name="cyclePauseMode" value="random" id="pauseModeRandom" style="margin-right: 5px;">
+              🎲 Aléatoire
+            </label>
+          </div>
+          
+          <!-- Fixed Mode: Single Duration -->
+          <div id="pauseFixedControls" class="speed-control-inline" style="margin-bottom: 10px;">
+            <label class="label-inline">Durée:</label>
+            <input type="number" id="cyclePauseDuration" min="0.1" max="60" step="0.1" value="1.5" class="input-compact">
+            <span class="unit-label">s</span>
+            <button class="preset-btn-sm btn-preset" data-pause-duration="0.5">0.5s</button>
+            <button class="preset-btn-sm btn-preset active" data-pause-duration="1.5">1.5s</button>
+            <button class="preset-btn-sm btn-preset" data-pause-duration="3">3s</button>
+            <button class="preset-btn-sm btn-preset" data-pause-duration="5">5s</button>
+            <button class="preset-btn-sm btn-preset" data-pause-duration="10">10s</button>
+          </div>
+          
+          <!-- Random Mode: Min/Max Range -->
+          <div id="pauseRandomControls" style="display: none;">
+            <div class="speed-control-inline" style="margin-bottom: 10px;">
+              <label class="label-inline">Min:</label>
+              <input type="number" id="cyclePauseMin" min="0.1" max="60" step="0.1" value="1.5" class="input-compact">
+              <span class="unit-label">s</span>
+              <button class="preset-btn-sm btn-preset" data-pause-min="0.5">0.5s</button>
+              <button class="preset-btn-sm btn-preset active" data-pause-min="1.5">1.5s</button>
+              <button class="preset-btn-sm btn-preset" data-pause-min="3">3s</button>
+            </div>
+            
+            <div class="speed-control-inline" style="margin-bottom: 10px;">
+              <label class="label-inline">Max:</label>
+              <input type="number" id="cyclePauseMax" min="0.1" max="60" step="0.1" value="5.0" class="input-compact">
+              <span class="unit-label">s</span>
+              <button class="preset-btn-sm btn-preset" data-pause-max="3">3s</button>
+              <button class="preset-btn-sm btn-preset active" data-pause-max="5">5s</button>
+              <button class="preset-btn-sm btn-preset" data-pause-max="10">10s</button>
+              <button class="preset-btn-sm btn-preset" data-pause-max="15">15s</button>
+            </div>
+          </div>
+          
+          <!-- Real-time Pause Indicator -->
+          <div id="cyclePauseStatus" style="margin-top: 10px; padding: 8px; background: #f0f0f0; border-radius: 5px; font-size: 13px; text-align: center; display: none;">
+            <strong>⏱️ En pause:</strong> <span id="cyclePauseRemaining">0.0s</span> restantes
+          </div>
+        </div>
+      </div>
+
     <div class="button-group">
       <button class="button btn-success" id="btnStart">▶ Démarrer</button>
       <button class="button btn-warning" id="btnPause">⏸ Pause</button>
@@ -1810,6 +1871,67 @@
             <div>
               <strong>Limites:</strong>
               <span id="oscLimitStatus" style="font-weight: bold;">--</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ===== CYCLE PAUSE SECTION (OSCILLATION) ===== -->
+        <div class="section-collapsible collapsed" style="margin-bottom: 20px;">
+          <div class="section-collapsible-header" onclick="toggleCyclePauseOscSection()">
+            <span class="collapse-icon">▼</span> <span id="cyclePauseOscHeaderText">⏸️ Pause entre cycles - désactivée</span>
+          </div>
+          
+          <div class="section-collapsible-content">
+            <!-- Mode Selection: Fixed / Random -->
+            <div class="speed-control-inline" style="margin-bottom: 15px;">
+              <label class="label-inline">Mode:</label>
+              <label style="margin-right: 15px; font-size: 13px;">
+                <input type="radio" name="cyclePauseModeOsc" value="fixed" id="pauseModeFixedOsc" checked style="margin-right: 5px;">
+                ⏱️ Fixe
+              </label>
+              <label style="font-size: 13px;">
+                <input type="radio" name="cyclePauseModeOsc" value="random" id="pauseModeRandomOsc" style="margin-right: 5px;">
+                🎲 Aléatoire
+              </label>
+            </div>
+            
+            <!-- Fixed Mode: Single Duration -->
+            <div id="pauseFixedControlsOsc" class="speed-control-inline" style="margin-bottom: 10px;">
+              <label class="label-inline">Durée:</label>
+              <input type="number" id="cyclePauseDurationOsc" min="0.1" max="60" step="0.1" value="1.5" class="input-compact">
+              <span class="unit-label">s</span>
+              <button class="preset-btn-sm btn-preset" data-pause-duration-osc="0.5">0.5s</button>
+              <button class="preset-btn-sm btn-preset active" data-pause-duration-osc="1.5">1.5s</button>
+              <button class="preset-btn-sm btn-preset" data-pause-duration-osc="3">3s</button>
+              <button class="preset-btn-sm btn-preset" data-pause-duration-osc="5">5s</button>
+              <button class="preset-btn-sm btn-preset" data-pause-duration-osc="10">10s</button>
+            </div>
+            
+            <!-- Random Mode: Min/Max Range -->
+            <div id="pauseRandomControlsOsc" style="display: none;">
+              <div class="speed-control-inline" style="margin-bottom: 10px;">
+                <label class="label-inline">Min:</label>
+                <input type="number" id="cyclePauseMinOsc" min="0.1" max="60" step="0.1" value="1.5" class="input-compact">
+                <span class="unit-label">s</span>
+                <button class="preset-btn-sm btn-preset" data-pause-min-osc="0.5">0.5s</button>
+                <button class="preset-btn-sm btn-preset active" data-pause-min-osc="1.5">1.5s</button>
+                <button class="preset-btn-sm btn-preset" data-pause-min-osc="3">3s</button>
+              </div>
+              
+              <div class="speed-control-inline" style="margin-bottom: 10px;">
+                <label class="label-inline">Max:</label>
+                <input type="number" id="cyclePauseMaxOsc" min="0.1" max="60" step="0.1" value="5.0" class="input-compact">
+                <span class="unit-label">s</span>
+                <button class="preset-btn-sm btn-preset" data-pause-max-osc="3">3s</button>
+                <button class="preset-btn-sm btn-preset active" data-pause-max-osc="5">5s</button>
+                <button class="preset-btn-sm btn-preset" data-pause-max-osc="10">10s</button>
+                <button class="preset-btn-sm btn-preset" data-pause-max-osc="15">15s</button>
+              </div>
+            </div>
+            
+            <!-- Real-time Pause Indicator -->
+            <div id="cyclePauseStatusOsc" style="margin-top: 10px; padding: 8px; background: #f0f0f0; border-radius: 5px; font-size: 13px; text-align: center; display: none;">
+              <strong>⏱️ En pause:</strong> <span id="cyclePauseRemainingOsc">0.0s</span> restantes
             </div>
           </div>
         </div>
@@ -2277,6 +2399,40 @@
                   </select>
                 </div>
               </fieldset>
+
+              <!-- Cycle Pause Section (VA-ET-VIENT) -->
+              <fieldset style="border: 1px solid #f39c12; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+                <legend style="color: #f39c12; font-weight: 500; padding: 0 8px; font-size: 12px;">⏸️ Pause entre cycles</legend>
+                
+                <div class="flex-gap-15 mb-8" style="font-size: 12px;">
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" name="vaetCyclePauseEnabled" id="editVaetPauseEnabled" style="width: 16px; height: 16px;">
+                    <span>Activer pause</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" name="vaetCyclePauseIsRandom" id="editVaetPauseRandom" style="width: 16px; height: 16px;">
+                    <span>Aléatoire (range)</span>
+                  </label>
+                </div>
+
+                <div class="grid-2col-12" style="margin-bottom: 8px; gap: 10px;" id="vaetPauseFixedDiv">
+                  <div>
+                    <label class="label-inline">Durée pause (s):</label>
+                    <input type="number" name="vaetCyclePauseDurationSec" id="editVaetPauseDuration" min="0" max="60" step="0.1" value="0.0" class="input-modal">
+                  </div>
+                </div>
+
+                <div class="grid-2col-12" style="margin-bottom: 8px; gap: 10px; display: none;" id="vaetPauseRandomDiv">
+                  <div>
+                    <label class="label-inline">Min (s):</label>
+                    <input type="number" name="vaetCyclePauseMinSec" id="editVaetPauseMin" min="0" max="60" step="0.1" value="0.5" class="input-modal">
+                  </div>
+                  <div>
+                    <label class="label-inline">Max (s):</label>
+                    <input type="number" name="vaetCyclePauseMaxSec" id="editVaetPauseMax" min="0" max="60" step="0.1" value="3.0" class="input-modal">
+                  </div>
+                </div>
+              </fieldset>
             </div>
             
             <!-- END VA-ET-VIENT FIELDS -->
@@ -2335,6 +2491,40 @@
                   <input type="number" name="oscRampOutDurationMs" id="editOscRampOutDur" min="100" max="10000" step="100" value="1000" class="input-modal">
                 </div>
               </div>
+
+              <!-- Cycle Pause Section (OSCILLATION) -->
+              <fieldset style="border: 1px solid #f39c12; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                <legend style="color: #f39c12; font-weight: 500; padding: 0 8px; font-size: 12px;">⏸️ Pause entre cycles</legend>
+                
+                <div class="flex-gap-15 mb-8" style="font-size: 12px;">
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" name="oscCyclePauseEnabled" id="editOscPauseEnabled" style="width: 16px; height: 16px;">
+                    <span>Activer pause</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" name="oscCyclePauseIsRandom" id="editOscPauseRandom" style="width: 16px; height: 16px;">
+                    <span>Aléatoire (range)</span>
+                  </label>
+                </div>
+
+                <div class="grid-2col-12" style="margin-bottom: 8px; gap: 10px;" id="oscPauseFixedDiv">
+                  <div>
+                    <label class="label-inline">Durée pause (s):</label>
+                    <input type="number" name="oscCyclePauseDurationSec" id="editOscPauseDuration" min="0" max="60" step="0.1" value="0.0" class="input-modal">
+                  </div>
+                </div>
+
+                <div class="grid-2col-12" style="margin-bottom: 8px; gap: 10px; display: none;" id="oscPauseRandomDiv">
+                  <div>
+                    <label class="label-inline">Min (s):</label>
+                    <input type="number" name="oscCyclePauseMinSec" id="editOscPauseMin" min="0" max="60" step="0.1" value="0.5" class="input-modal">
+                  </div>
+                  <div>
+                    <label class="label-inline">Max (s):</label>
+                    <input type="number" name="oscCyclePauseMaxSec" id="editOscPauseMax" min="0" max="60" step="0.1" value="3.0" class="input-modal">
+                  </div>
+                </div>
+              </fieldset>
 
             </div>
             <!-- END OSCILLATION FIELDS -->
@@ -2988,6 +3178,13 @@
         decelEffectPercent: 50,
         decelMode: 1,
         
+        // VA-ET-VIENT cycle pause
+        vaetCyclePauseEnabled: false,
+        vaetCyclePauseIsRandom: false,
+        vaetCyclePauseDurationSec: 0.0,
+        vaetCyclePauseMinSec: 0.5,
+        vaetCyclePauseMaxSec: 3.0,
+        
         // OSCILLATION fields - center on effective max
         oscCenterPositionMM: center,
         oscAmplitudeMM: Math.min(50.0, center),  // Cap at center
@@ -2997,6 +3194,13 @@
         oscEnableRampOut: false,
         oscRampInDurationMs: 1000.0,
         oscRampOutDurationMs: 1000.0,
+        
+        // OSCILLATION cycle pause
+        oscCyclePauseEnabled: false,
+        oscCyclePauseIsRandom: false,
+        oscCyclePauseDurationSec: 0.0,
+        oscCyclePauseMinSec: 0.5,
+        oscCyclePauseMaxSec: 3.0,
         
         // CHAOS fields - center on effective max
         chaosCenterPositionMM: center,
@@ -3085,6 +3289,24 @@
       document.getElementById('editOscRampInDur').value = line.oscRampInDurationMs || 1000;
       document.getElementById('editOscRampOutDur').value = line.oscRampOutDurationMs || 1000;
       
+      // VA-ET-VIENT Cycle Pause fields
+      document.getElementById('editVaetPauseEnabled').checked = line.vaetCyclePauseEnabled || false;
+      document.getElementById('editVaetPauseRandom').checked = line.vaetCyclePauseIsRandom || false;
+      document.getElementById('editVaetPauseDuration').value = line.vaetCyclePauseDurationSec || 0.0;
+      document.getElementById('editVaetPauseMin').value = line.vaetCyclePauseMinSec || 0.5;
+      document.getElementById('editVaetPauseMax').value = line.vaetCyclePauseMaxSec || 3.0;
+      
+      // OSCILLATION Cycle Pause fields
+      document.getElementById('editOscPauseEnabled').checked = line.oscCyclePauseEnabled || false;
+      document.getElementById('editOscPauseRandom').checked = line.oscCyclePauseIsRandom || false;
+      document.getElementById('editOscPauseDuration').value = line.oscCyclePauseDurationSec || 0.0;
+      document.getElementById('editOscPauseMin').value = line.oscCyclePauseMinSec || 0.5;
+      document.getElementById('editOscPauseMax').value = line.oscCyclePauseMaxSec || 3.0;
+      
+      // Trigger pause visibility updates
+      document.getElementById('editVaetPauseEnabled').dispatchEvent(new Event('change'));
+      document.getElementById('editOscPauseEnabled').dispatchEvent(new Event('change'));
+      
       // CHAOS fields
       document.getElementById('editChaosCenter').value = line.chaosCenterPositionMM || 110;
       document.getElementById('editChaosAmplitude').value = line.chaosAmplitudeMM || 50;
@@ -3150,6 +3372,20 @@
         oscEnableRampOut: form.oscEnableRampOut.checked,
         oscRampInDurationMs: parseFloat(form.oscRampInDurationMs.value),
         oscRampOutDurationMs: parseFloat(form.oscRampOutDurationMs.value),
+        
+        // VA-ET-VIENT Cycle Pause
+        vaetCyclePauseEnabled: form.vaetCyclePauseEnabled.checked,
+        vaetCyclePauseIsRandom: form.vaetCyclePauseIsRandom.checked,
+        vaetCyclePauseDurationSec: parseFloat(form.vaetCyclePauseDurationSec.value),
+        vaetCyclePauseMinSec: parseFloat(form.vaetCyclePauseMinSec.value),
+        vaetCyclePauseMaxSec: parseFloat(form.vaetCyclePauseMaxSec.value),
+        
+        // OSCILLATION Cycle Pause
+        oscCyclePauseEnabled: form.oscCyclePauseEnabled.checked,
+        oscCyclePauseIsRandom: form.oscCyclePauseIsRandom.checked,
+        oscCyclePauseDurationSec: parseFloat(form.oscCyclePauseDurationSec.value),
+        oscCyclePauseMinSec: parseFloat(form.oscCyclePauseMinSec.value),
+        oscCyclePauseMaxSec: parseFloat(form.oscCyclePauseMaxSec.value),
         
         // CHAOS fields
         chaosCenterPositionMM: parseFloat(form.chaosCenterPositionMM.value),
@@ -3957,10 +4193,46 @@
         const reader = new FileReader();
         reader.onload = function(event) {
           try {
-            const jsonData = event.target.result;
-            sendCommand('importSequence', { jsonData: jsonData });
+            let jsonText = event.target.result;
+            
+            // Remove /* */ comments (JSON doesn't support comments)
+            jsonText = jsonText.replace(/\/\*[\s\S]*?\*\//g, '');
+            
+            // Remove // comments
+            jsonText = jsonText.replace(/\/\/.*/g, '');
+            
+            // Validate JSON before sending
+            const parsed = JSON.parse(jsonText);
+            
+            console.log('📤 Sending import via HTTP:', parsed.lineCount, 'lines,', jsonText.length, 'bytes');
+            
+            // Use HTTP POST instead of WebSocket to avoid size limits
+            fetch('/api/sequence/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: jsonText
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                console.log('✅ Import successful:', data.message);
+                alert('✅ Séquence importée avec succès!');
+                
+                // Refresh sequence table without reloading page
+                sendCommand('getSequenceTable', {});
+              } else {
+                console.error('❌ Import failed:', data.error);
+                alert('❌ Erreur import: ' + (data.error || 'Unknown error'));
+              }
+            })
+            .catch(error => {
+              console.error('❌ HTTP request failed:', error);
+              alert('❌ Erreur réseau: ' + error.message);
+            });
+            
           } catch (error) {
-            alert('Erreur lors de la lecture du fichier: ' + error.message);
+            console.error('❌ JSON parse error:', error);
+            alert('Erreur JSON: ' + error.message + '\n\nVérifiez que le fichier est un JSON valide (pas de commentaires, virgules correctes, etc.)');
           }
         };
         reader.readAsText(file);
@@ -5719,6 +5991,116 @@
         updateOscillationPresets();
       }
       
+      // ===== UPDATE CYCLE PAUSE DISPLAY (MODE SIMPLE) =====
+      if (data.motion && data.motion.cyclePause) {
+        const pauseStatus = document.getElementById('cyclePauseStatus');
+        const pauseRemaining = document.getElementById('cyclePauseRemaining');
+        
+        if (data.motion.cyclePause.isPausing && pauseStatus && pauseRemaining) {
+          // Use server-calculated remaining time
+          const remainingSec = (data.motion.cyclePause.remainingMs / 1000).toFixed(1);
+          
+          pauseStatus.style.display = 'block';
+          pauseRemaining.textContent = remainingSec + 's';
+        } else if (pauseStatus) {
+          pauseStatus.style.display = 'none';
+        }
+        
+        // Sync UI to backend state (only if section is expanded)
+        const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+        const headerText = document.getElementById('cyclePauseHeaderText');
+        if (section && headerText) {
+          const isEnabled = data.motion.cyclePause.enabled;
+          const isCollapsed = section.classList.contains('collapsed');
+          
+          // Sync collapsed state with backend enabled state
+          if (isEnabled && isCollapsed) {
+            section.classList.remove('collapsed');
+            headerText.textContent = '⏸️ Pause entre cycles - activée';
+          } else if (!isEnabled && !isCollapsed) {
+            section.classList.add('collapsed');
+            headerText.textContent = '⏸️ Pause entre cycles - désactivée';
+          }
+          
+          // Sync radio buttons
+          if (data.motion.cyclePause.isRandom) {
+            document.getElementById('pauseModeRandom').checked = true;
+            document.getElementById('pauseFixedControls').style.display = 'none';
+            document.getElementById('pauseRandomControls').style.display = 'block';
+          } else {
+            document.getElementById('pauseModeFixed').checked = true;
+            document.getElementById('pauseFixedControls').style.display = 'flex';
+            document.getElementById('pauseRandomControls').style.display = 'none';
+          }
+          
+          // Sync input values (avoid overwriting if user is editing)
+          if (document.activeElement !== document.getElementById('cyclePauseDuration')) {
+            document.getElementById('cyclePauseDuration').value = data.motion.cyclePause.pauseDurationSec.toFixed(1);
+          }
+          if (document.activeElement !== document.getElementById('cyclePauseMin')) {
+            document.getElementById('cyclePauseMin').value = data.motion.cyclePause.minPauseSec.toFixed(1);
+          }
+          if (document.activeElement !== document.getElementById('cyclePauseMax')) {
+            document.getElementById('cyclePauseMax').value = data.motion.cyclePause.maxPauseSec.toFixed(1);
+          }
+        }
+      }
+      
+      // ===== UPDATE CYCLE PAUSE DISPLAY (MODE OSCILLATION) =====
+      if (data.oscillation && data.oscillation.cyclePause) {
+        const pauseStatusOsc = document.getElementById('cyclePauseStatusOsc');
+        const pauseRemainingOsc = document.getElementById('cyclePauseRemainingOsc');
+        
+        if (data.oscillation.cyclePause.isPausing && pauseStatusOsc && pauseRemainingOsc) {
+          // Use server-calculated remaining time
+          const remainingSec = (data.oscillation.cyclePause.remainingMs / 1000).toFixed(1);
+          
+          pauseStatusOsc.style.display = 'block';
+          pauseRemainingOsc.textContent = remainingSec + 's';
+        } else if (pauseStatusOsc) {
+          pauseStatusOsc.style.display = 'none';
+        }
+        
+        // Sync UI to backend state (only if section is expanded)
+        const sectionOsc = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+        const headerTextOsc = document.getElementById('cyclePauseOscHeaderText');
+        if (sectionOsc && headerTextOsc) {
+          const isEnabled = data.oscillation.cyclePause.enabled;
+          const isCollapsed = sectionOsc.classList.contains('collapsed');
+          
+          // Sync collapsed state with backend enabled state
+          if (isEnabled && isCollapsed) {
+            sectionOsc.classList.remove('collapsed');
+            headerTextOsc.textContent = '⏸️ Pause entre cycles - activée';
+          } else if (!isEnabled && !isCollapsed) {
+            sectionOsc.classList.add('collapsed');
+            headerTextOsc.textContent = '⏸️ Pause entre cycles - désactivée';
+          }
+          
+          // Sync radio buttons
+          if (data.oscillation.cyclePause.isRandom) {
+            document.getElementById('pauseModeRandomOsc').checked = true;
+            document.getElementById('pauseFixedControlsOsc').style.display = 'none';
+            document.getElementById('pauseRandomControlsOsc').style.display = 'block';
+          } else {
+            document.getElementById('pauseModeFixedOsc').checked = true;
+            document.getElementById('pauseFixedControlsOsc').style.display = 'flex';
+            document.getElementById('pauseRandomControlsOsc').style.display = 'none';
+          }
+          
+          // Sync input values (avoid overwriting if user is editing)
+          if (document.activeElement !== document.getElementById('cyclePauseDurationOsc')) {
+            document.getElementById('cyclePauseDurationOsc').value = data.oscillation.cyclePause.pauseDurationSec.toFixed(1);
+          }
+          if (document.activeElement !== document.getElementById('cyclePauseMinOsc')) {
+            document.getElementById('cyclePauseMinOsc').value = data.oscillation.cyclePause.minPauseSec.toFixed(1);
+          }
+          if (document.activeElement !== document.getElementById('cyclePauseMaxOsc')) {
+            document.getElementById('cyclePauseMaxOsc').value = data.oscillation.cyclePause.maxPauseSec.toFixed(1);
+          }
+        }
+      }
+      
       // Update chaos UI
       updateChaosUI(data);
       
@@ -5894,22 +6276,56 @@
     
     function generatePresetTooltip(mode, config) {
       if (mode === 'simple') {
-        return `📍 Départ: ${config.startPositionMM}mm
-📏 Distance: ${config.distanceMM}mm
-➡️ Vitesse aller: ${config.speedLevelForward}/20
-⬅️ Vitesse retour: ${config.speedLevelBackward}/20
+        // Deceleration info
+        let decelInfo = 'Aucune';
+        if (config && (config.decelStartEnabled || config.decelEndEnabled)) {
+          const parts = [];
+          if (config.decelStartEnabled) parts.push('Départ');
+          if (config.decelEndEnabled) parts.push('Fin');
+          const modeNames = ['Lin', 'Sin', 'Tri⁻¹', 'Sin⁻¹'];
+          decelInfo = parts.join('+') + ` (${config.decelZoneMM || 20}mm, ${config.decelEffectPercent || 50}%, ${modeNames[config.decelMode || 1]})`;
+        }
+        
+        // Cycle pause info
+        let cyclePauseInfo = 'Aucune';
+        if (config && config.cyclePauseEnabled) {
+          if (config.cyclePauseIsRandom) {
+            cyclePauseInfo = `${config.cyclePauseMinSec || 0.5}s-${config.cyclePauseMaxSec || 3.0}s (aléatoire)`;
+          } else {
+            cyclePauseInfo = `${config.cyclePauseDurationSec || 0}s (fixe)`;
+          }
+        }
+        
+        return `📍 Départ: ${config.startPositionMM || 0}mm
+📏 Distance: ${config.distanceMM || 50}mm
+➡️ Vitesse aller: ${config.speedLevelForward || 5}/20
+⬅️ Vitesse retour: ${config.speedLevelBackward || 5}/20
+🛑 Décel: ${decelInfo}
+⏸️ Pause/cycle: ${cyclePauseInfo}
 ⏱️ Durée estimée: ${((config.distanceMM / (config.speedLevelForward * 10)) * 60).toFixed(1)}s`;
       } else if (mode === 'oscillation') {
         const waveNames = ['🌊 Sine', '📐 Triangle', '⬜ Carré'];
         const ramps = [];
         if (config.enableRampIn) ramps.push('IN');
         if (config.enableRampOut) ramps.push('OUT');
+        
+        // Cycle pause info
+        let cyclePauseInfo = 'Aucune';
+        if (config && config.cyclePauseEnabled) {
+          if (config.cyclePauseIsRandom) {
+            cyclePauseInfo = `${config.cyclePauseMinSec || 0.5}s-${config.cyclePauseMaxSec || 3.0}s (aléatoire)`;
+          } else {
+            cyclePauseInfo = `${config.cyclePauseDurationSec || 0}s (fixe)`;
+          }
+        }
+        
         return `${waveNames[config.waveform] || '🌊 Sine'}
-📍 Centre: ${config.centerPositionMM}mm
-↔️ Amplitude: ±${config.amplitudeMM}mm
-⚡ Fréquence: ${config.frequencyHz}Hz
+📍 Centre: ${config.centerPositionMM || 100}mm
+↔️ Amplitude: ±${config.amplitudeMM || 20}mm
+⚡ Fréquence: ${config.frequencyHz || 1}Hz
 🔄 Cycles: ${config.cycleCount === 0 ? '∞' : config.cycleCount}
-${ramps.length > 0 ? '📈 Rampes: ' + ramps.join(', ') : ''}`;
+${ramps.length > 0 ? '📈 Rampes: ' + ramps.join(', ') : ''}
+⏸️ Pause/cycle: ${cyclePauseInfo}`;
       } else if (mode === 'chaos') {
         const enabledCount = config.patternsEnabled ? config.patternsEnabled.filter(p => p).length : 11;
         return `📍 Centre: ${config.centerPositionMM}mm
@@ -5935,6 +6351,16 @@ ${ramps.length > 0 ? '📈 Rampes: ' + ramps.join(', ') : ''}`;
         if (line.decelEndEnabled) decelInfo.push('Fin');
         const decelModes = ['Linéaire', 'Sinusoïdal', 'Triangle⁻¹', 'Sine⁻¹'];
         
+        // Cycle pause info
+        let cyclePauseInfo = 'Aucune';
+        if (line.vaetCyclePauseEnabled) {
+          if (line.vaetCyclePauseIsRandom) {
+            cyclePauseInfo = `${line.vaetCyclePauseMinSec}s-${line.vaetCyclePauseMaxSec}s (aléatoire)`;
+          } else {
+            cyclePauseInfo = `${line.vaetCyclePauseDurationSec}s (fixe)`;
+          }
+        }
+        
         return `🔄 VA-ET-VIENT
 ━━━━━━━━━━━━━━━━━━━━━━
 📍 Départ: ${line.startPositionMM}mm
@@ -5943,6 +6369,7 @@ ${ramps.length > 0 ? '📈 Rampes: ' + ramps.join(', ') : ''}`;
 ⬅️ Vitesse retour: ${line.speedBackward.toFixed(1)}/20
 ${decelInfo.length > 0 ? '🛑 Décel: ' + decelInfo.join(' + ') + ' (' + line.decelZoneMM + 'mm, ' + line.decelEffectPercent + '%, ' + decelModes[line.decelMode] + ')' : '🛑 Décel: Aucune'}
 🔄 Cycles: ${line.cycleCount}
+⏸️ Pause/cycle: ${cyclePauseInfo}
 ⏱️ Pause après: ${line.pauseAfterMs > 0 ? (line.pauseAfterMs / 1000).toFixed(1) + 's' : 'Aucune'}`;
       } else if (movementType === 1) {
         // OSCILLATION
@@ -5953,6 +6380,16 @@ ${decelInfo.length > 0 ? '🛑 Décel: ' + decelInfo.join(' + ') + ' (' + line.d
         
         const peakSpeed = (2 * Math.PI * line.oscFrequencyHz * line.oscAmplitudeMM).toFixed(1);
         
+        // Cycle pause info
+        let cyclePauseInfo = 'Aucune';
+        if (line.oscCyclePauseEnabled) {
+          if (line.oscCyclePauseIsRandom) {
+            cyclePauseInfo = `${line.oscCyclePauseMinSec}s-${line.oscCyclePauseMaxSec}s (aléatoire)`;
+          } else {
+            cyclePauseInfo = `${line.oscCyclePauseDurationSec}s (fixe)`;
+          }
+        }
+        
         return `〰️ OSCILLATION
 ━━━━━━━━━━━━━━━━━━━━━━
 ${waveNames[line.oscWaveform] || '🌊 Sine'}
@@ -5962,6 +6399,7 @@ ${waveNames[line.oscWaveform] || '🌊 Sine'}
 ⚡ Vitesse pic: ${peakSpeed}mm/s
 🔄 Cycles: ${line.cycleCount}
 ${ramps.length > 0 ? '📈 Rampes: ' + ramps.join(' + ') : '📈 Rampes: Aucune'}
+⏸️ Pause/cycle: ${cyclePauseInfo}
 ⏱️ Pause après: ${line.pauseAfterMs > 0 ? (line.pauseAfterMs / 1000).toFixed(1) + 's' : 'Aucune'}`;
       } else if (movementType === 2) {
         // CHAOS
@@ -5991,13 +6429,39 @@ Détecte la limite physique`;
     
     function getCurrentModeConfig(mode) {
       if (mode === 'simple') {
+        // Check if cycle pause section is expanded (enabled)
+        const cyclePauseSection = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+        const cyclePauseEnabled = cyclePauseSection && !cyclePauseSection.classList.contains('collapsed');
+        
+        // Determine if random mode is selected
+        const isRandom = document.getElementById('pauseModeRandom')?.checked || false;
+        
         return {
           startPositionMM: parseFloat(document.getElementById('startPosition').value) || 0,
           distanceMM: parseFloat(document.getElementById('distance').value) || 50,
           speedLevelForward: parseFloat(document.getElementById('speedForward')?.value || document.getElementById('speedUnified').value) || 5,
-          speedLevelBackward: parseFloat(document.getElementById('speedBackward')?.value || document.getElementById('speedUnified').value) || 5
+          speedLevelBackward: parseFloat(document.getElementById('speedBackward')?.value || document.getElementById('speedUnified').value) || 5,
+          // Deceleration parameters
+          decelStartEnabled: document.getElementById('decelZoneStart')?.checked || false,
+          decelEndEnabled: document.getElementById('decelZoneEnd')?.checked || false,
+          decelZoneMM: parseFloat(document.getElementById('decelZoneMM')?.value) || 20,
+          decelEffectPercent: parseFloat(document.getElementById('decelEffectPercent')?.value) || 50,
+          decelMode: parseInt(document.getElementById('decelModeSelect')?.value) || 1,
+          // Cycle pause parameters
+          cyclePauseEnabled: cyclePauseEnabled,
+          cyclePauseIsRandom: isRandom,
+          cyclePauseDurationSec: parseFloat(document.getElementById('cyclePauseDuration')?.value) || 0.0,
+          cyclePauseMinSec: parseFloat(document.getElementById('cyclePauseMin')?.value) || 0.5,
+          cyclePauseMaxSec: parseFloat(document.getElementById('cyclePauseMax')?.value) || 3.0
         };
       } else if (mode === 'oscillation') {
+        // Check if cycle pause section is expanded (enabled)
+        const cyclePauseOscSection = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+        const cyclePauseEnabled = cyclePauseOscSection && !cyclePauseOscSection.classList.contains('collapsed');
+        
+        // Determine if random mode is selected
+        const isRandom = document.getElementById('pauseModeRandomOsc')?.checked || false;
+        
         return {
           centerPositionMM: parseFloat(document.getElementById('oscCenter').value) || 100,
           amplitudeMM: parseFloat(document.getElementById('oscAmplitude').value) || 20,
@@ -6008,7 +6472,13 @@ Détecte la limite physique`;
           rampInDurationMs: parseInt(document.getElementById('oscRampInDuration').value) || 2000,
           enableRampOut: document.getElementById('oscRampOutEnable').checked,
           rampOutDurationMs: parseInt(document.getElementById('oscRampOutDuration').value) || 2000,
-          returnToCenter: document.getElementById('oscReturnCenter').checked
+          returnToCenter: document.getElementById('oscReturnCenter').checked,
+          // Cycle pause parameters
+          cyclePauseEnabled: cyclePauseEnabled,
+          cyclePauseIsRandom: isRandom,
+          cyclePauseDurationSec: parseFloat(document.getElementById('cyclePauseDurationOsc')?.value) || 0.0,
+          cyclePauseMinSec: parseFloat(document.getElementById('cyclePauseMinOsc')?.value) || 0.5,
+          cyclePauseMaxSec: parseFloat(document.getElementById('cyclePauseMaxOsc')?.value) || 3.0
         };
       } else if (mode === 'chaos') {
         const patterns = [
@@ -6348,9 +6818,12 @@ Détecte la limite physique`;
         return;
       }
       
+      console.log('📥 Loading preset:', preset.name, '| Config:', preset.config);
+      
       const config = preset.config;
       
       if (mode === 'simple') {
+        // Load basic parameters
         document.getElementById('startPosition').value = config.startPositionMM || 0;
         document.getElementById('distance').value = config.distanceMM || 50;
         
@@ -6363,11 +6836,131 @@ Détecte la limite physique`;
           document.getElementById('speedUnified').value = config.speedLevelForward || 5;
         }
         
+        // 🆕 Load DECELERATION parameters (if present)
+        if (config.decelStartEnabled !== undefined) {
+          const decelStartEl = document.getElementById('decelZoneStart');
+          if (decelStartEl) decelStartEl.checked = config.decelStartEnabled;
+        }
+        if (config.decelEndEnabled !== undefined) {
+          const decelEndEl = document.getElementById('decelZoneEnd');
+          if (decelEndEl) decelEndEl.checked = config.decelEndEnabled;
+        }
+        if (config.decelZoneMM !== undefined) {
+          const decelZoneEl = document.getElementById('decelZoneMM');
+          if (decelZoneEl) decelZoneEl.value = config.decelZoneMM;
+        }
+        if (config.decelEffectPercent !== undefined) {
+          const decelEffectEl = document.getElementById('decelEffectPercent');
+          const decelValueEl = document.getElementById('effectValue');
+          if (decelEffectEl) decelEffectEl.value = config.decelEffectPercent;
+          if (decelValueEl) decelValueEl.textContent = config.decelEffectPercent + '%';
+        }
+        if (config.decelMode !== undefined) {
+          const decelModeEl = document.getElementById('decelModeSelect');
+          if (decelModeEl) decelModeEl.value = config.decelMode;
+        }
+        
+        // Auto-expand deceleration section if enabled
+        if (config.decelStartEnabled || config.decelEndEnabled) {
+          const decelSection = document.getElementById('decelSection');
+          if (decelSection?.classList.contains('collapsed')) {
+            decelSection.classList.remove('collapsed');
+            const chevron = decelSection.querySelector('.section-chevron');
+            if (chevron) chevron.textContent = '▼';
+          }
+        }
+        
+        // Load cycle pause parameters
+        const pauseEnabled = config.cyclePauseEnabled || false;
+        const pauseIsRandom = config.cyclePauseIsRandom || false;
+        
+        // Set radio buttons for pause mode
+        const pauseModeFixedEl = document.getElementById('pauseModeFixed');
+        const pauseModeRandomEl = document.getElementById('pauseModeRandom');
+        if (pauseModeFixedEl && pauseModeRandomEl) {
+          if (pauseIsRandom) {
+            pauseModeRandomEl.checked = true;
+            pauseModeFixedEl.checked = false;
+          } else {
+            pauseModeFixedEl.checked = true;
+            pauseModeRandomEl.checked = false;
+          }
+        }
+        
+        // Set pause duration values
+        const cyclePauseDurationEl = document.getElementById('cyclePauseDuration');
+        const cyclePauseMinEl = document.getElementById('cyclePauseMin');
+        const cyclePauseMaxEl = document.getElementById('cyclePauseMax');
+        
+        if (cyclePauseDurationEl) {
+          cyclePauseDurationEl.value = config.cyclePauseDurationSec || 0.0;
+        }
+        if (cyclePauseMinEl) {
+          cyclePauseMinEl.value = config.cyclePauseMinSec || 0.5;
+        }
+        if (cyclePauseMaxEl) {
+          cyclePauseMaxEl.value = config.cyclePauseMaxSec || 3.0;
+        }
+        
+        // Force toggle visibility (fixed/random)
+        const fixedDiv = document.getElementById('pauseFixedControls');
+        const randomDiv = document.getElementById('pauseRandomControls');
+        if (fixedDiv && randomDiv) {
+          if (pauseIsRandom) {
+            fixedDiv.style.display = 'none';
+            randomDiv.style.display = 'block';
+          } else {
+            fixedDiv.style.display = 'flex';
+            randomDiv.style.display = 'none';
+          }
+        }
+        
+        // Auto-expand pause section if enabled
+        if (pauseEnabled) {
+          const pauseSection = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+          const pauseHeaderText = document.getElementById('cyclePauseHeaderText');
+          if (pauseSection && pauseHeaderText) {
+            if (pauseSection.classList.contains('collapsed')) {
+              pauseSection.classList.remove('collapsed');
+              const chevron = pauseSection.querySelector('.collapse-icon');
+              if (chevron) chevron.textContent = '▼';
+            }
+            pauseHeaderText.textContent = '⏸️ Pause entre cycles - activée';
+          }
+        }
+        
         // Send commands to backend
         sendCommand('setStartPosition', {startPosition: config.startPositionMM || 0});
         sendCommand('setDistance', {distance: config.distanceMM || 50});
         sendCommand('setSpeedForward', {speed: config.speedLevelForward || 5});
         sendCommand('setSpeedBackward', {speed: config.speedLevelBackward || 5});
+        
+        // Send deceleration config to backend
+        const decelCmd = {
+          enabled: config.decelStartEnabled || config.decelEndEnabled,
+          enableStart: config.decelStartEnabled || false,
+          enableEnd: config.decelEndEnabled || false,
+          zoneMM: config.decelZoneMM || 20,
+          effectPercent: config.decelEffectPercent || 50,
+          mode: config.decelMode || 1
+        };
+        console.log('🔧 Sending setDecelZone:', decelCmd);
+        sendCommand('setDecelZone', decelCmd);
+        
+        // Send cycle pause config to backend
+        const pauseCmd = {
+          mode: 'simple',
+          enabled: pauseEnabled,
+          isRandom: pauseIsRandom,
+          durationSec: config.cyclePauseDurationSec || 0.0,
+          minSec: config.cyclePauseMinSec || 0.5,
+          maxSec: config.cyclePauseMaxSec || 3.0
+        };
+        console.log('🔧 Sending setCyclePause:', pauseCmd);
+        sendCommand('setCyclePause', pauseCmd);
+        
+        console.log('✅ Simple preset loaded | Pause enabled:', pauseEnabled, '| Random:', pauseIsRandom);
+        
       } else if (mode === 'oscillation') {
         document.getElementById('oscCenter').value = config.centerPositionMM || 100;
         document.getElementById('oscAmplitude').value = config.amplitudeMM || 20;
@@ -6380,8 +6973,87 @@ Détecte la limite physique`;
         document.getElementById('oscRampOutDuration').value = config.rampOutDurationMs || 2000;
         document.getElementById('oscReturnCenter').checked = config.returnToCenter || false;
         
+        // Load cycle pause parameters
+        const pauseEnabled = config.cyclePauseEnabled || false;
+        const pauseIsRandom = config.cyclePauseIsRandom || false;
+        
+        // Set radio buttons for pause mode
+        const pauseModeFixedOscEl = document.getElementById('pauseModeFixedOsc');
+        const pauseModeRandomOscEl = document.getElementById('pauseModeRandomOsc');
+        if (pauseModeFixedOscEl && pauseModeRandomOscEl) {
+          if (pauseIsRandom) {
+            pauseModeRandomOscEl.checked = true;
+            pauseModeFixedOscEl.checked = false;
+          } else {
+            pauseModeFixedOscEl.checked = true;
+            pauseModeRandomOscEl.checked = false;
+          }
+        }
+        
+        // Set pause duration values
+        const cyclePauseDurationOscEl = document.getElementById('cyclePauseDurationOsc');
+        const cyclePauseMinOscEl = document.getElementById('cyclePauseMinOsc');
+        const cyclePauseMaxOscEl = document.getElementById('cyclePauseMaxOsc');
+        
+        if (cyclePauseDurationOscEl) {
+          cyclePauseDurationOscEl.value = config.cyclePauseDurationSec || 0.0;
+        }
+        if (cyclePauseMinOscEl) {
+          cyclePauseMinOscEl.value = config.cyclePauseMinSec || 0.5;
+        }
+        if (cyclePauseMaxOscEl) {
+          cyclePauseMaxOscEl.value = config.cyclePauseMaxSec || 3.0;
+        }
+        
+        // Force toggle visibility (fixed/random)
+        const fixedDiv = document.getElementById('pauseFixedControlsOsc');
+        const randomDiv = document.getElementById('pauseRandomControlsOsc');
+        if (fixedDiv && randomDiv) {
+          if (pauseIsRandom) {
+            fixedDiv.style.display = 'none';
+            randomDiv.style.display = 'block';
+          } else {
+            fixedDiv.style.display = 'flex';
+            randomDiv.style.display = 'none';
+          }
+        }
+        
+        // Auto-expand pause section if enabled
+        if (pauseEnabled) {
+          const pauseSection = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+          const pauseHeaderText = document.getElementById('cyclePauseOscHeaderText');
+          if (pauseSection && pauseHeaderText) {
+            if (pauseSection.classList.contains('collapsed')) {
+              pauseSection.classList.remove('collapsed');
+              const chevron = pauseSection.querySelector('.collapse-icon');
+              if (chevron) chevron.textContent = '▼';
+            }
+            pauseHeaderText.textContent = '⏸️ Pause entre cycles - activée';
+          }
+        }
+        
         // Send command to backend
-        sendCommand('setOscillation', config);
+        sendCommand('setOscillation', {
+          centerPositionMM: config.centerPositionMM || 100,
+          amplitudeMM: config.amplitudeMM || 20,
+          waveform: config.waveform || 0,
+          frequencyHz: config.frequencyHz || 1.0,
+          cycleCount: config.cycleCount || 10,
+          enableRampIn: config.enableRampIn || false,
+          rampInDurationMs: config.rampInDurationMs || 2000,
+          enableRampOut: config.enableRampOut || false,
+          rampOutDurationMs: config.rampOutDurationMs || 2000,
+          returnToCenter: config.returnToCenter || false,
+          // Cycle pause parameters
+          cyclePauseEnabled: pauseEnabled,
+          cyclePauseIsRandom: pauseIsRandom,
+          cyclePauseDurationSec: config.cyclePauseDurationSec || 0.0,
+          cyclePauseMinSec: config.cyclePauseMinSec || 0.5,
+          cyclePauseMaxSec: config.cyclePauseMaxSec || 3.0
+        });
+        
+        console.log('✅ OSC preset loaded | Pause enabled:', pauseEnabled, '| Random:', pauseIsRandom);
+        
       } else if (mode === 'chaos') {
         document.getElementById('chaosCenterPos').value = config.centerPositionMM || 100;
         document.getElementById('chaosAmplitude').value = config.amplitudeMM || 40;
@@ -6736,6 +7408,48 @@ Détecte la limite physique`;
       sendCommand('setSpeedBackward', {speed: speed});
       AppState.editing.input = null;
     });
+    
+    // Cycle Pause listeners (Simple mode)
+    function sendSimpleCyclePauseConfig() {
+      const enabled = document.getElementById('cyclePauseEnabled')?.checked || false;
+      const isRandom = document.getElementById('cyclePauseRandom')?.checked || false;
+      const durationSec = parseFloat(document.getElementById('cyclePauseDuration')?.value || 0);
+      let minSec = parseFloat(document.getElementById('cyclePauseMin')?.value || 0.5);
+      let maxSec = parseFloat(document.getElementById('cyclePauseMax')?.value || 3.0);
+      
+      // 🆕 VALIDATION: Min doit être ≤ Max (seulement si random activé)
+      if (isRandom && minSec > maxSec) {
+        showNotification('⚠️ Pause Min (' + minSec.toFixed(1) + 's) doit être ≤ Max (' + maxSec.toFixed(1) + 's)', 'warning');
+        // Auto-correction: ajuster Max = Min
+        maxSec = minSec;
+        document.getElementById('cyclePauseMax').value = maxSec;
+      }
+      
+      sendCommand('setCyclePause', {
+        mode: 'simple',
+        enabled: enabled,
+        isRandom: isRandom,
+        durationSec: durationSec,
+        minSec: minSec,
+        maxSec: maxSec
+      });
+    }
+    
+    if (document.getElementById('cyclePauseEnabled')) {
+      document.getElementById('cyclePauseEnabled').addEventListener('change', sendSimpleCyclePauseConfig);
+    }
+    if (document.getElementById('cyclePauseRandom')) {
+      document.getElementById('cyclePauseRandom').addEventListener('change', sendSimpleCyclePauseConfig);
+    }
+    if (document.getElementById('cyclePauseDuration')) {
+      document.getElementById('cyclePauseDuration').addEventListener('change', sendSimpleCyclePauseConfig);
+    }
+    if (document.getElementById('cyclePauseMin')) {
+      document.getElementById('cyclePauseMin').addEventListener('change', sendSimpleCyclePauseConfig);
+    }
+    if (document.getElementById('cyclePauseMax')) {
+      document.getElementById('cyclePauseMax').addEventListener('change', sendSimpleCyclePauseConfig);
+    }
     
     document.querySelectorAll('[data-start]').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -7572,12 +8286,13 @@ Détecte la limite physique`;
     document.getElementById('btnClearAllLogFiles').addEventListener('click', function() {
       if (confirm('Supprimer TOUS les fichiers de logs?\n\nCette action est irréversible.')) {
         fetch('/logs/clear', { method: 'POST' })
-          .then(response => response.text())
+          .then(response => response.json())
           .then(data => {
-            alert(data);
+            alert(data.message || 'Logs supprimés avec succès!');
             loadLogFilesList();  // Refresh list
           })
           .catch(error => {
+            console.error('Erreur suppression logs:', error);
             alert('Erreur: ' + error);
           });
       }
@@ -7736,6 +8451,19 @@ Détecte la limite physique`;
         this.innerHTML = '⚙️ Sys';
         this.style.background = '#e74c3c';
         this.style.color = 'white';
+        
+        // Enable system stats in backend (same as Stats panel)
+        if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+          AppState.ws.send(JSON.stringify({
+            cmd: 'requestStats',
+            enable: true
+          }));
+          console.log('📊 System stats requested from backend');
+        }
+        
+        // Request system status to populate fields
+        sendCommand('getStatus', {});
+        
         // Load logging preferences when opening
         loadLoggingPreferences();
       } else {
@@ -7743,6 +8471,14 @@ Détecte la limite physique`;
         this.innerHTML = '⚙️ Sys';
         this.style.background = '#2196F3';
         this.style.color = 'white';
+        
+        // Disable system stats when closing (optional optimization)
+        if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+          AppState.ws.send(JSON.stringify({
+            cmd: 'requestStats',
+            enable: false
+          }));
+        }
       }
     });
 
@@ -8518,6 +9254,48 @@ Détecte la limite physique`;
       sendOscillationConfig();  // Send on change
     });
     
+    // Cycle Pause listeners (Oscillation mode)
+    function sendOscCyclePauseConfig() {
+      const enabled = document.getElementById('oscCyclePauseEnabled')?.checked || false;
+      const isRandom = document.getElementById('oscCyclePauseRandom')?.checked || false;
+      const durationSec = parseFloat(document.getElementById('oscCyclePauseDuration')?.value || 0);
+      let minSec = parseFloat(document.getElementById('oscCyclePauseMin')?.value || 0.5);
+      let maxSec = parseFloat(document.getElementById('oscCyclePauseMax')?.value || 3.0);
+      
+      // 🆕 VALIDATION: Min doit être ≤ Max (seulement si random activé)
+      if (isRandom && minSec > maxSec) {
+        showNotification('⚠️ Pause Min (' + minSec.toFixed(1) + 's) doit être ≤ Max (' + maxSec.toFixed(1) + 's)', 'warning');
+        // Auto-correction: ajuster Max = Min
+        maxSec = minSec;
+        document.getElementById('oscCyclePauseMax').value = maxSec;
+      }
+      
+      sendCommand('setCyclePause', {
+        mode: 'oscillation',
+        enabled: enabled,
+        isRandom: isRandom,
+        durationSec: durationSec,
+        minSec: minSec,
+        maxSec: maxSec
+      });
+    }
+    
+    if (document.getElementById('oscCyclePauseEnabled')) {
+      document.getElementById('oscCyclePauseEnabled').addEventListener('change', sendOscCyclePauseConfig);
+    }
+    if (document.getElementById('oscCyclePauseRandom')) {
+      document.getElementById('oscCyclePauseRandom').addEventListener('change', sendOscCyclePauseConfig);
+    }
+    if (document.getElementById('oscCyclePauseDuration')) {
+      document.getElementById('oscCyclePauseDuration').addEventListener('change', sendOscCyclePauseConfig);
+    }
+    if (document.getElementById('oscCyclePauseMin')) {
+      document.getElementById('oscCyclePauseMin').addEventListener('change', sendOscCyclePauseConfig);
+    }
+    if (document.getElementById('oscCyclePauseMax')) {
+      document.getElementById('oscCyclePauseMax').addEventListener('change', sendOscCyclePauseConfig);
+    }
+    
     // Start oscillation
     document.getElementById('btnStartOscillation').addEventListener('click', function() {
       if (!validateOscillationLimits()) {
@@ -9044,6 +9822,32 @@ Détecte la limite physique`;
     document.getElementById('editTypeChaos').addEventListener('change', updateMovementTypeFields);
     document.getElementById('editTypeCalibration').addEventListener('change', updateMovementTypeFields);
     
+    // Cycle Pause toggles (VA-ET-VIENT)
+    document.getElementById('editVaetPauseEnabled').addEventListener('change', function() {
+      const enabled = this.checked;
+      document.getElementById('vaetPauseFixedDiv').style.display = enabled ? 'grid' : 'none';
+      document.getElementById('vaetPauseRandomDiv').style.display = (enabled && document.getElementById('editVaetPauseRandom').checked) ? 'grid' : 'none';
+    });
+    document.getElementById('editVaetPauseRandom').addEventListener('change', function() {
+      const isRandom = this.checked;
+      const enabled = document.getElementById('editVaetPauseEnabled').checked;
+      document.getElementById('vaetPauseFixedDiv').style.display = (enabled && !isRandom) ? 'grid' : 'none';
+      document.getElementById('vaetPauseRandomDiv').style.display = (enabled && isRandom) ? 'grid' : 'none';
+    });
+    
+    // Cycle Pause toggles (OSCILLATION)
+    document.getElementById('editOscPauseEnabled').addEventListener('change', function() {
+      const enabled = this.checked;
+      document.getElementById('oscPauseFixedDiv').style.display = enabled ? 'grid' : 'none';
+      document.getElementById('oscPauseRandomDiv').style.display = (enabled && document.getElementById('editOscPauseRandom').checked) ? 'grid' : 'none';
+    });
+    document.getElementById('editOscPauseRandom').addEventListener('change', function() {
+      const isRandom = this.checked;
+      const enabled = document.getElementById('editOscPauseEnabled').checked;
+      document.getElementById('oscPauseFixedDiv').style.display = (enabled && !isRandom) ? 'grid' : 'none';
+      document.getElementById('oscPauseRandomDiv').style.display = (enabled && isRandom) ? 'grid' : 'none';
+    });
+    
     // Enforce numeric input constraints on all number fields (includes real-time validation)
     function enforceNumericConstraints(input) {
       // Filter invalid characters after input AND trigger validation
@@ -9206,6 +10010,222 @@ Détecte la limite physique`;
           enabled: false
         });
       }
+    }
+    
+    // ===== CYCLE PAUSE SECTION (MODE SIMPLE) =====
+    function toggleCyclePauseSection() {
+      const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+      const headerText = document.getElementById('cyclePauseHeaderText');
+      const isCollapsed = section.classList.contains('collapsed');
+      
+      section.classList.toggle('collapsed');
+      
+      if (isCollapsed) {
+        // Expanding = activating
+        headerText.textContent = '⏸️ Pause entre cycles - activée';
+        sendCyclePauseConfig();
+      } else {
+        // Collapsing = deactivating
+        headerText.textContent = '⏸️ Pause entre cycles - désactivée';
+        sendCommand('updateCyclePause', {
+          enabled: false
+        });
+      }
+    }
+    
+    // Radio button change handlers (Mode Simple)
+    document.querySelectorAll('input[name="cyclePauseMode"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        const isFixed = this.value === 'fixed';
+        document.getElementById('pauseFixedControls').style.display = isFixed ? 'flex' : 'none';
+        document.getElementById('pauseRandomControls').style.display = isFixed ? 'none' : 'block';
+        
+        // Send updated config
+        const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+        if (!section.classList.contains('collapsed')) {
+          sendCyclePauseConfig();
+        }
+      });
+    });
+    
+    // Preset buttons for fixed duration (Mode Simple)
+    document.querySelectorAll('[data-pause-duration]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const value = this.getAttribute('data-pause-duration');
+        document.getElementById('cyclePauseDuration').value = value;
+        
+        // Update active state
+        document.querySelectorAll('[data-pause-duration]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        sendCyclePauseConfig();
+      });
+    });
+    
+    // Preset buttons for min (Mode Simple)
+    document.querySelectorAll('[data-pause-min]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const value = this.getAttribute('data-pause-min');
+        document.getElementById('cyclePauseMin').value = value;
+        
+        // Update active state
+        document.querySelectorAll('[data-pause-min]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        sendCyclePauseConfig();
+      });
+    });
+    
+    // Preset buttons for max (Mode Simple)
+    document.querySelectorAll('[data-pause-max]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const value = this.getAttribute('data-pause-max');
+        document.getElementById('cyclePauseMax').value = value;
+        
+        // Update active state
+        document.querySelectorAll('[data-pause-max]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        sendCyclePauseConfig();
+      });
+    });
+    
+    // Input change listeners (Mode Simple)
+    ['cyclePauseDuration', 'cyclePauseMin', 'cyclePauseMax'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('change', function() {
+          const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+          if (!section.classList.contains('collapsed')) {
+            sendCyclePauseConfig();
+          }
+        });
+      }
+    });
+    
+    // Send cycle pause config (Mode Simple)
+    function sendCyclePauseConfig() {
+      const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+      const enabled = !section.classList.contains('collapsed');
+      const isRandom = document.getElementById('pauseModeRandom').checked;
+      
+      const config = {
+        enabled: enabled,
+        isRandom: isRandom,
+        pauseDurationSec: parseFloat(document.getElementById('cyclePauseDuration').value),
+        minPauseSec: parseFloat(document.getElementById('cyclePauseMin').value),
+        maxPauseSec: parseFloat(document.getElementById('cyclePauseMax').value)
+      };
+      
+      sendCommand('updateCyclePause', config);
+    }
+    
+    // ===== CYCLE PAUSE SECTION (MODE OSCILLATION) =====
+    function toggleCyclePauseOscSection() {
+      const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+      const headerText = document.getElementById('cyclePauseOscHeaderText');
+      const isCollapsed = section.classList.contains('collapsed');
+      
+      section.classList.toggle('collapsed');
+      
+      if (isCollapsed) {
+        // Expanding = activating
+        headerText.textContent = '⏸️ Pause entre cycles - activée';
+        sendCyclePauseConfigOsc();
+      } else {
+        // Collapsing = deactivating
+        headerText.textContent = '⏸️ Pause entre cycles - désactivée';
+        sendCommand('updateCyclePauseOsc', {
+          enabled: false
+        });
+      }
+    }
+    
+    // Radio button change handlers (Mode Oscillation)
+    document.querySelectorAll('input[name="cyclePauseModeOsc"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        const isFixed = this.value === 'fixed';
+        document.getElementById('pauseFixedControlsOsc').style.display = isFixed ? 'flex' : 'none';
+        document.getElementById('pauseRandomControlsOsc').style.display = isFixed ? 'none' : 'block';
+        
+        // Send updated config
+        const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+        if (!section.classList.contains('collapsed')) {
+          sendCyclePauseConfigOsc();
+        }
+      });
+    });
+    
+    // Preset buttons for fixed duration (Mode Oscillation)
+    document.querySelectorAll('[data-pause-duration-osc]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const value = this.getAttribute('data-pause-duration-osc');
+        document.getElementById('cyclePauseDurationOsc').value = value;
+        
+        // Update active state
+        document.querySelectorAll('[data-pause-duration-osc]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        sendCyclePauseConfigOsc();
+      });
+    });
+    
+    // Preset buttons for min (Mode Oscillation)
+    document.querySelectorAll('[data-pause-min-osc]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const value = this.getAttribute('data-pause-min-osc');
+        document.getElementById('cyclePauseMinOsc').value = value;
+        
+        // Update active state
+        document.querySelectorAll('[data-pause-min-osc]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        sendCyclePauseConfigOsc();
+      });
+    });
+    
+    // Preset buttons for max (Mode Oscillation)
+    document.querySelectorAll('[data-pause-max-osc]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const value = this.getAttribute('data-pause-max-osc');
+        document.getElementById('cyclePauseMaxOsc').value = value;
+        
+        // Update active state
+        document.querySelectorAll('[data-pause-max-osc]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        sendCyclePauseConfigOsc();
+      });
+    });
+    
+    // Input change listeners (Mode Oscillation)
+    ['cyclePauseDurationOsc', 'cyclePauseMinOsc', 'cyclePauseMaxOsc'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('change', function() {
+          const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+          if (!section.classList.contains('collapsed')) {
+            sendCyclePauseConfigOsc();
+          }
+        });
+      }
+    });
+    
+    // Send cycle pause config (Mode Oscillation)
+    function sendCyclePauseConfigOsc() {
+      const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+      const enabled = !section.classList.contains('collapsed');
+      const isRandom = document.getElementById('pauseModeRandomOsc').checked;
+      
+      const config = {
+        enabled: enabled,
+        isRandom: isRandom,
+        pauseDurationSec: parseFloat(document.getElementById('cyclePauseDurationOsc').value),
+        minPauseSec: parseFloat(document.getElementById('cyclePauseMinOsc').value),
+        maxPauseSec: parseFloat(document.getElementById('cyclePauseMaxOsc').value)
+      };
+      
+      sendCommand('updateCyclePauseOsc', config);
     }
     
     // Decel zone presets

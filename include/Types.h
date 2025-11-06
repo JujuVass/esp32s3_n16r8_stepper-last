@@ -35,6 +35,36 @@ enum MovementType {
 };
 
 // ============================================================================
+// PAUSE BETWEEN CYCLES (Mode Simple + Oscillation)
+// ============================================================================
+
+struct CyclePauseConfig {
+  bool enabled;              // Pause activée/désactivée
+  float pauseDurationSec;    // Durée fixe en secondes (si !isRandom)
+  bool isRandom;             // Mode aléatoire activé
+  float minPauseSec;         // Borne minimum si aléatoire
+  float maxPauseSec;         // Borne maximum si aléatoire
+  
+  CyclePauseConfig() :
+    enabled(false),
+    pauseDurationSec(1.5),
+    isRandom(false),
+    minPauseSec(1.5),
+    maxPauseSec(5.0) {}
+};
+
+struct CyclePauseState {
+  bool isPausing;            // En cours de pause actuellement
+  unsigned long pauseStartMs; // Timestamp début de pause
+  unsigned long currentPauseDuration; // Durée pause actuelle (ms)
+  
+  CyclePauseState() :
+    isPausing(false),
+    pauseStartMs(0),
+    currentPauseDuration(0) {}
+};
+
+// ============================================================================
 // VA-ET-VIENT STRUCTURES
 // ============================================================================
 
@@ -43,6 +73,7 @@ struct MotionConfig {
   float targetDistanceMM;
   float speedLevelForward;
   float speedLevelBackward;
+  CyclePauseConfig cyclePause;  // Pause entre cycles
   
   MotionConfig() : 
     startPositionMM(0.0),
@@ -148,6 +179,8 @@ struct OscillationConfig {
   
   int cycleCount;              // Number of cycles (0 = infinite)
   bool returnToCenter;         // Return to center after completion
+  
+  CyclePauseConfig cyclePause; // Pause entre cycles
   
   OscillationConfig() :
     centerPositionMM(0),
@@ -346,6 +379,13 @@ struct SequenceLine {
   float decelEffectPercent;
   DecelMode decelMode;
   
+  // VA-ET-VIENT cycle pause
+  bool vaetCyclePauseEnabled;
+  bool vaetCyclePauseIsRandom;
+  float vaetCyclePauseDurationSec;
+  float vaetCyclePauseMinSec;
+  float vaetCyclePauseMaxSec;
+  
   // OSCILLATION parameters
   float oscCenterPositionMM;
   float oscAmplitudeMM;
@@ -355,6 +395,13 @@ struct SequenceLine {
   bool oscEnableRampOut;
   float oscRampInDurationMs;
   float oscRampOutDurationMs;
+  
+  // OSCILLATION cycle pause
+  bool oscCyclePauseEnabled;
+  bool oscCyclePauseIsRandom;
+  float oscCyclePauseDurationSec;
+  float oscCyclePauseMinSec;
+  float oscCyclePauseMaxSec;
   
   // CHAOS parameters
   float chaosCenterPositionMM;
@@ -382,6 +429,11 @@ struct SequenceLine {
     decelZoneMM(20.0),
     decelEffectPercent(50.0),
     decelMode(DECEL_SINE),
+    vaetCyclePauseEnabled(false),
+    vaetCyclePauseIsRandom(false),
+    vaetCyclePauseDurationSec(0.0),
+    vaetCyclePauseMinSec(0.5),
+    vaetCyclePauseMaxSec(3.0),
     oscCenterPositionMM(100.0),
     oscAmplitudeMM(50.0),
     oscWaveform(OSC_SINE),
@@ -390,6 +442,11 @@ struct SequenceLine {
     oscEnableRampOut(false),
     oscRampInDurationMs(1000.0),
     oscRampOutDurationMs(1000.0),
+    oscCyclePauseEnabled(false),
+    oscCyclePauseIsRandom(false),
+    oscCyclePauseDurationSec(0.0),
+    oscCyclePauseMinSec(0.5),
+    oscCyclePauseMaxSec(3.0),
     chaosCenterPositionMM(110.0),
     chaosAmplitudeMM(50.0),
     chaosMaxSpeedLevel(10.0),
