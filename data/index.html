@@ -6433,6 +6433,10 @@ Détecte la limite physique`;
         const cyclePauseSection = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
         const cyclePauseEnabled = cyclePauseSection && !cyclePauseSection.classList.contains('collapsed');
         
+        // 🆕 Check if deceleration section is expanded (enabled)
+        const decelSection = document.getElementById('decelSection');
+        const decelSectionEnabled = decelSection && !decelSection.classList.contains('collapsed');
+        
         // Determine if random mode is selected
         const isRandom = document.getElementById('pauseModeRandom')?.checked || false;
         
@@ -6441,9 +6445,9 @@ Détecte la limite physique`;
           distanceMM: parseFloat(document.getElementById('distance').value) || 50,
           speedLevelForward: parseFloat(document.getElementById('speedForward')?.value || document.getElementById('speedUnified').value) || 5,
           speedLevelBackward: parseFloat(document.getElementById('speedBackward')?.value || document.getElementById('speedUnified').value) || 5,
-          // Deceleration parameters
-          decelStartEnabled: document.getElementById('decelZoneStart')?.checked || false,
-          decelEndEnabled: document.getElementById('decelZoneEnd')?.checked || false,
+          // 🆕 Deceleration parameters - ONLY if section is expanded
+          decelStartEnabled: decelSectionEnabled ? (document.getElementById('decelZoneStart')?.checked || false) : false,
+          decelEndEnabled: decelSectionEnabled ? (document.getElementById('decelZoneEnd')?.checked || false) : false,
           decelZoneMM: parseFloat(document.getElementById('decelZoneMM')?.value) || 20,
           decelEffectPercent: parseFloat(document.getElementById('decelEffectPercent')?.value) || 50,
           decelMode: parseInt(document.getElementById('decelModeSelect')?.value) || 1,
