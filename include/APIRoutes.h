@@ -249,10 +249,26 @@ void setupAPIRoutes() {
     if (content.length() == 0) {
       engine->warn("⚠️ Playlist file exists but is empty");
       sendEmptyPlaylistStructure();
-    } else {
-      engine->debug("✅ Returning playlist content: " + content.substring(0, 100) + "...");
-      server.send(200, "application/json", content);
+      return;
     }
+    
+    // Validate JSON integrity
+    JsonDocument testDoc;
+    DeserializationError testError = deserializeJson(testDoc, content);
+    if (testError) {
+      engine->error("❌ Playlist JSON corrupted! Error: " + String(testError.c_str()));
+      engine->warn("🔧 Backing up corrupted file and resetting playlists");
+      
+      // Backup corrupted file
+      String backupPath = String(PLAYLIST_FILE_PATH) + ".corrupted";
+      LittleFS.rename(PLAYLIST_FILE_PATH, backupPath.c_str());
+      
+      sendEmptyPlaylistStructure();
+      return;
+    }
+    
+    engine->debug("✅ Returning playlist content: " + content.substring(0, 100) + "...");
+    server.send(200, "application/json", content);
   });
   
   // POST /api/playlists/add - Add a preset to playlist
@@ -408,17 +424,14 @@ void setupAPIRoutes() {
       return;
     }
     
-    // Save updated playlists
-    file = LittleFS.open(PLAYLIST_FILE_PATH, "w");
-    if (!file) {
+    // Save updated playlists using UtilityEngine (ensures proper flush + logs)
+    if (!engine->saveJsonFile(PLAYLIST_FILE_PATH, playlistDoc)) {
+      engine->error("❌ Failed to save playlist after delete");
       sendJsonApiError(500, "Failed to save");
       return;
     }
     
-    serializeJson(playlistDoc, file);
-    file.close();
-    
-    engine->info("🗑️ Preset deleted: ID " + String(id) + " (mode: " + String(mode) + ")");
+    engine->info("🗑️ Preset deleted: ID " + String(id) + " (mode: " + String(mode) + "), " + String(modeArray.size()) + " remaining");
     sendJsonSuccess();
   });
   
@@ -485,15 +498,12 @@ void setupAPIRoutes() {
       return;
     }
     
-    // Save updated playlists
-    file = LittleFS.open(PLAYLIST_FILE_PATH, "w");
-    if (!file) {
+    // Save updated playlists using UtilityEngine (ensures proper flush + logs)
+    if (!engine->saveJsonFile(PLAYLIST_FILE_PATH, playlistDoc)) {
+      engine->error("❌ Failed to save playlist after rename");
       sendJsonApiError(500, "Failed to save");
       return;
     }
-    
-    serializeJson(playlistDoc, file);
-    file.close();
     
     engine->info("✏️ Preset renamed: ID " + String(id) + " -> " + String(newName));
     sendJsonSuccess();

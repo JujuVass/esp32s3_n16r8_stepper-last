@@ -607,6 +607,9 @@ bool UtilityEngine::saveJsonFile(const String& path, const JsonDocument& doc) {
   
   // Serialize JSON to file
   size_t bytesWritten = serializeJson(doc, file);
+  
+  // CRITICAL: Flush before close to ensure data is written to flash
+  file.flush();
   file.close();
   
   if (bytesWritten == 0) {

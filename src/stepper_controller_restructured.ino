@@ -524,6 +524,46 @@ void setup() {
   engine->info("   GET  /api/playlists  - Preset playlists");
   engine->info("   GET  /logs           - Log files");
   
+  // ============================================================================
+  // VERIFY PLAYLIST FILE INTEGRITY AT STARTUP
+  // ============================================================================
+  if (LittleFS.exists(PLAYLIST_FILE_PATH)) {
+    File pFile = LittleFS.open(PLAYLIST_FILE_PATH, "r");
+    if (pFile) {
+      size_t pSize = pFile.size();
+      String pContent = pFile.readString();
+      pFile.close();
+      
+      engine->info("📋 Playlist file found: " + String(PLAYLIST_FILE_PATH));
+      engine->info("   Size: " + String(pSize) + " bytes");
+      
+      if (pSize == 0 || pContent.length() == 0) {
+        engine->warn("   ⚠️ File is EMPTY");
+      } else {
+        // Validate JSON structure
+        JsonDocument pDoc;
+        DeserializationError pError = deserializeJson(pDoc, pContent);
+        if (pError) {
+          engine->error("   ❌ JSON CORRUPTED: " + String(pError.c_str()));
+          engine->warn("   🔧 File will be reset on first access");
+        } else {
+          int simpleCount = pDoc["simple"].size();
+          int oscCount = pDoc["oscillation"].size();
+          int chaosCount = pDoc["chaos"].size();
+          int total = simpleCount + oscCount + chaosCount;
+          engine->info("   ✅ JSON valid - " + String(total) + " presets loaded");
+          engine->debug("      Simple: " + String(simpleCount) + 
+                        ", Osc: " + String(oscCount) + 
+                        ", Chaos: " + String(chaosCount));
+        }
+      }
+    } else {
+      engine->error("📋 ❌ Failed to open playlist file!");
+    }
+  } else {
+    engine->info("📋 No playlist file found (will be created on first save)");
+  }
+  
   // Start WebSocket server
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
