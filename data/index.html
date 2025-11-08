@@ -2710,6 +2710,12 @@
       statsPanel: {
         isVisible: false,  // Is stats panel currently visible
         lastToggle: 0      // Last toggle timestamp
+      },
+      
+      // Logging preferences (synchronized with backend)
+      logging: {
+        enabled: false,     // Global logging enabled/disabled (default: false until loaded from ESP32)
+        debugEnabled: false // Debug level logs enabled (LOG_DEBUG = 3)
       }
     };
     
@@ -2722,6 +2728,55 @@
       chaos: [],
       loaded: false
     };
+    
+    // ========================================================================
+    // CONSOLE WRAPPER - Respect AppState.logging preferences
+    // ========================================================================
+    
+    // Store original console methods BEFORE any override
+    const _console = {
+      log: console.log.bind(console),
+      error: console.error.bind(console),
+      warn: console.warn.bind(console),
+      debug: console.debug.bind(console),
+      info: console.info.bind(console)
+    };
+    
+    // Override console methods to respect AppState.logging
+    console.log = function(...args) {
+      if (AppState.logging.enabled) {
+        _console.log(...args);
+      }
+    };
+    
+    console.error = function(...args) {
+      // Errors are ALWAYS shown (critical information)
+      _console.error(...args);
+    };
+    
+    console.warn = function(...args) {
+      if (AppState.logging.enabled) {
+        _console.warn(...args);
+      }
+    };
+    
+    console.debug = function(...args) {
+      // Debug logs require BOTH logging enabled AND debug flag enabled
+      if (AppState.logging.enabled && AppState.logging.debugEnabled) {
+        _console.debug(...args);
+      }
+    };
+    
+    console.info = function(...args) {
+      if (AppState.logging.enabled) {
+        _console.info(...args);
+      }
+    };
+    
+    
+    // ========================================================================
+    // PLAYLIST LOAD FROM BACKEND
+    // ========================================================================
     
     // Load playlists from backend
     function loadPlaylists(callback) {
@@ -2859,7 +2914,6 @@
         progressPercent: progressPercent.toFixed(1)
       };
     }
-    
     
     // ========================================================================
     // GLOBAL STATE - Position Tracking
@@ -8679,6 +8733,10 @@ Détecte la limite physique`;
           chkEnabled.checked = data.loggingEnabled;
           chkDebug.checked = (data.logLevel === 3); // LOG_DEBUG = 3
           
+          // Update AppState.logging for console wrapper FIRST
+          AppState.logging.enabled = data.loggingEnabled;
+          AppState.logging.debugEnabled = (data.logLevel === 3);
+          
           // Hide/show Logs button based on logging enabled state
           if (!data.loggingEnabled) {
             btnShowLogs.style.display = 'none';
@@ -8686,7 +8744,10 @@ Détecte la limite physique`;
             btnShowLogs.style.display = '';
           }
           
-          console.log('📂 Loaded logging preferences:', data);
+          // Debug log (only if enabled)
+          if (data.loggingEnabled) {
+            console.log('📂 Loaded logging preferences:', data);
+          }
         })
         .catch(error => {
           console.error('❌ Error loading logging preferences:', error);
@@ -8702,6 +8763,10 @@ Détecte la limite physique`;
         loggingEnabled: chkEnabled.checked,
         logLevel: chkDebug.checked ? 3 : 2  // 3=DEBUG, 2=INFO
       };
+      
+      // Update AppState.logging for console wrapper
+      AppState.logging.enabled = preferences.loggingEnabled;
+      AppState.logging.debugEnabled = (preferences.logLevel === 3);
       
       fetch('/api/system/logging/preferences', {
         method: 'POST',
