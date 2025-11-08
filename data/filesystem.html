@@ -453,7 +453,6 @@
       
       files.forEach(file => {
         const indent = depth * 20; // 20px indent per level
-        //const icon = file.isDir ? '📁' : '📄';
         const folderId = `folder-${file.path.replace(/\//g, '-')}`;
         
         // Build actions for files only (not folders)
@@ -469,17 +468,27 @@
         const isOpen = openFolders.has(folderId);
         const displayStyle = isOpen ? 'display: block;' : 'display: none;';
         
-        // Make file name clickable for text files
-        const fileNameHtml = !file.isDir && !isBinaryFile(file.name) 
-          ? `<span class="file-name-link" onclick="editFile('${file.path}', '${file.name}')" title="Click to edit">${file.name}</span>`
-          : `<span>${file.name}</span>`;
+        // Folders: clickable name to toggle, Files: clickable name to edit (text files only)
+        const fileNameHtml = file.isDir 
+          ? `<span class="file-name-link" onclick="toggleFolder('${folderId}')" title="Click to expand/collapse">${file.name}</span>`
+          : (!isBinaryFile(file.name) 
+              ? `<span class="file-name-link" onclick="editFile('${file.path}', '${file.name}')" title="Click to edit">${file.name}</span>`
+              : `<span>${file.name}</span>`);
+        
+        // For folders, show file count instead of date
+        const dateOrCount = file.isDir 
+          ? `${file.children ? file.children.length : 0} items`
+          : formatDate(file.time);
+        
+        const fileSize = file.isDir 
+          ? ``: `${formatFileSize(file.size)}`;
         
         html += `
           <div class="file-row" style="margin-left: ${indent}px;">
             <div class="file-icon">${file.isDir ? toggleBtn : '📄'}</div>
             <div class="file-name">${fileNameHtml}</div>
-            <div class="file-size">${formatFileSize(file.size)}</div>
-            <div class="file-date">${formatDate(file.time)}</div>
+            <div class="file-size">${fileSize}</div>
+            <div class="file-date">${dateOrCount}</div>
             <div class="file-actions">${actions}</div>
           </div>
         `;

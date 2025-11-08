@@ -89,12 +89,6 @@ const int MAX_CALIBRATION_RETRIES = 3;
 const int CALIBRATION_ERROR_MARGIN_STEPS = 1000;
 
 // ============================================================================
-// CONFIGURATION - Operational Limits
-// ============================================================================
-// Why 50? Oscillation: max steps/call prevents WebSocket starvation (50 steps = ~8ms @ 6000 Hz)
-const int MAX_OSCILLATION_STEPS_PER_CALL = 50;
-
-// ============================================================================
 // CONFIGURATION - Oscillation Mode Constants
 // ============================================================================
 // Phase tracking and position tolerances
@@ -132,17 +126,9 @@ const unsigned long SEQUENCE_STATUS_UPDATE_MS = 500;
 // ============================================================================
 // CONFIGURATION - doStep() Safety Thresholds
 // ============================================================================
-// Why 2%? Position drift detection: alert if START contact active beyond 2% of maxStep
-const float DRIFT_DETECTION_THRESHOLD_PERCENT = 0.02;  // 2% of maxStep
-
-// Why 10? Minimum steps for drift detection (prevent false positives near position 0)
-const long DRIFT_DETECTION_MIN_STEPS = 10;
 
 // Why 10? Consider "at start" if within 10 steps of minStep (for wasAtStart flag)
 const long WASATSTART_THRESHOLD_STEPS = 10;
-
-// Why 100? Maximum steps to search for START contact during recalibration
-const int MAX_RECALIBRATION_STEPS = 100;
 
 // Hard mechanical limits for safety
 // Why 221mm? Physical constraint of HTD 5M belt system (20T pulley, limited travel)

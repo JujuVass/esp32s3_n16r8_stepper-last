@@ -90,13 +90,6 @@ unsigned long cycleTimeMillis = 0;
 float measuredCyclesPerMinute = 0;
 bool wasAtStart = false;
 
-// ============================================================================
-// CONTACT MONITORING (DEBUG)
-// ============================================================================
-int lastStartContactState = HIGH;  // Pull-up = HIGH by default
-int lastEndContactState = HIGH;    // Pull-up = HIGH by default
-unsigned long lastContactCheckMillis = 0;
-
 // Motor direction tracking (for smooth direction changes)
 bool currentMotorDirection = HIGH;  // Current physical motor direction
 
@@ -596,35 +589,6 @@ void loop() {
   ArduinoOTA.handle();
   
   // ═══════════════════════════════════════════════════════════════════════════
-  // CONTACT MONITORING (DEBUG) - Check every 50ms with debounce
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (millis() - lastContactCheckMillis >= 50) {
-    lastContactCheckMillis = millis();
-    
-    // Read current debounced state (majority voting: 2/3 checks must agree)
-    bool startEngaged = readContactDebounced(PIN_START_CONTACT, LOW, 3, 100);
-    bool endEngaged = readContactDebounced(PIN_END_CONTACT, LOW, 3, 100);
-    
-    // Convert to digitalRead-compatible state (LOW = engaged, HIGH = not engaged)
-    int startState = startEngaged ? LOW : HIGH;
-    int endState = endEngaged ? LOW : HIGH;
-    
-    if (startState != lastStartContactState) {
-      engine->debug(String("🔵 START contact changed: ") + (lastStartContactState == HIGH ? "HIGH" : "LOW") + 
-            " → " + (startState == HIGH ? "HIGH" : "LOW") + 
-            " | Position: " + String(currentStep / STEPS_PER_MM, 1) + "mm");
-      lastStartContactState = startState;
-    }
-    
-    if (endState != lastEndContactState) {
-      engine->debug(String("🔴 END contact changed: ") + (lastEndContactState == HIGH ? "HIGH" : "LOW") + 
-            " → " + (endState == HIGH ? "HIGH" : "LOW") + 
-            " | Position: " + String(currentStep / STEPS_PER_MM, 1) + "mm");
-      lastEndContactState = endState;
-    }
-  }
-  
-  // ═══════════════════════════════════════════════════════════════════════════
   // INITIAL CALIBRATION (with delay for web interface access)
   // ═══════════════════════════════════════════════════════════════════════════
   static bool calibrationStarted = false;
@@ -819,12 +783,17 @@ void stepMotor() {
 // ============================================================================
 
 bool findContactWithService(int dirPin, int contactPin, const char* contactName) {
-  setMotorDirection(dirPin == HIGH);
-  unsigned long stepCount = 0;
   
-  while (digitalRead(contactPin) == HIGH) {
+  bool inDir = (dirPin == HIGH);
+
+  setMotorDirection(inDir);
+  unsigned long stepCount = 0;
+
+  // Search for contact with debouncing (3 checks, 25µs interval)
+  // Fast debounce during search phase (non-critical)
+  while (readContactDebounced(contactPin, HIGH, 3, 25)) {
     stepMotor();
-    currentStep += (dirPin == HIGH) ? 1 : -1;
+    currentStep += inDir ? 1 : -1;
     delayMicroseconds(CALIB_DELAY);
     stepCount++;
     
@@ -844,7 +813,23 @@ bool findContactWithService(int dirPin, int contactPin, const char* contactName)
       return false;
     }
   }
-  
+
+  // Validate END contact is within expected range (filter mechanical bounces)
+  // If contact detected BEFORE minimum distance → likely false positive
+  if (contactPin == PIN_END_CONTACT) {
+        // Contact detected - Zone validation
+    long detectedSteps = abs(currentStep);
+    long minExpectedSteps = (long)(HARD_MIN_DISTANCE_MM * STEPS_PER_MM);
+    if (detectedSteps < minExpectedSteps) {
+      engine->error("Contact END détecté AVANT zone valide (" + 
+                    String(detectedSteps) + " < " + String(minExpectedSteps) + " steps)");
+      engine->error("→ Rebond mécanique probable - Position ignorée");
+      
+      // Ignore false contact and continue search (recursive retry)
+      return findContactWithService(dirPin, contactPin, contactName);
+    }
+  }
+
   return true;
 }
 
@@ -854,7 +839,9 @@ bool returnToStartContact() {
   
   setMotorDirection(false);  // Backward to START contact
   
-  while (digitalRead(PIN_START_CONTACT) == HIGH) {
+  // Search for START contact with debouncing (3 checks, 100µs interval)
+  // Precise value needed for accurate return positioning
+  while (readContactDebounced(PIN_START_CONTACT, HIGH, 3, 100)) {
     stepMotor();
     currentStep--;
     delayMicroseconds(CALIB_DELAY);
@@ -875,8 +862,9 @@ bool returnToStartContact() {
   engine->debug("Start contact detected - applying calibration offset...");
   
   // Move forward slowly until contact releases (decontact)
+  // Standard debounce for decontact phase (3 checks, 100µs)
   setMotorDirection(true);
-  while (digitalRead(PIN_START_CONTACT) == LOW) {
+  while (readContactDebounced(PIN_START_CONTACT, LOW, 3, 100)) {
     stepMotor();
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);  // Same speed as initial calibration
   }
@@ -1112,8 +1100,9 @@ void startCalibration() {
   engine->debug("✓ Start contact found - releasing contact very slowly...");
   
   // Move forward VERY SLOWLY until contact releases (HIGH)
+  // Slow debounce for critical initial calibration phase (3 checks, 200µs)
   setMotorDirection(true);  // Forward to release contact
-  while (digitalRead(PIN_START_CONTACT) == LOW) {
+  while (readContactDebounced(PIN_START_CONTACT, LOW, 3, 200)) {  
     stepMotor();
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);  // 10ms per step = ultra gentle
   }
@@ -1147,9 +1136,12 @@ void startCalibration() {
   
   engine->debug("✓ End contact found - releasing contact very slowly...");
   
-  // Reculer TRES DOUCEMENT jusqu'à décontact (HIGH)
+  // Move backward VERY SLOWLY until contact releases (HIGH)
+  // CRITICAL: Enhanced debounce for END contact (5 checks, 150µs)
+  // END contact requires stronger filtering due to mechanical characteristics
+  // (pulley vibrations, belt tension variations at max travel)
   setMotorDirection(false);  // Backward to release contact
-  while (digitalRead(PIN_END_CONTACT) == LOW) {
+  while (readContactDebounced(PIN_END_CONTACT, LOW, 5, 150)) {
     stepMotor();
     currentStep--;
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);
@@ -2785,13 +2777,13 @@ void doOscillationStep() {
   long targetStep = (long)(targetPositionMM * STEPS_PER_MM);
   
   // Safety check contacts
-  if (targetStep >= config.maxStep && digitalRead(PIN_END_CONTACT) == LOW) {
+  if (targetStep >= config.maxStep && readContactDebounced(PIN_END_CONTACT, LOW)) {
     sendError("❌ OSCILLATION: Contact end atteint de manière inattendue");
     isPaused = true;
     return;
   }
-  
-  if (targetStep <= config.minStep && digitalRead(PIN_START_CONTACT) == LOW) {
+
+  if (targetStep <= config.minStep && readContactDebounced(PIN_START_CONTACT, LOW)) {
     sendError("❌ OSCILLATION: Contact start atteint de manière inattendue");
     isPaused = true;
     return;
