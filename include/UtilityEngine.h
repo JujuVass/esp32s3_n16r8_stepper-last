@@ -542,4 +542,9 @@ private:
   
 }; // class UtilityEngine
 
+// ============================================================================
+// GLOBAL ENGINE POINTER (defined in main.ino, accessible everywhere)
+// ============================================================================
+extern UtilityEngine* engine;
+
 #endif // UTILITY_ENGINE_H

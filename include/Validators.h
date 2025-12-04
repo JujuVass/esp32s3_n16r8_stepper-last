@@ -18,9 +18,7 @@
 
 #include <Arduino.h>
 #include "Config.h"
-
-// Forward declaration to avoid circular dependencies
-struct SystemConfig;
+#include "Types.h"  // Full definition of SystemConfig needed
 
 // External references to global state (defined in main .ino)
 extern float effectiveMaxDistanceMM;
