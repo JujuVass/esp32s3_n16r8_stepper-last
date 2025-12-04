@@ -5,997 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stepper Controller</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <link rel="stylesheet" href="/css/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      background: #f0f0f0;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #333;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #555;
-    }
-    input[type="number"],
-    select.select-input {
-      width: 100%;
-      padding: 10px;
-      font-size: 12px;
-      border: 2px solid #ddd;
-      border-radius: 5px;
-      box-sizing: border-box;
-    }
-    
-    /* Override width for inline inputs in stacked groups */
-    .form-group-compact > div > input[type="number"] {
-      width: 140px;
-      min-width: 140px;
-    }
-    
-    input[type="number"]:focus,
-    select.select-input:focus {
-      outline: none;
-      border-color: #2196F3;
-    }
-    .button {
-      padding: 12px 30px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 5px;
-      transition: all 0.3s;
-    }
-    .btn-primary {
-      background: #2196F3;
-      color: white;
-    }
-    .btn-primary:hover {
-      background: #1976D2;
-    }
-    .btn-success {
-      background: #4CAF50;
-      color: white;
-    }
-    .btn-success:hover {
-      background: #45a049;
-    }
-    .btn-success:disabled {
-      background: #9E9E9E;
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .btn-warning {
-      background: #FF9800;
-      color: white;
-    }
-    .btn-warning:hover {
-      background: #F57C00;
-    }
-    .btn-danger {
-      background: #f44336;
-      color: white;
-    }
-    .btn-danger:hover {
-      background: #d32f2f;
-    }
-    .btn-secondary {
-      background: #6c757d;
-      color: white;
-    }
-    .btn-secondary:hover {
-      background: #5a6268;
-    }
-    .btn-info {
-      background: #17a2b8;
-      color: white;
-    }
-    .btn-info:hover {
-      background: #138496;
-    }
-    .btn-help {
-      background: #d2ccb4;
-      color: white;
-    }
-    .btn-help:hover {
-      background: #c2b09f;
-    }
-    .button-group {
-      text-align: center;
-      margin: 20px 0;
-    }
-    .state-init { color: #9E9E9E; }
-    .state-calibrating { color: #FF9800; }
-    .state-ready { color: #4CAF50; }
-    .state-running { color: #2196F3; }
-    .state-paused { color: #FF9800; }
-    .state-error { color: #f44336; }
-    .overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 9999;
-      justify-content: center;
-      align-items: center;
-    }
-    .overlay.active {
-      display: flex;
-    }
-    .overlay-content {
-      background: white;
-      padding: 40px 60px;
-      border-radius: 15px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      text-align: center;
-      animation: fadeIn 0.3s ease-in;
-    }
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: scale(0.9);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
-      }
-    }
-    .overlay-icon {
-      font-size: 60px;
-      margin-bottom: 20px;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-      50% {
-        transform: scale(1.1);
-        opacity: 0.8;
-      }
-    }
-    .overlay-title {
-      font-size: 24px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 10px;
-    }
-    .overlay-message {
-      font-size: 16px;
-      color: #666;
-      margin-bottom: 20px;
-    }
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #2196F3;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes milestone-pop {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.4); }
-      100% { transform: scale(1); }
-    }
-    
-    .milestone-achievement {
-      animation: milestone-pop 0.5s ease-out;
-    }
-    
-    /* Tabs */
-    .tabs {
-      display: flex;
-      border-bottom: 2px solid #2196F3;
-      margin-bottom: 20px;
-      gap: 5px;
-    }
-    .tabs.hidden-until-calibrated {
-      display: none;
-    }
-    .tab {
-      padding: 12px 24px;
-      background: #f0f0f0;
-      border: none;
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
-      color: #666;
-      transition: all 0.3s;
-      border-bottom: 3px solid transparent;
-    }
-    .tab:hover {
-      background: #e0e0e0;
-      color: #333;
-    }
-    .tab.active {
-      background: white;
-      color: #2196F3;
-      border-bottom: 3px solid #2196F3;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    /* Hide all tabs content until calibrated (takes priority over .active) */
-    .tab-content.hidden-until-calibrated {
-      display: none !important;
-    }
-    /* Modal for mode change confirmation */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 10000;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal.active {
-      display: flex;
-    }
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      text-align: center;
-      max-width: 500px;
-      animation: fadeIn 0.3s ease-in;
-    }
-    .modal-title {
-      font-size: 22px;
-      font-weight: bold;
-      color: #FF9800;
-      margin-bottom: 15px;
-    }
-    .modal-message {
-      font-size: 16px;
-      color: #666;
-      margin-bottom: 25px;
-      line-height: 1.5;
-    }
-    .modal-buttons {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-    }
-    
-    /* Playlist Presets List - Custom Scrollbar */
-    #playlistModal .modal-content > div:nth-child(3) {
-      scrollbar-width: thin;
-      scrollbar-color: #667eea #f0f0f0;
-    }
-    #playlistModal .modal-content > div:nth-child(3)::-webkit-scrollbar {
-      width: 8px;
-    }
-    #playlistModal .modal-content > div:nth-child(3)::-webkit-scrollbar-track {
-      background: #f0f0f0;
-      border-radius: 4px;
-    }
-    #playlistModal .modal-content > div:nth-child(3)::-webkit-scrollbar-thumb {
-      background: #667eea;
-      border-radius: 4px;
-    }
-    #playlistModal .modal-content > div:nth-child(3)::-webkit-scrollbar-thumb:hover {
-      background: #5568d3;
-    }
-    
-    /* Playlist Preset Tooltips */
-    .preset-item {
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .preset-item:hover {
-      background: #fff !important;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      transform: translateX(2px);
-    }
-    
-    /* Tooltip overlay - positioned in center of modal */
-    #playlistTooltipOverlay {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 15px 20px;
-      border-radius: 10px;
-      font-size: 12px;
-      white-space: pre-line;
-      z-index: 10001;
-      pointer-events: none;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.3s ease, visibility 0.3s ease;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      max-width: 400px;
-      line-height: 1.5;
-      border: 2px solid rgba(255,255,255,0.3);
-    }
-    #playlistTooltipOverlay.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-    
-    /* Playlist Search Input */
-    #playlistSearchInput {
-      transition: all 0.3s ease;
-    }
-    #playlistSearchInput:focus {
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-      border-color: #667eea !important;
-    }
-    
-    /* Sequencer Active Line Highlight */
-    .sequence-line-active {
-      background: linear-gradient(90deg, #E3F2FD 0%, #BBDEFB 100%) !important;
-      border-left: 4px solid #2196F3 !important;
-      box-shadow: 0 0 12px rgba(33, 150, 243, 0.4);
-      animation: pulse-line 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes pulse-line {
-      0%, 100% { 
-        box-shadow: 0 0 8px rgba(33, 150, 243, 0.3);
-      }
-      50% { 
-        box-shadow: 0 0 16px rgba(33, 150, 243, 0.6);
-      }
-    }
-    
-    /* Phase 2: Drag & Drop Styles */
-    .sequence-line-draggable {
-      cursor: grab;
-    }
-    
-    .sequence-line-draggable:active {
-      cursor: grabbing;
-    }
-    
-    .sequence-line-dragging {
-      opacity: 0.3;
-      background: #f0f0f0 !important;
-    }
-    
-    /* Drop spacer - Real table row that creates space */
-    .sequence-drop-spacer {
-      height: 50px !important;
-      animation: fade-in 0.2s ease;
-    }
-    
-    .sequence-drop-spacer td {
-      height: 50px !important;
-      padding: 0 !important;
-      border: none !important;
-      background: transparent !important;
-    }
-    
-    .sequence-drop-placeholder-inner {
-      display: block !important;
-      margin: 5px 8px !important;
-      padding: 10px !important;
-      height: 40px !important;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%) !important;
-      border: 3px dashed #667eea !important;
-      border-radius: 8px !important;
-      text-align: center !important;
-      line-height: 20px !important;
-      font-size: 14px !important;
-      color: #667eea !important;
-      font-weight: 600 !important;
-      box-sizing: border-box !important;
-      animation: pulse-glow 1s ease-in-out infinite;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-    
-    @keyframes pulse-glow {
-      0%, 100% { 
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        border-color: #667eea;
-      }
-      50% { 
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.7);
-        border-color: #764ba2;
-      }
-    }
-    
-    @keyframes fade-in {
-      from { opacity: 0; transform: scaleY(0.3); }
-      to { opacity: 1; transform: scaleY(1); }
-    }
-    
-    @keyframes pulse-drop-zone {
-      0%, 100% { opacity: 0.6; transform: scaleY(1); }
-      50% { opacity: 1; transform: scaleY(1.5); }
-    }
-    
-    /* Drop zone placeholder (dashed box preview) */
-    .sequence-drop-placeholder {
-      height: 40px;
-      border: 2px dashed #667eea;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-      border-radius: 4px;
-      margin: 4px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #667eea;
-      font-size: 12px;
-      font-weight: 600;
-      animation: fade-in 0.2s;
-    }
-    
-    @keyframes fade-in {
-      from { opacity: 0; transform: scaleY(0.5); }
-      to { opacity: 1; transform: scaleY(1); }
-    }
-    
-    /* Phase 2: Multi-Select Styles */
-    .sequence-line-selected {
-      background: linear-gradient(90deg, #E8EAF6 0%, #C5CAE9 100%) !important;
-      border-left: 4px solid #667eea !important;
-      box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
-    }
-    
-    .sequence-batch-toolbar {
-      display: none;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 10px 16px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    
-    .sequence-batch-toolbar.visible {
-      display: flex;
-    }
-    
-    .sequence-batch-info {
-      font-weight: 600;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .sequence-batch-actions {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    
-    .sequence-batch-btn {
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      color: white;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    
-    .sequence-batch-btn:hover {
-      background: rgba(255, 255, 255, 0.25);
-      transform: translateY(-1px);
-    }
-    
-    /* Drag & Drop Trash Zone (toolbar version - kept for batch operations) */
-    .sequence-trash-zone {
-      background: linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(233, 30, 99, 0.1) 100%);
-      border: 2px dashed rgba(244, 67, 54, 0.3);
-      border-radius: 6px;
-      padding: 8px 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: rgba(244, 67, 54, 0.8);
-      font-weight: 600;
-      transition: all 0.3s;
-      min-width: 140px;
-      justify-content: center;
-    }
-    
-    .sequence-trash-zone .trash-icon {
-      font-size: 18px;
-      transition: transform 0.3s;
-    }
-    
-    .sequence-trash-zone.drag-over {
-      background: linear-gradient(135deg, rgba(244, 67, 54, 0.2) 0%, rgba(233, 30, 99, 0.2) 100%);
-      border-color: #F44336;
-      border-width: 3px;
-      transform: scale(1.05);
-      box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
-    }
-    
-    .sequence-trash-zone.drag-over .trash-icon {
-      transform: scale(1.3) rotate(10deg);
-      animation: shake-trash 0.5s infinite;
-    }
-    
-    /* Permanent Trash Drop Zone (below table) */
-    .sequence-trash-drop-zone {
-      margin-top: 12px;
-      padding: 16px;
-      background: linear-gradient(135deg, rgba(244, 67, 54, 0.08) 0%, rgba(233, 30, 99, 0.08) 100%);
-      border: 2px dashed rgba(244, 67, 54, 0.25);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      font-size: 14px;
-      color: rgba(244, 67, 54, 0.7);
-      font-weight: 600;
-      transition: all 0.25s ease;
-      cursor: pointer;
-    }
-    
-    .sequence-trash-drop-zone .trash-icon {
-      font-size: 24px;
-      transition: all 0.25s ease;
-    }
-    
-    .sequence-trash-drop-zone.drag-active {
-      background: linear-gradient(135deg, rgba(244, 67, 54, 0.12) 0%, rgba(233, 30, 99, 0.12) 100%);
-      border-color: rgba(244, 67, 54, 0.5);
-      border-width: 2px;
-      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
-    }
-    
-    .sequence-trash-drop-zone.drag-active .trash-icon {
-      transform: scale(1.15);
-    }
-    
-    @keyframes shake-trash {
-      0%, 100% { transform: scale(1.3) rotate(8deg); }
-      25% { transform: scale(1.3) rotate(12deg); }
-      75% { transform: scale(1.3) rotate(6deg); }
-    }
-    
-    /* Sequencer Edit Modal - Override global input styles */
-    #editLineModal input[type="number"],
-    #editLineModal input[type="text"],
-    #editLineModal select {
-      padding: 6px !important;
-      font-size: 12px !important;
-      border: 1px solid #ddd !important;
-      border-radius: 4px !important;
-    }
-    
-    #editLineModal label {
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      color: #333 !important;
-    }
-    
-    #editLineModal input[type="checkbox"],
-    #editLineModal input[type="radio"] {
-      width: 16px !important;
-      height: 16px !important;
-    }
-    
-    /* Type selection inline layout */
-    #editLineModal .type-selection-row {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 15px;
-    }
-    
-    #editLineModal .type-selection-row > label:first-child {
-      margin-right: 10px;
-    }
-    
-    #editLineModal .type-selection-buttons {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    
-    #editLineModal .type-selection-buttons label {
-      width: auto !important;
-    }
-    
-    #editLineModal .type-selection-buttons input[type="radio"] {
-      width: 16px !important;
-    }
-    
-    /* Error Notification Toast */
-    /* Unified notification system - supports info, warning, error */
-    .notification {
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      color: white;
-      padding: 16px 24px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      font-size: 14px;
-      font-weight: 500;
-      max-width: 450px;
-      line-height: 1.5;
-      z-index: 10000;
-      opacity: 0;
-      transform: translateX(400px);
-      transition: all 0.3s ease-in-out;
-      white-space: pre-line;
-      backdrop-filter: blur(10px);
-    }
-    .notification.show {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    .notification.notification-success {
-      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-      border-left: 4px solid #2e7d32;
-    }
-    .notification.notification-info {
-      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-      border-left: 4px solid #0d47a1;
-    }
-    .notification.notification-warning {
-      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-      border-left: 4px solid #e65100;
-    }
-    .notification.notification-error {
-      background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-      border-left: 4px solid #b71c1c;
-    }
-    
-    /* Welcome message before calibration */
-    .welcome-message {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      border-radius: 10px;
-      text-align: center;
-      margin: 20px 0;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-    .welcome-message h2 {
-      margin: 0 0 15px 0;
-      font-size: 28px;
-    }
-    .welcome-message p {
-      margin: 10px 0;
-      font-size: 16px;
-      line-height: 1.6;
-    }
-    .welcome-message.hidden {
-      display: none;
-    }
-    
-    /* Compact Status Bar Styles */
-    .status-compact {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      margin-bottom: 15px;
-      overflow: hidden;
-    }
-    
-    .btn-compact {
-      padding: 4px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-    
-    .btn-compact:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    .btn-compact:active {
-      transform: translateY(0);
-    }
-    
-    .btn-icon {
-      padding: 2px 6px;
-      font-size: 13px;
-      background: transparent;
-      border: 1px solid #ddd;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .btn-icon:hover {
-      background: #f0f0f0;
-      border-color: #2196F3;
-    }
-
-    /* ============================================
-       COMPACT FRAMEWORK - Réutilisable
-       ============================================ */
-
-    /* Headers */
-    .header-compact {
-      padding: 10px 15px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 8px 8px 0 0;
-      margin-bottom: 15px;
-    }
-
-    .header-compact h2 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    /* Form Layouts */
-    .form-row-compact {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-bottom: 12px;
-    }
-
-    .form-group-compact {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    /* Form group with label+input on one line, presets below */
-    .form-group-stacked {
-      display: block;
-    }
-    
-    .form-group-stacked .input-line {
-      display: inline-block;  /* Garde les éléments internes sur la même ligne */
-      width: 100%;            /* Mais force un bloc complet */
-      margin-bottom: 8px;
-    }
-
-    /* Speed controls - stay on one line */
-    .speed-control-inline {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: nowrap;
-    }
-
-    /* Labels */
-    .label-inline {
-      display: inline;
-      min-width: 90px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #333;
-    }
-
-    .unit-label {
-      font-size: 12px;
-      color: #666;
-      margin-left: 4px;
-    }
-
-    /* Inputs */
-    .input-compact {
-      width: 140px;
-      padding: 6px 10px;
-      font-size: 13px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-
-    /* Preset Buttons */
-    .preset-grid {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-
-    .preset-btn-sm {
-      min-width: 52px;
-      padding: 5px 6px;
-      font-size: 11px;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-      height: 28px;
-      line-height: 16px;
-      box-sizing: border-box;
-    }
-
-    .preset-btn-sm:hover {
-      background: #667eea;
-      color: white;
-      border-color: #667eea;
-    }
-
-    /* Radio Inline */
-    .radio-inline {
-      display: flex;
-      gap: 15px;
-    }
-
-    /* ========== NEW MODAL OPTIMIZATION CLASSES ========== */
-    
-    /* Grid 2 colonnes - remplace 28 occurrences */
-    .grid-2col-12 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-    
-    /* Grid 4 colonnes pour patterns chaos */
-    .grid-4col-patterns {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      background: #f5f5f5;
-      padding: 8px;
-      border-radius: 5px;
-      margin-top: 3px;
-    }
-    
-    /* Input modal uniformisé - remplace 50+ occurrences */
-    .input-modal {
-      width: auto !important;
-      padding: 6px !important;
-      border: 1px solid #ddd !important;
-      border-radius: 4px;
-      font-size: 12px !important;
-      margin-top: 3px;
-    }
-    
-    /* Radio label inline pour type selection */
-    .radio-label-inline {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      cursor: pointer;
-      background: #f5f5f5;
-      padding: 6px 10px;
-      border-radius: 4px;
-    }
-    
-    /* Checkbox label petit pour chaos patterns */
-    .checkbox-label-sm {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-      font-size: 11px;
-    }
-    
-    /* Flex utilities */
-    .flex-gap-10 { display: flex; gap: 10px; }
-    .flex-gap-12 { display: flex; gap: 12px; }
-    .flex-gap-15 { display: flex; gap: 15px; }
-    .flex-end { justify-content: flex-end; }
-    
-    /* Spacing utilities */
-    .mb-8 { margin-bottom: 8px; }
-    .mb-10 { margin-bottom: 10px; }
-    .mb-12 { margin-bottom: 12px; }
-    .mb-15 { margin-bottom: 15px; }
-    
-    /* ========== END MODAL OPTIMIZATION CLASSES ========== */
-
-    .radio-inline label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 13px;
-      cursor: pointer;
-    }
-
-    /* Collapsible Sections */
-    .section-collapsible {
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      margin-bottom: 12px;
-      overflow: hidden;
-    }
-
-    .section-collapsible-header {
-      padding: 10px 15px;
-      background: #f8f9fa;
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .section-collapsible-header:hover {
-      background: #e9ecef;
-    }
-
-    .collapse-icon {
-      transition: transform 0.3s;
-    }
-
-    .section-collapsible.collapsed .collapse-icon {
-      transform: rotate(-90deg);
-    }
-
-    .section-collapsible-content {
-      padding: 15px;
-      max-height: 1000px;
-      transition: max-height 0.3s ease-out;
-    }
-
-    .section-collapsible.collapsed .section-collapsible-content {
-      max-height: 0;
-      padding: 0 15px;
-      overflow: hidden;
-    }
-
-    /* Canvas Compact */
-    .canvas-compact {
-      width: 100%;
-      max-width: 300px;
-      height: 100px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-top: 10px;
-    }
-  </style>
 </head>
 <body>
   <!-- Calibration Overlay -->
@@ -2728,6 +1739,67 @@
       }
     };
     
+    // ========================================================================
+    // WEBSOCKET COMMANDS - Centralized command strings
+    // ========================================================================
+    // Why: Prevents typos in command strings, enables autocomplete, single source of truth
+    const WS_CMD = Object.freeze({
+      // === Movement Control ===
+      START: 'start',
+      STOP: 'stop',
+      PAUSE: 'pause',
+      CALIBRATE: 'calibrate',
+      RETURN_TO_START: 'returnToStart',
+      RESET_TOTAL_DISTANCE: 'resetTotalDistance',
+      
+      // === Simple Mode ===
+      SET_START_POSITION: 'setStartPosition',
+      SET_DISTANCE: 'setDistance',
+      SET_SPEED_FORWARD: 'setSpeedForward',
+      SET_SPEED_BACKWARD: 'setSpeedBackward',
+      SET_CYCLE_PAUSE: 'setCyclePause',
+      SET_DECEL_ZONE: 'setDecelZone',
+      SET_MAX_DISTANCE_LIMIT: 'setMaxDistanceLimit',
+      UPDATE_CYCLE_PAUSE: 'updateCyclePause',
+      
+      // === Oscillation Mode ===
+      SET_OSCILLATION: 'setOscillation',
+      SET_OSCILLATION_CONFIG: 'setOscillationConfig',
+      START_OSCILLATION: 'startOscillation',
+      STOP_OSCILLATION: 'stopOscillation',
+      UPDATE_CYCLE_PAUSE_OSC: 'updateCyclePauseOsc',
+      
+      // === Chaos Mode ===
+      SET_CHAOS_CONFIG: 'setChaosConfig',
+      START_CHAOS: 'startChaos',
+      STOP_CHAOS: 'stopChaos',
+      
+      // === Sequence Mode ===
+      ADD_SEQUENCE_LINE: 'addSequenceLine',
+      DELETE_SEQUENCE_LINE: 'deleteSequenceLine',
+      UPDATE_SEQUENCE_LINE: 'updateSequenceLine',
+      MOVE_SEQUENCE_LINE: 'moveSequenceLine',
+      DUPLICATE_SEQUENCE_LINE: 'duplicateSequenceLine',
+      TOGGLE_SEQUENCE_LINE: 'toggleSequenceLine',
+      START_SEQUENCE: 'startSequence',
+      STOP_SEQUENCE: 'stopSequence',
+      LOOP_SEQUENCE: 'loopSequence',
+      TOGGLE_SEQUENCE_PAUSE: 'toggleSequencePause',
+      SKIP_SEQUENCE_LINE: 'skipSequenceLine',
+      CLEAR_SEQUENCE: 'clearSequence',
+      EXPORT_SEQUENCE: 'exportSequence',
+      GET_SEQUENCE_TABLE: 'getSequenceTable',
+      
+      // === Pursuit Mode ===
+      PURSUIT_MOVE: 'pursuitMove',
+      ENABLE_PURSUIT_MODE: 'enablePursuitMode',
+      DISABLE_PURSUIT_MODE: 'disablePursuitMode',
+      
+      // === Status & Stats ===
+      GET_STATUS: 'getStatus',
+      SAVE_STATS: 'saveStats'
+    });
+
     // ========================================================================
     // PLAYLIST STATE - Preset Management
     // ========================================================================
@@ -7278,6 +6350,122 @@ Détecte la limite physique`;
       button.style.cursor = enabled ? 'pointer' : 'not-allowed';
     }
     
+    /**
+     * Setup standard edit-tracking listeners for an input element
+     * Manages AppState.editing.input to prevent server overwrite during user editing
+     * @param {string} elementId - The ID of the input element
+     * @param {string} editingKey - The key to use in AppState.editing.input
+     * @param {Function} onChangeCallback - Callback function when value changes
+     */
+    function setupEditableInput(elementId, editingKey, onChangeCallback) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+      
+      element.addEventListener('mousedown', function() {
+        AppState.editing.input = editingKey;
+        this.focus();
+      });
+      element.addEventListener('focus', function() {
+        AppState.editing.input = editingKey;
+      });
+      element.addEventListener('blur', function() {
+        AppState.editing.input = null;
+      });
+      element.addEventListener('change', function() {
+        if (onChangeCallback) {
+          onChangeCallback(this.value, this);
+        }
+        AppState.editing.input = null;
+      });
+    }
+    
+    /**
+     * Setup preset buttons for a given data attribute
+     * @param {string} dataAttribute - The data attribute name (e.g., 'data-speed-forward')
+     * @param {Function} onClickCallback - Callback with the preset value
+     */
+    function setupPresetButtons(dataAttribute, onClickCallback) {
+      document.querySelectorAll(`[${dataAttribute}]`).forEach(btn => {
+        btn.addEventListener('click', function() {
+          const value = parseFloat(this.getAttribute(dataAttribute));
+          if (onClickCallback) {
+            onClickCallback(value, this);
+          }
+          // Update active state
+          document.querySelectorAll(`[${dataAttribute}]`).forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+    }
+    
+    /**
+     * Validate and clamp a numeric input value
+     * @param {number|string} value - The value to validate
+     * @param {Object} options - Validation options
+     * @param {number} options.min - Minimum allowed value
+     * @param {number} options.max - Maximum allowed value  
+     * @param {number} options.defaultValue - Default value if invalid
+     * @param {number} [options.step] - Rounding step (e.g., 0.1 for one decimal)
+     * @param {boolean} [options.showNotification] - Show warning notification if clamped
+     * @param {string} [options.fieldName] - Field name for notification message
+     * @returns {{value: number, wasAdjusted: boolean}} Validated value and adjustment flag
+     */
+    function validateNumericInput(value, options = {}) {
+      const { min = 0, max = Infinity, defaultValue = 0, step = null, showNotification: notify = false, fieldName = 'Valeur' } = options;
+      
+      let numValue = parseFloat(value);
+      let wasAdjusted = false;
+      
+      // Handle NaN
+      if (isNaN(numValue)) {
+        numValue = defaultValue;
+        wasAdjusted = true;
+      }
+      
+      // Clamp to min/max
+      if (numValue < min) {
+        if (notify) showNotification(`⚠️ ${fieldName} ajustée: ${numValue.toFixed(1)} → ${min.toFixed(1)} (minimum)`, 'warning');
+        numValue = min;
+        wasAdjusted = true;
+      } else if (numValue > max) {
+        if (notify) showNotification(`⚠️ ${fieldName} ajustée: ${numValue.toFixed(1)} → ${max.toFixed(1)} (maximum)`, 'warning');
+        numValue = max;
+        wasAdjusted = true;
+      }
+      
+      // Round to step if specified
+      if (step !== null && step > 0) {
+        numValue = Math.round(numValue / step) * step;
+      }
+      
+      return { value: numValue, wasAdjusted };
+    }
+    
+    /**
+     * Validate min/max pair ensuring min <= max
+     * @param {number} minValue - Minimum value
+     * @param {number} maxValue - Maximum value
+     * @param {Object} options - Options
+     * @param {string} [options.minFieldName] - Name for min field in notifications
+     * @param {string} [options.maxFieldName] - Name for max field in notifications
+     * @returns {{min: number, max: number, wasAdjusted: boolean}}
+     */
+    function validateMinMaxPair(minValue, maxValue, options = {}) {
+      const { minFieldName = 'Min', maxFieldName = 'Max' } = options;
+      
+      let min = parseFloat(minValue) || 0;
+      let max = parseFloat(maxValue) || 0;
+      let wasAdjusted = false;
+      
+      if (min > max) {
+        showNotification(`⚠️ ${minFieldName} (${min.toFixed(1)}) > ${maxFieldName} (${max.toFixed(1)}) - ajusté`, 'warning');
+        max = min;
+        wasAdjusted = true;
+      }
+      
+      return { min, max, wasAdjusted };
+    }
+
     function sendCommand(cmd, params = {}) {
       if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
         const message = JSON.stringify({cmd: cmd, ...params});

@@ -173,4 +173,79 @@ const float SPEED_COMPENSATION_FACTOR = 1.20;  // +20% faster to compensate over
 // ============================================================================
 #define LOG_BUFFER_SIZE 100  // Circular buffer size for async log writes
 
+// ============================================================================
+// CONFIGURATION - System Timing Intervals
+// ============================================================================
+// Status broadcasting and debouncing intervals
+constexpr uint32_t STATUS_BROADCAST_INTERVAL_MS = 20;   // WebSocket status update throttle
+constexpr uint32_t CONTACT_DEBOUNCE_MS = 50;            // Physical contact debounce time
+constexpr uint32_t OTA_CHECK_INTERVAL_MS = 1000;        // OTA update check frequency
+constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 5000;   // WiFi reconnection delay
+constexpr uint32_t STATS_SAVE_INTERVAL_MS = 60000;      // Auto-save stats to filesystem
+constexpr uint32_t WEBSOCKET_RECONNECT_MS = 2000;       // Client-side WS reconnect delay
+
+// ============================================================================
+// CONFIGURATION - Motion Limits
+// ============================================================================
+constexpr float MAX_SPEED_MM_PER_SEC = 300.0f;          // Absolute max motor speed
+constexpr float MIN_STEP_INTERVAL_US = 20.0f;           // Minimum step pulse interval
+constexpr uint8_t DEFAULT_SPEED_LEVEL = 5;              // Default speed on startup
+constexpr float SPEED_LEVEL_TO_MM_S = 10.0f;            // speedLevel * 10 = mm/s
+
+// ============================================================================
+// CONFIGURATION - Chaos Mode Defaults
+// ============================================================================
+constexpr uint8_t CHAOS_PATTERN_COUNT = 11;             // Number of chaos patterns
+constexpr float CHAOS_DEFAULT_CENTER_MM = 100.0f;       // Default center position
+constexpr float CHAOS_DEFAULT_AMPLITUDE_MM = 40.0f;     // Default amplitude
+constexpr float CHAOS_MIN_AMPLITUDE_MM = 5.0f;          // Minimum safe amplitude
+constexpr float CHAOS_MAX_AMPLITUDE_MM = 200.0f;        // Maximum amplitude
+constexpr uint8_t CHAOS_DEFAULT_SPEED_LEVEL = 15;       // Default chaos speed
+constexpr uint8_t CHAOS_DEFAULT_CRAZINESS = 50;         // Default craziness %
+constexpr uint16_t CHAOS_DEFAULT_DURATION_SEC = 30;     // Default duration
+
+// ============================================================================
+// CONFIGURATION - Sequencer Limits
+// ============================================================================
+constexpr uint8_t MAX_SEQUENCE_LINES = 20;              // Max lines in sequence
+constexpr uint16_t MAX_CYCLES_PER_LINE = 9999;          // Max cycles per sequence line
+constexpr uint32_t MAX_PAUSE_AFTER_MS = 60000;          // Max pause between lines (60s)
+constexpr uint8_t MAX_PLAYLISTS_PER_MODE = 20;          // Max saved presets per mode
+
+// ============================================================================
+// CONFIGURATION - Deceleration Zone Defaults
+// ============================================================================
+constexpr float DECEL_DEFAULT_ZONE_MM = 20.0f;          // Default decel zone size
+constexpr uint8_t DECEL_DEFAULT_EFFECT_PERCENT = 50;    // Default decel effect
+constexpr uint8_t DECEL_MODE_LINEAR = 0;                // Linear deceleration curve
+constexpr uint8_t DECEL_MODE_SINE = 1;                  // Sine deceleration curve
+constexpr uint8_t DECEL_MODE_TRIANGLE_INV = 2;          // Inverse triangle curve
+constexpr uint8_t DECEL_MODE_SINE_INV = 3;              // Inverse sine curve
+
+// ============================================================================
+// CONFIGURATION - Cycle Pause Defaults
+// ============================================================================
+constexpr float CYCLE_PAUSE_DEFAULT_SEC = 0.0f;         // Default pause duration
+constexpr float CYCLE_PAUSE_MIN_SEC = 0.1f;             // Minimum pause duration
+constexpr float CYCLE_PAUSE_MAX_SEC = 30.0f;            // Maximum pause duration
+constexpr float CYCLE_PAUSE_RANDOM_MIN_DEFAULT = 0.5f;  // Default random min
+constexpr float CYCLE_PAUSE_RANDOM_MAX_DEFAULT = 3.0f;  // Default random max
+
+// ============================================================================
+// CONFIGURATION - Oscillation Defaults
+// ============================================================================
+constexpr float OSC_DEFAULT_CENTER_MM = 100.0f;         // Default center position
+constexpr float OSC_DEFAULT_AMPLITUDE_MM = 20.0f;       // Default amplitude
+constexpr float OSC_DEFAULT_FREQUENCY_HZ = 1.0f;        // Default frequency
+constexpr uint8_t OSC_DEFAULT_WAVEFORM = 0;             // 0=Sine, 1=Triangle, 2=Square
+constexpr uint16_t OSC_DEFAULT_CYCLE_COUNT = 10;        // Default cycle count
+constexpr uint16_t OSC_DEFAULT_RAMP_DURATION_MS = 2000; // Default ramp duration
+
+// ============================================================================
+// CONFIGURATION - UI/UX Constants
+// ============================================================================
+constexpr uint16_t NOTIFICATION_DEFAULT_DURATION_MS = 5000;  // Default notification time
+constexpr uint16_t NOTIFICATION_SUCCESS_DURATION_MS = 3000;  // Success notification time
+constexpr uint16_t NOTIFICATION_ERROR_DURATION_MS = 6000;    // Error notification time
+
 #endif // CONFIG_H

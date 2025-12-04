@@ -131,6 +131,26 @@ void setupAPIRoutes() {
       engine->error("❌ /style.css not found in LittleFS");
     }
   });
+  
+  // CSS route: serve /css/styles.css from LittleFS with caching
+  server.on("/css/styles.css", HTTP_GET, []() {
+    if (LittleFS.exists("/css/styles.css")) {
+      File file = LittleFS.open("/css/styles.css", "r");
+      if (file) {
+        // Enable browser caching for CSS (24 hours)
+        server.sendHeader("Cache-Control", "public, max-age=86400");
+        server.streamFile(file, "text/css");
+        file.close();
+        engine->debug("✅ Served /css/styles.css from LittleFS (cached 24h)");
+      } else {
+        server.send(500, "text/plain", "❌ Error opening /css/styles.css");
+        engine->error("❌ Error opening /css/styles.css");
+      }
+    } else {
+      server.send(404, "text/plain", "❌ File not found: /css/styles.css");
+      engine->error("❌ /css/styles.css not found in LittleFS");
+    }
+  });
 
   // ========================================================================
   // STATISTICS API ROUTES
