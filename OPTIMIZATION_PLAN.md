@@ -2,23 +2,26 @@
 
 > **Date**: 4 décembre 2025  
 > **Backup commit**: `f2c9d37` - "BACKUP: Pre-optimization state"  
-> **État actuel**: Fonctionnel, 6626 lignes backend + 9887 lignes frontend
+> **État actuel**: Fonctionnel, **6454 lignes** backend + 9887 lignes frontend
 > 
-> **Mise à jour**: 4 décembre 2025 - Modularisation Backend Phase 1 & 2
+> **Mise à jour**: 4 décembre 2025 - Modularisation Backend Phase 1 & 2 & 3
 > **Commits optimisations**: 
 > - `405eac0` - "Phase 1 Optimizations" (Config.h, CSS, WS_CMD)
 > - `268b038` - "Phase 2.4 COMPLETE: All sendCommand migrated to WS_CMD constants"
 > - `8e298eb` - "Step 1: Hardware Abstraction Layer (MotorDriver, ContactSensors)"
 > - `368665d` - "Step 1: Complete Motor.enable()/disable() migration"
 > - `f555273` - "Step 2: Add CalibrationManager module"
+> - `f00fd6d` - "Step 2: CalibrationManager integrated in main"
 
 ---
 
-## 🎯 PRIORITÉ ACTUELLE: INTÉGRATION CalibrationManager
+## 🎯 PRIORITÉ ACTUELLE: Quick Wins UtilityEngine
 
-> **Objectif**: Découper `stepper_controller_restructured.ino` (6626 lignes) en modules maintenables
-> **Impact attendu**: Maintenabilité +60%, Compilation incrémentale, Tests unitaires possibles
-> **Durée estimée**: 2-3 jours restants
+> **Objectif**: Migrer fonctions utilitaires vers UtilityEngine (~100 lignes)
+> **Impact attendu**: Code plus propre, réutilisabilité
+> **Durée estimée**: 1-2h
+> 
+> **Voir aussi**: `ARCHITECTURE_ANALYSIS.md` pour analyse détaillée
 
 ---
 
@@ -68,10 +71,33 @@
 - [x] Migration complète `stepMotor()` → `Motor.step()` (via wrapper legacy)
 - [x] Migration complète `readContactDebounced()` → `Contacts.readDebounced()` (via wrapper legacy)
 
-#### Étape 2: CalibrationManager 🔄 INTÉGRATION
+#### Étape 2: CalibrationManager ✅ COMPLÉTÉ
 - [x] `include/controllers/CalibrationManager.h` - Singleton pattern (~200 lignes)
 - [x] `src/controllers/CalibrationManager.cpp` - Implementation (~400 lignes)
-- [ ] Intégration dans main .ino (remplacer anciennes fonctions)
+- [x] Intégration dans main .ino - Migration `startCalibration()` → `Calibration.startCalibration()` (4 occurrences)
+
+#### Étape 3: Quick Wins UtilityEngine 🔄 À FAIRE
+Fonctions à migrer vers UtilityEngine (~100 lignes):
+- [ ] `serviceWebSocketFor()` → `engine->serviceFor(durationMs)` - Helper WebSocket
+- [ ] `incrementDailyStats()` → Déjà utilise engine JSON methods
+- [ ] `saveCurrentSessionStats()` → Déjà utilise engine JSON methods
+- [ ] Considérer `sendError()` unification avec engine->error()
+
+#### Étape 4: Validators Module (OPTIONNEL)
+- [ ] `include/Validators.h` - Namespace avec validateDistance/Speed/Position/MotionRange
+- [ ] Utiliser dans controllers et main
+
+---
+
+## 📊 Métriques de Build Actuelles
+
+| Métrique | Avant | Après | Gain |
+|----------|-------|-------|------|
+| Lignes .ino | 6660 | 6454 | -206 |
+| Modules créés | 0 | 3 | +3 |
+| Lignes extraites | 0 | ~600 | +600 |
+| Flash usage | 32.4% | 32.4% | = |
+| RAM usage | 18.2% | 18.2% | = |
 
 ---
 

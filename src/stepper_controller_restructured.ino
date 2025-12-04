@@ -226,7 +226,7 @@ int duplicateSequenceLine(int lineId);
 // Functions
 //void stepMotor();
 void handleCalibrationFailure(int& attempt);
-void startCalibration();
+//void startCalibration();
 void startMovement(float distMM, float speedLevel);
 void calculateStepDelay();
 void doStep();
@@ -625,7 +625,7 @@ void loop() {
       calibrationStarted = true;
       engine->info("=== Starting automatic calibration ===");
       delay(100);
-      startCalibration();
+      Calibration.startCalibration();
       needsInitialCalibration = false;
     }
   }
@@ -1106,199 +1106,6 @@ void validateDecelZone() {
   }
 }
 
-// ============================================================================
-// MOTOR CONTROL - Main Calibration Function
-// ============================================================================
-
-void startCalibration() {
-  static int calibrationAttempt = 0;
-  
-  engine->info(calibrationAttempt == 0 ? "Starting calibration..." : "Retry calibration...");
-  config.currentState = STATE_CALIBRATING;
-  
-  // Send status updates to ensure WebSocket clients receive calibration state
-  for (int i = 0; i < 5; i++) {
-    sendStatus();
-    serviceWebSocketFor(20);
-  }
-  
-  Motor.enable();  // Enable motor for calibration
-  // Motor enable settling time (service WebSocket)
-  serviceWebSocketFor(200);
-
-  // ========================================
-  // Step 1: Find START contact
-  // ========================================
-  if (!findContactWithService(LOW, PIN_START_CONTACT, "START")) {
-    handleCalibrationFailure(calibrationAttempt);
-    return;
-  }
-  
-  engine->debug("✓ Start contact found - releasing contact very slowly...");
-  
-  // Move forward VERY SLOWLY until contact releases (HIGH)
-  // Slow debounce for critical initial calibration phase (3 checks, 200µs)
-  Motor.setDirection(true);  // Forward to release contact
-  while (Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 200)) {  
-    Motor.step();
-    delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);  // 10ms per step = ultra gentle
-  }
-  
-  engine->debug("✓ Contact released - adding safety margin...");
-  
-  // Move forward another 10 steps (safety margin)
-  for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
-    Motor.step();
-    delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR);
-    if (i % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
-      webSocket.loop();
-      server.handleClient();
-    }
-  }
-  
-  // THIS position = new logical zero
-  // Physical motor is at: START contact + decontact + SAFETY_OFFSET_STEPS
-  config.minStep = 0;
-  currentStep = 0;
-  engine->debug(String("✓ Position 0 set (") + String(SAFETY_OFFSET_STEPS) + 
-        " steps after START contact decontact)");
-  
-  // ========================================
-  // Step 2: Find END contact
-  // ========================================
-  if (!findContactWithService(HIGH, PIN_END_CONTACT, "END")) {
-    handleCalibrationFailure(calibrationAttempt);
-    return;
-  }
-  
-  engine->debug("✓ End contact found - releasing contact very slowly...");
-  
-  // Move backward VERY SLOWLY until contact releases (HIGH)
-  // CRITICAL: Enhanced debounce for END contact (5 checks, 150µs)
-  // END contact requires stronger filtering due to mechanical characteristics
-  // (pulley vibrations, belt tension variations at max travel)
-  Motor.setDirection(false);  // Backward to release contact
-  while (Contacts.readDebounced(PIN_END_CONTACT, LOW, 5, 150)) {
-    Motor.step();
-    currentStep--;
-    delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);
-  }
-  
-  engine->debug("✓ Contact released - adding safety margin...");
-  
-  // Reculer encore 10 steps (safety margin)
-  for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
-    Motor.step();
-    currentStep--;
-    delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR);
-    if (i % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
-      webSocket.loop();
-      server.handleClient();
-    }
-  }
-  
-  // Cette position = nouveau config.maxStep logique
-  config.maxStep = currentStep;
-  config.totalDistanceMM = config.maxStep / STEPS_PER_MM;
-  
-  // SAFETY: Check minimum distance (detect mechanical issues early)
-  if (config.totalDistanceMM < HARD_MIN_DISTANCE_MM) {
-    calibrationAttempt++;
-    
-    if (calibrationAttempt >= MAX_CALIBRATION_RETRIES) {
-      sendError("❌ ERROR: Distance calibrée trop courte (" + String(config.totalDistanceMM, 1) + 
-                " mm < " + String(HARD_MIN_DISTANCE_MM, 1) + " mm) après 3 tentatives - " +
-                "Vérifiez les contacts, la mécanique (courroie, poulies) et le câblage");
-      Motor.disable();  // Safety: disable motor on error
-      config.currentState = STATE_ERROR;
-      calibrationAttempt = 0;
-      return;
-    }
-    
-    engine->warn("⚠️ Distance calibrée trop courte: " + String(config.totalDistanceMM, 1) + " mm < " + 
-          String(HARD_MIN_DISTANCE_MM, 1) + " mm - Retry " + String(calibrationAttempt) + "/" + 
-          String(MAX_CALIBRATION_RETRIES));
-    // Brief pause before retry
-    serviceWebSocketFor(500);
-    startCalibration();  // Recursive retry
-    return;
-  }
-  
-  // SAFETY: Check maximum distance (mechanical constraint)
-  if (config.totalDistanceMM > HARD_MAX_DISTANCE_MM) {
-    engine->warn("⚠️ WARNING: Distance calibrée (" + String(config.totalDistanceMM, 1) + 
-          " mm) dépasse limite sécurité (" + String(HARD_MAX_DISTANCE_MM, 1) + " mm)");
-    engine->warn("   → Limitation appliquée à " + String(HARD_MAX_DISTANCE_MM, 1) + " mm");
-    config.totalDistanceMM = HARD_MAX_DISTANCE_MM;
-    config.maxStep = (long)(config.totalDistanceMM * STEPS_PER_MM);
-  }
-  
-  engine->debug("✓ End contact found - Distance: " + String(config.totalDistanceMM, 1) + " mm");
-  
-  // ========================================
-  // Step 3: Return to START
-  // ========================================
-  if (!returnToStartContact()) {
-    handleCalibrationFailure(calibrationAttempt);
-    return;
-  }
-  
-  // ========================================
-  // Step 4: Validate accuracy
-  // ========================================
-  float errorPercent = validateCalibrationAccuracy();
-  
-  if (errorPercent > MAX_CALIBRATION_ERROR_PERCENT) {
-    calibrationAttempt++;
-    
-    if (calibrationAttempt >= MAX_CALIBRATION_RETRIES) {
-      sendError("❌ ERROR: Calibration échouée après 3 tentatives - Vérifiez la mécanique (tension courroie, blocages, config driver)");
-      Motor.disable();  // Safety: disable motor on error
-      config.currentState = STATE_ERROR;
-      calibrationAttempt = 0;
-      return;
-    }
-    
-    engine->warn("⚠️ Error too large (" + String(errorPercent, 1) + "%) - Retrying...");
-    // Brief pause before retry (service WebSocket)
-    serviceWebSocketFor(500);
-    startCalibration();  // Recursive retry
-    return;
-  }
-  
-  // ========================================
-  // SUCCESS
-  // ========================================
-  currentStep = 0;
-  config.minStep = 0;
-  startStep = 0;
-  targetStep = 0;
-  
-  // CRITICAL: Keep motor enabled after calibration
-  // HSS86 closed-loop driver loses synchronization if disabled/re-enabled
-  // This prevents step loss when starting with startPosition > 0
-  // digitalWrite(PIN_ENABLE, HIGH);  // Disabled - motor stays enabled
-  
-  config.currentState = STATE_READY;
-  calibrationAttempt = 0;
-  
-  // Reset max distance limit to 100% after calibration
-  maxDistanceLimitPercent = 100.0;
-  updateEffectiveMaxDistance();
-  
-  // Initialize oscillation center to middle of effective travel distance
-  if (oscillation.centerPositionMM == 0) {
-    float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
-    oscillation.centerPositionMM = effectiveMax / 2.0;
-  }
-
-  engine->info("✓ Calibration complete - Motor remains enabled");
-
-  // CRITICAL: Notify sequencer that calibration is complete
-  if (config.executionContext == CONTEXT_SEQUENCER) {
-    onMovementComplete();
-  }
-}
 
 // ============================================================================
 // ERROR NOTIFICATION HELPER
@@ -1564,7 +1371,7 @@ void startMovement(float distMM, float speedLevel) {
   // Auto-calibrate if not yet done
   if (config.totalDistanceMM == 0) {
     engine->warn("Not calibrated - auto-calibrating...");
-    startCalibration();
+    Calibration.startCalibration();
     if (config.totalDistanceMM == 0) return;
   }
   
@@ -4347,7 +4154,7 @@ void stopChaos() {
 bool handleBasicCommands(const char* cmd, JsonDocument& doc) {
   if (strcmp(cmd, "calibrate") == 0) {
     engine->info("Command: Calibration");
-    startCalibration();
+    Calibration.startCalibration();
     return true;
   }
   
@@ -6389,7 +6196,7 @@ void processSequenceExecution() {
         seqState.lineStartTime = millis();
         
         // Start full calibration
-        startCalibration();
+        Calibration.startCalibration();
         
         // Note: onMovementComplete() will be called when calibration finishes
         // This will increment seqState.currentCycleInLine and continue sequence
