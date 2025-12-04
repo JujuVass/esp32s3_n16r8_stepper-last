@@ -14,6 +14,7 @@
 #include "UtilityEngine.h"
 #include "controllers/CalibrationManager.h"
 #include "hardware/MotorDriver.h"
+#include "sequencer/SequenceTableManager.h"
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -666,9 +667,9 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
     // ========================================================================
     
     if (message.indexOf("\"cmd\":\"addSequenceLine\"") > 0) {
-        SequenceLine newLine = parseSequenceLineFromJson(doc);
+        SequenceLine newLine = SeqTable.parseFromJson(doc);
         
-        String validationError = validateSequenceLinePhysics(newLine);
+        String validationError = SeqTable.validatePhysics(newLine);
         if (validationError.length() > 0) {
             sendError("❌ Ligne invalide : " + validationError);
             return true;
@@ -696,8 +697,8 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
             return true;
         }
         
-        addSequenceLine(newLine);
-        broadcastSequenceTable();
+        SeqTable.addLine(newLine);
+        SeqTable.broadcast();
         return true;
     }
     
@@ -707,57 +708,57 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
             sendError("❌ Line ID invalide");
             return true;
         }
-        deleteSequenceLine(lineId);
-        broadcastSequenceTable();
+        SeqTable.deleteLine(lineId);
+        SeqTable.broadcast();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"updateSequenceLine\"") > 0) {
         int lineId = doc["lineId"] | -1;
-        SequenceLine updatedLine = parseSequenceLineFromJson(doc);
+        SequenceLine updatedLine = SeqTable.parseFromJson(doc);
         
-        String validationError = validateSequenceLinePhysics(updatedLine);
+        String validationError = SeqTable.validatePhysics(updatedLine);
         if (validationError.length() > 0) {
             sendError("❌ Ligne invalide : " + validationError);
             return true;
         }
         
-        updateSequenceLine(lineId, updatedLine);
-        broadcastSequenceTable();
+        SeqTable.updateLine(lineId, updatedLine);
+        SeqTable.broadcast();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"moveSequenceLine\"") > 0) {
         int lineId = doc["lineId"] | -1;
         int direction = doc["direction"] | 0;
-        moveSequenceLine(lineId, direction);
-        broadcastSequenceTable();
+        SeqTable.moveLine(lineId, direction);
+        SeqTable.broadcast();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"duplicateSequenceLine\"") > 0) {
         int lineId = doc["lineId"] | -1;
-        duplicateSequenceLine(lineId);
-        broadcastSequenceTable();
+        SeqTable.duplicateLine(lineId);
+        SeqTable.broadcast();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"toggleSequenceLine\"") > 0) {
         int lineId = doc["lineId"] | -1;
         bool enabled = doc["enabled"] | false;
-        toggleSequenceLine(lineId, enabled);
-        broadcastSequenceTable();
+        SeqTable.toggleLine(lineId, enabled);
+        SeqTable.broadcast();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"clearSequence\"") > 0) {
-        clearSequenceTable();
-        broadcastSequenceTable();
+        SeqTable.clear();
+        SeqTable.broadcast();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"getSequenceTable\"") > 0) {
-        broadcastSequenceTable();
+        SeqTable.broadcast();
         return true;
     }
     
@@ -800,7 +801,7 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
     // ========================================================================
     
     if (message.indexOf("\"cmd\":\"exportSequence\"") > 0) {
-        sendJsonResponse("exportData", exportSequenceToJson());
+        SeqTable.sendJsonResponse("exportData", SeqTable.exportToJson());
         return true;
     }
     
@@ -828,8 +829,8 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
                 jsonData.replace("\\r", "");
                 jsonData.replace("\\t", "");
                 
-                importSequenceFromJson(jsonData);
-                broadcastSequenceTable();
+                SeqTable.importFromJson(jsonData);
+                SeqTable.broadcast();
             } else {
                 sendError("❌ Erreur parsing JSON: dataEnd invalide");
             }
