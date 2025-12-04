@@ -4,8 +4,10 @@
 > **Backup commit**: `f2c9d37` - "BACKUP: Pre-optimization state"  
 > **État actuel**: Fonctionnel, 6660 lignes backend + 10699 lignes frontend
 > 
-> **Mise à jour**: Session optimisation complétée le 4 déc 2025
-> **Commit optimisations**: `405eac0` - "Phase 1 Optimizations"
+> **Mise à jour**: Session optimisation - 5 déc 2025
+> **Commits optimisations**: 
+> - `405eac0` - "Phase 1 Optimizations"
+> - `268b038` - "Phase 2.4 COMPLETE: All sendCommand migrated to WS_CMD constants"
 
 ---
 
@@ -32,6 +34,16 @@
 - [x] `setupPresetButtons()` - Boutons preset génériques
 - [x] `validateNumericInput()` - Validation avec min/max/default
 - [x] `validateMinMaxPair()` - Validation paires min/max
+
+### Phase 2.4 - Remplacement sendCommand strings → WS_CMD ✅
+- [x] Migration de 75+ appels sendCommand('string') → sendCommand(WS_CMD.XXX)
+- [x] Commandes Core: START, CALIBRATE, STOP, PAUSE, RETURN_TO_START, GET_STATUS, SAVE_STATS
+- [x] Commandes Simple: SET_START_POSITION, SET_DISTANCE, SET_SPEED_FORWARD/BACKWARD
+- [x] Commandes Oscillation: SET_OSCILLATION, SET_OSCILLATION_CONFIG, START/STOP_OSCILLATION
+- [x] Commandes Chaos: SET_CHAOS_CONFIG, START/STOP_CHAOS
+- [x] Commandes Sequence: ADD/DELETE/UPDATE/MOVE/DUPLICATE/TOGGLE/CLEAR/EXPORT/GET_SEQUENCE_*
+- [x] Commandes Pursuit: PURSUIT_MOVE, ENABLE/DISABLE_PURSUIT_MODE
+- [x] Commandes Config: SET_DECEL_ZONE, SET_CYCLE_PAUSE, UPDATE_CYCLE_PAUSE*, SET_MAX_DISTANCE_LIMIT
 
 ---
 
