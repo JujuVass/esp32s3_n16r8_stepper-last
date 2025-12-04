@@ -3319,7 +3319,7 @@
           console.log('✅ btnLoopSequence disabled via setButtonState');
         }
         
-        sendCommand('startSequence', {});
+        sendCommand(WS_CMD.START_SEQUENCE, {});
         const testedLine = sequenceLines.find(l => l.lineId === lineId);
         const cycleText = testedLine ? testedLine.cycleCount + ' cycle(s)' : '';
         showNotification('🧪 Test ligne #' + lineId + ' (' + cycleText + ')', 'info', 3000);
@@ -6140,10 +6140,10 @@ Détecte la limite physique`;
         }
         
         // Send commands to backend
-        sendCommand('setStartPosition', {startPosition: config.startPositionMM || 0});
-        sendCommand('setDistance', {distance: config.distanceMM || 50});
-        sendCommand('setSpeedForward', {speed: config.speedLevelForward || 5});
-        sendCommand('setSpeedBackward', {speed: config.speedLevelBackward || 5});
+        sendCommand(WS_CMD.SET_START_POSITION, {startPosition: config.startPositionMM || 0});
+        sendCommand(WS_CMD.SET_DISTANCE, {distance: config.distanceMM || 50});
+        sendCommand(WS_CMD.SET_SPEED_FORWARD, {speed: config.speedLevelForward || 5});
+        sendCommand(WS_CMD.SET_SPEED_BACKWARD, {speed: config.speedLevelBackward || 5});
         
         // Send deceleration config to backend
         const decelCmd = {
@@ -6155,7 +6155,7 @@ Détecte la limite physique`;
           mode: config.decelMode || 1
         };
         console.log('🔧 Sending setDecelZone:', decelCmd);
-        sendCommand('setDecelZone', decelCmd);
+        sendCommand(WS_CMD.SET_DECEL_ZONE, decelCmd);
         
         // Send cycle pause config to backend
         const pauseCmd = {
@@ -6167,7 +6167,7 @@ Détecte la limite physique`;
           maxSec: config.cyclePauseMaxSec || 3.0
         };
         console.log('🔧 Sending setCyclePause:', pauseCmd);
-        sendCommand('setCyclePause', pauseCmd);
+        sendCommand(WS_CMD.SET_CYCLE_PAUSE, pauseCmd);
         
         console.log('✅ Simple preset loaded | Pause enabled:', pauseEnabled, '| Random:', pauseIsRandom);
         
@@ -6476,7 +6476,7 @@ Détecte la limite physique`;
     }
     
     document.getElementById('btnCalibrateCommon').addEventListener('click', function() {
-      sendCommand('calibrate');
+      sendCommand(WS_CMD.CALIBRATE);
     });
     
     // ============================================================================
@@ -6601,7 +6601,7 @@ Détecte la limite physique`;
     });
     
     document.getElementById('btnPause').addEventListener('click', function() {
-      sendCommand('pause');
+      sendCommand(WS_CMD.PAUSE);
     });
     
     document.getElementById('btnStop').addEventListener('click', function() {
@@ -6610,13 +6610,13 @@ Détecte la limite physique`;
         showStopModal();
       } else {
         // Direct stop if at position 0
-        sendCommand('stop');
+        sendCommand(WS_CMD.STOP);
       }
     });
     
     document.getElementById('btnResetDistanceCommon').addEventListener('click', function() {
       if (confirm('Réinitialiser le compteur de distance parcourue ?')) {
-        sendCommand('resetTotalDistance');
+        sendCommand(WS_CMD.RESET_TOTAL_DISTANCE);
       }
     });
     
@@ -6985,7 +6985,7 @@ Détecte la limite physique`;
     
     function sendPursuitCommand() {
       // Always send command - the ESP32 will handle when to stop (errorSteps == 0)
-      sendCommand('pursuitMove', {
+      sendCommand(WS_CMD.PURSUIT_MOVE, {
         targetPosition: AppState.pursuit.targetMM,
         maxSpeed: pursuitMaxSpeedLevel
       });
@@ -7055,7 +7055,7 @@ Détecte la limite physique`;
         // else: Keep the target position that was set (even if 0 mm)
         
         // Enable pursuit mode on ESP32
-        sendCommand('enablePursuitMode', {});
+        sendCommand(WS_CMD.ENABLE_PURSUIT_MODE, {});
         
         // Send initial position command after ESP32 mode switch completes
         setTimeout(function() {
@@ -7073,7 +7073,7 @@ Détecte la limite physique`;
         document.getElementById('gaugeContainer').style.pointerEvents = 'none';
         
         // Disable pursuit mode on ESP32
-        sendCommand('disablePursuitMode', {});
+        sendCommand(WS_CMD.DISABLE_PURSUIT_MODE, {});
         
         // NOTE: AppState.pursuit.targetMM is preserved for when user re-enables pursuit mode
       }
@@ -7119,7 +7119,7 @@ Détecte la limite physique`;
       // Return to start position to verify contact
       setTimeout(function() {
         console.log('Stopping pursuit - returning to start for contact verification');
-        sendCommand('returnToStart', {});
+        sendCommand(WS_CMD.RETURN_TO_START, {});
       }, 200);  // Small delay to let pursuit mode disable first
     });
 
@@ -7151,7 +7151,7 @@ Détecte la limite physique`;
       
       if (isRunningOrPaused) {
         console.log('Stopping movement before tab switch');
-        sendCommand('stop');
+        sendCommand(WS_CMD.STOP);
         // Note: UI will update via WebSocket status message
       }
       
@@ -7282,18 +7282,18 @@ Détecte la limite physique`;
       }
       
       // Stop movement (for simple mode)
-      sendCommand('stop', {});
+      sendCommand(WS_CMD.STOP, {});
       
       // Wait a bit for stop to complete, then either quick return or full calibration
       setTimeout(function() {
         if (bypassCalibration) {
           // Quick return to start only
           console.log('Mode change: Quick return to start (bypass full calibration)');
-          sendCommand('returnToStart', {});
+          sendCommand(WS_CMD.RETURN_TO_START, {});
         } else {
           // Full calibration
           console.log('Mode change: Full calibration');
-          sendCommand('calibrate', {});
+          sendCommand(WS_CMD.CALIBRATE, {});
         }
         
         // Reset checkbox for next time
@@ -7331,49 +7331,49 @@ Détecte la limite physique`;
       if (currentMode === 'tableau') {  // 'tableau' is the sequencer tab name
         // SEQUENCER MODE FIX: Send stopSequence command
         console.log('Stop confirmed (Sequencer mode): Stopping sequence');
-        sendCommand('stopSequence', {});
+        sendCommand(WS_CMD.STOP_SEQUENCE, {});
         
         // Return to start if requested (same as other modes)
         if (shouldReturnToStart) {
           setTimeout(function() {
             console.log('Stop confirmed: Returning to start position');
-            sendCommand('returnToStart', {});
+            sendCommand(WS_CMD.RETURN_TO_START, {});
           }, 500);
         }
       } else if (currentMode === 'chaos') {
         // Chaos mode: send stopChaos command
         console.log('Stop confirmed (Chaos mode): Stopping chaos movement');
-        sendCommand('stopChaos', {});
+        sendCommand(WS_CMD.STOP_CHAOS, {});
         
         // Return to start if requested
         if (shouldReturnToStart) {
           setTimeout(function() {
             console.log('Stop confirmed: Returning to start position');
-            sendCommand('returnToStart', {});
+            sendCommand(WS_CMD.RETURN_TO_START, {});
           }, 500);
         }
       } else if (currentMode === 'oscillation') {
         // Oscillation mode: send stopOscillation command
         console.log('Stop confirmed (Oscillation mode): Stopping oscillation');
-        sendCommand('stopOscillation', {});
+        sendCommand(WS_CMD.STOP_OSCILLATION, {});
         
         // Return to start if requested
         if (shouldReturnToStart) {
           setTimeout(function() {
             console.log('Stop confirmed: Returning to start position');
-            sendCommand('returnToStart', {});
+            sendCommand(WS_CMD.RETURN_TO_START, {});
           }, 500);
         }
       } else {
         // Simple mode or others: send generic stop
         console.log('Stop confirmed: Stopping movement');
-        sendCommand('stop', {});
+        sendCommand(WS_CMD.STOP, {});
         
         // Return to start if requested
         if (shouldReturnToStart) {
           setTimeout(function() {
             console.log('Stop confirmed: Returning to start position');
-            sendCommand('returnToStart', {});
+            sendCommand(WS_CMD.RETURN_TO_START, {});
           }, 500);
         }
       }
@@ -8472,18 +8472,18 @@ Détecte la limite physique`;
       // Disable both start buttons immediately (instant feedback)
       setButtonState(DOM.btnStartSequence, false);
       setButtonState(DOM.btnLoopSequence, false);
-      sendCommand('startSequence', {});
+      sendCommand(WS_CMD.START_SEQUENCE, {});
     });
     
     document.getElementById('btnLoopSequence').addEventListener('click', function() {
       // Disable both start buttons immediately (instant feedback)
       setButtonState(DOM.btnStartSequence, false);
       setButtonState(DOM.btnLoopSequence, false);
-      sendCommand('loopSequence', {});
+      sendCommand(WS_CMD.LOOP_SEQUENCE, {});
     });
     
     document.getElementById('btnPauseSequence').addEventListener('click', function() {
-      sendCommand('toggleSequencePause', {});
+      sendCommand(WS_CMD.TOGGLE_SEQUENCE_PAUSE, {});
     });
     
     document.getElementById('btnStopSequence').addEventListener('click', function() {
@@ -8492,7 +8492,7 @@ Détecte la limite physique`;
         showStopModal();
       } else {
         // Direct stop if at position 0
-        sendCommand('stopSequence', {});
+        sendCommand(WS_CMD.STOP_SEQUENCE, {});
       }
     });
     
@@ -8775,7 +8775,7 @@ Détecte la limite physique`;
       
       // Wait a bit then start
       setTimeout(function() {
-        sendCommand('startOscillation', {});
+        sendCommand(WS_CMD.START_OSCILLATION, {});
       }, 50);
     });
     
@@ -8786,13 +8786,13 @@ Détecte la limite physique`;
         showStopModal();
       } else {
         // Direct stop if at position 0
-        sendCommand('stopOscillation', {});
+        sendCommand(WS_CMD.STOP_OSCILLATION, {});
       }
     });
     
     // Pause oscillation
     document.getElementById('btnPauseOscillation').addEventListener('click', function() {
-      sendCommand('pause');
+      sendCommand(WS_CMD.PAUSE);
     });
     
     // Oscillation preset buttons handlers
@@ -9113,7 +9113,7 @@ Détecte la limite physique`;
         return;
       }
       
-      sendCommand('startChaos', {
+      sendCommand(WS_CMD.START_CHAOS, {
         centerPositionMM: centerPos,
         amplitudeMM: amplitude,
         maxSpeedLevel: maxSpeed,
@@ -9131,13 +9131,13 @@ Détecte la limite physique`;
         showStopModal();
       } else {
         // Direct stop if at position 0
-        sendCommand('stopChaos', {});
+        sendCommand(WS_CMD.STOP_CHAOS, {});
       }
     });
     
     // Pause chaos
     document.getElementById('btnPauseChaos').addEventListener('click', function() {
-      sendCommand('pause');
+      sendCommand(WS_CMD.PAUSE);
     });
     
     // Chaos preset buttons
