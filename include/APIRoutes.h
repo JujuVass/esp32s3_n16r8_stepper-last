@@ -12,14 +12,12 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include "UtilityEngine.h"
+#include "sequencer/SequenceTableManager.h"
 
 // Forward declarations for global context
 extern WebServer server;
 extern WebSocketsServer webSocket;
 extern UtilityEngine* engine;
-
-// Forward declaration for sequence import function (defined in main .ino)
-int importSequenceFromJson(String jsonData);
 
 // Date/Time helpers (for stats export)
 inline String getFormattedDate() {
@@ -933,8 +931,8 @@ void setupAPIRoutes() {
     String jsonData = server.arg("plain");
     engine->info("📥 HTTP Import received: " + String(jsonData.length()) + " bytes");
 
-    // Call the existing import function
-    importSequenceFromJson(jsonData);
+    // Call the SequenceTableManager import function
+    SeqTable.importFromJson(jsonData);
 
     server.send(200, "application/json", "{\"success\":true,\"message\":\"Sequence imported successfully\"}");
   });

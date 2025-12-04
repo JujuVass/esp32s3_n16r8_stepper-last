@@ -12,8 +12,38 @@
  */
 
 #include "movement/OscillationController.h"
-#include "sensors/MotorDriver.h"
-#include "sensors/ContactSensors.h"
+#include "hardware/MotorDriver.h"
+#include "hardware/ContactSensors.h"
+#include "sequencer/SequenceExecutor.h"
+
+// ============================================================================
+// LOCAL SINE LOOKUP TABLE (for fast oscillation waveform calculation)
+// ============================================================================
+
+#ifdef USE_SINE_LOOKUP_TABLE
+static float sineTable[SINE_TABLE_SIZE];
+static bool sineTableInitialized = false;
+
+static void initSineTable() {
+    if (sineTableInitialized) return;
+    for (int i = 0; i < SINE_TABLE_SIZE; i++) {
+        sineTable[i] = -cos((i / (float)SINE_TABLE_SIZE) * 2.0 * PI);
+    }
+    sineTableInitialized = true;
+}
+
+// Fast sine lookup with linear interpolation
+static float fastSine(float phase) {
+    initSineTable();  // Ensure table is initialized
+    float indexFloat = phase * SINE_TABLE_SIZE;
+    int index = (int)indexFloat % SINE_TABLE_SIZE;
+    int nextIndex = (index + 1) % SINE_TABLE_SIZE;
+    
+    // Linear interpolation for smooth transitions
+    float fraction = indexFloat - (int)indexFloat;
+    return sineTable[index] + (sineTable[nextIndex] - sineTable[index]) * fraction;
+}
+#endif
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -136,7 +166,7 @@ void OscillationControllerClass::process() {
             ::isPaused = true;
             
             // NEW ARCHITECTURE: Use unified completion handler
-            onMovementComplete();
+            SeqExecutor.onMovementComplete();
             
             if (oscillation.returnToCenter) {
                 oscillationState.isReturning = true;
@@ -324,7 +354,7 @@ float OscillationControllerClass::calculatePosition() {
         
         // ⚠️ Send status update to frontend when cycle completes (Bug #1 fix)
         if (config.executionContext == CONTEXT_SEQUENCER) {
-            sendSequenceStatus();
+            SeqExecutor.sendStatus();
         }
     }
     oscillationState.lastPhase = phase;
@@ -398,7 +428,7 @@ float OscillationControllerClass::calculatePosition() {
             if (seqState.isRunning) {
                 config.currentState = STATE_READY;
                 currentMovement = MOVEMENT_VAET;  // Reset to VA-ET-VIENT for sequencer
-                onMovementComplete();  // CRITICAL: Notify sequencer that oscillation is complete
+                SeqExecutor.onMovementComplete();  // CRITICAL: Notify sequencer that oscillation is complete
             }
         }
     }
@@ -579,7 +609,7 @@ bool OscillationControllerClass::checkSafetyContacts(long targetStep) {
 
     // Test START contact uniquement si oscillation approche de la limite basse
     if (minOscPositionMM <= HARD_DRIFT_TEST_ZONE_MM) {
-        if (targetStep <= config.minStep && readContactDebounced(PIN_START_CONTACT, LOW, 3, 100)) {
+        if (targetStep <= config.minStep && Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 100)) {
             sendError("❌ OSCILLATION: Contact START atteint de manière inattendue (amplitude proche limite)");
             ::isPaused = true;
             return false;

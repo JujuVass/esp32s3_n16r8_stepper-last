@@ -11,13 +11,16 @@
  * - Chain of responsibility pattern for command handlers
  * - Each handler returns true if command was processed
  * 
- * Dependencies:
- * - WebSocketsServer for client communication
- * - ArduinoJson for JSON parsing
- * - Various extern functions for actual command execution
+ * Module Singletons Used:
+ * - SeqTable: Sequence table CRUD operations
+ * - SeqExecutor: Sequence execution control
+ * - Osc: Oscillation mode control
+ * - Pursuit: Pursuit mode control
+ * - Chaos: Chaos mode control
+ * - Calibration: Calibration operations
  * 
  * @author Refactored from stepper_controller_restructured.ino
- * @version 1.0
+ * @version 2.0 - Cleaned up extern declarations
  */
 
 #pragma once
@@ -29,83 +32,15 @@
 #include "Config.h"
 #include "UtilityEngine.h"
 #include "Validators.h"
+#include "GlobalState.h"
+
+// Module singletons - use directly instead of extern wrappers
 #include "sequencer/SequenceExecutor.h"
-
-// ============================================================================
-// FORWARD DECLARATIONS - External functions called by handlers
-// ============================================================================
-
-// Basic commands
-extern void sendStatus();
-extern void sendError(String message);
-extern void returnToStart();
-extern void resetTotalDistance();
-extern void saveCurrentSessionStats();
-extern void updateEffectiveMaxDistance();
-
-// Motion control
-extern void startMovement(float distMM, float speedLevel);
-extern void stopMovement();
-extern void togglePause();
-extern void setDistance(float dist);
-extern void setStartPosition(float startMM);
-extern void setSpeedForward(float speed);
-extern void setSpeedBackward(float speed);
-
-// Pursuit mode
-extern void pursuitMove(float targetMM, float maxSpeed);
-
-// Chaos mode
-extern void startChaos();
-extern void stopChaos();
-
-// Oscillation mode
-extern void startOscillation();
-
-// Sequencer (via SequenceExecutor singleton - included via header)
-// Use SeqExecutor.start(), SeqExecutor.stop(), etc.
-extern void broadcastSequenceTable();
-extern int addSequenceLine(SequenceLine newLine);
-extern bool deleteSequenceLine(int lineId);
-extern bool updateSequenceLine(int lineId, SequenceLine updatedLine);
-extern bool moveSequenceLine(int lineId, int direction);
-extern int duplicateSequenceLine(int lineId);
-extern bool toggleSequenceLine(int lineId, bool enabled);  // Toggle line enabled/disabled
-extern void clearSequenceTable();
-extern String exportSequenceToJson();
-extern int importSequenceFromJson(String jsonData);
-extern void sendJsonResponse(const char* type, const String& data);
-
-// Validation helpers
-extern String validateSequenceLinePhysics(const SequenceLine& line);
-extern SequenceLine parseSequenceLineFromJson(JsonVariantConst obj);
-extern void validateDecelZone();
-
-// ============================================================================
-// EXTERNAL VARIABLES - Shared state accessed by handlers
-// ============================================================================
-
-// Note: engine pointer is declared in UtilityEngine.h
-
-extern SystemConfig config;
-extern MotionConfig motion;
-extern ChaosRuntimeConfig chaos;
-extern ChaosExecutionState chaosState;
-extern OscillationConfig oscillation;
-extern OscillationState oscillationState;
-extern DecelZoneConfig decelZone;
-extern SequenceExecutionState seqState;
-extern PursuitState pursuit;
-
-extern float effectiveMaxDistanceMM;
-extern float maxDistanceLimitPercent;
-extern bool isPaused;
-extern bool statsRequested;
-extern unsigned long lastStatsRequestTime;
-extern MovementType currentMovement;
-extern int sequenceLineCount;
-
-extern WebSocketsServer webSocket;
+#include "sequencer/SequenceTableManager.h"
+#include "movement/OscillationController.h"
+#include "movement/PursuitController.h"
+#include "movement/ChaosController.h"
+#include "controllers/CalibrationManager.h"
 
 // ============================================================================
 // COMMAND DISPATCHER CLASS

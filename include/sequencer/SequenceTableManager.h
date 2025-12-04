@@ -34,21 +34,7 @@
 #define MAX_SEQUENCE_LINES 20
 #endif
 
-// ============================================================================
-// EXTERNAL DEPENDENCIES (from main)
-// ============================================================================
-
-// System config
-extern SystemConfig config;
-extern float effectiveMaxDistanceMM;
-extern float maxDistanceLimitPercent;
-
-// WebSocket for broadcasting
-class WebSocketsServer;
-extern WebSocketsServer webSocket;
-
-// Forward declarations
-void sendError(String message);
+#include "GlobalState.h"
 
 // ============================================================================
 // SEQUENCE TABLE MANAGER CLASS

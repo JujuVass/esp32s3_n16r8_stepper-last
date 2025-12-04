@@ -18,9 +18,10 @@
 
 #include <Arduino.h>
 #include "Config.h"
-#include "Types.h"  // Full definition of SystemConfig needed
+#include "Types.h"
 
-// External references to global state (defined in main .ino)
+// Note: GlobalState.h provides all extern declarations
+// But we need these before GlobalState might be included
 extern float effectiveMaxDistanceMM;
 extern float maxDistanceLimitPercent;
 extern SystemConfig config;

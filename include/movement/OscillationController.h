@@ -31,51 +31,7 @@
 #include "Types.h"
 #include "Config.h"
 #include "UtilityEngine.h"
-
-// ============================================================================
-// EXTERNAL REFERENCES (defined in main .ino)
-// ============================================================================
-
-// Motor control
-extern class MotorDriverClass Motor;
-extern class ContactSensorsClass Contacts;
-
-// Configuration & State
-extern SystemConfig config;
-extern OscillationConfig oscillation;
-extern OscillationState oscillationState;
-extern CyclePauseState oscPauseState;
-
-// Position tracking
-extern volatile long currentStep;
-extern unsigned long lastStepMicros;
-extern long lastStepForDistance;
-extern unsigned long totalDistanceTraveled;
-
-// Movement state
-extern bool isPaused;
-extern MovementType currentMovement;
-
-// Limits
-extern float effectiveMaxDistanceMM;
-extern float maxDistanceLimitPercent;
-
-// Sequencer integration
-extern SequenceExecutionState seqState;
-
-// Function pointers for callbacks (set by main)
-extern void sendError(String message);
-extern void sendStatus();
-extern void sendSequenceStatus();
-extern void onMovementComplete();
-
-// Sine lookup table function (defined in main)
-#ifdef USE_SINE_LOOKUP_TABLE
-extern float fastSine(float phase);
-#endif
-
-// Contact reading function (defined in main)
-extern bool readContactDebounced(int pin, int expectedState, int checks, int delayMicros);
+#include "GlobalState.h"
 
 // ============================================================================
 // CLASS DECLARATION

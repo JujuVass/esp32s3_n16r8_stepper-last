@@ -29,45 +29,8 @@
 #include "Config.h"
 #include "ChaosPatterns.h"
 #include "UtilityEngine.h"
-
-// ============================================================================
-// EXTERNAL DEPENDENCIES
-// ============================================================================
-
-// Motor control
-extern void doStep();
-
-// State variables
-extern volatile long currentStep;
-extern long targetStep;
-extern bool movingForward;
-extern bool isPaused;
-extern MovementType currentMovement;
-
-// Config structures (defined in main, accessed here)
-extern SystemConfig config;
-extern ChaosRuntimeConfig chaos;
-extern ChaosExecutionState chaosState;
-extern SequenceExecutionState seqState;
-extern float effectiveMaxDistanceMM;
-
-// Completion callback
-extern void onMovementComplete();
-
-// WebSocket for keep-alive during blocking operations
-extern WebSocketsServer webSocket;
-extern WebServer server;
-
-// Utility functions
-class UtilityEngine;
-extern UtilityEngine* engine;
-
-// Contact sensors - use the macro from ContactSensors.h
+#include "GlobalState.h"
 #include "hardware/ContactSensors.h"
-// Note: Contacts is a macro, not an extern variable
-
-// Error reporting
-extern void sendError(String message);
 
 // ============================================================================
 // CHAOS CONTROLLER CLASS

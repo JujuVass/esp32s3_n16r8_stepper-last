@@ -223,50 +223,20 @@ FilesystemManager filesystemManager(server);
 // ============================================================================
 // HTML page now served from LittleFS (/data/index.html)
 
-// Sequence table functions - now delegated to SequenceTableManager module
-// These inline wrappers maintain API compatibility
-inline SequenceLine parseSequenceLineFromJson(JsonVariantConst obj) { return SeqTable.parseFromJson(obj); }
-inline String validateSequenceLinePhysics(const SequenceLine& line) { return SeqTable.validatePhysics(line); }
-inline int addSequenceLine(SequenceLine newLine) { return SeqTable.addLine(newLine); }
-inline bool updateSequenceLine(int lineId, SequenceLine updatedLine) { return SeqTable.updateLine(lineId, updatedLine); }
-inline bool deleteSequenceLine(int lineId) { return SeqTable.deleteLine(lineId); }
-inline bool moveSequenceLine(int lineId, int direction) { return SeqTable.moveLine(lineId, direction); }
-inline bool toggleSequenceLine(int lineId, bool enabled) { return SeqTable.toggleLine(lineId, enabled); }
-inline void clearSequenceTable() { SeqTable.clear(); }
-inline String exportSequenceToJson() { return SeqTable.exportToJson(); }
-inline int importSequenceFromJson(String jsonData) { return SeqTable.importFromJson(jsonData); }
-inline int duplicateSequenceLine(int lineId) { return SeqTable.duplicateLine(lineId); }
-inline void broadcastSequenceTable() { SeqTable.broadcast(); }
-inline void sendJsonResponse(const char* type, const String& data) { SeqTable.sendJsonResponse(type, data); }
+// ============================================================================
+// NOTE: Module Singletons are used directly:
+//   - SeqTable.addLine(), SeqTable.deleteLine(), etc.
+//   - SeqExecutor.start(), SeqExecutor.stop(), etc.
+//   - Osc.start(), Osc.process(), etc.
+//   - Pursuit.move(), Pursuit.process()
+//   - Status.send()
+//   - Chaos.start(), Chaos.stop(), etc.
+//   - Calibration.start(), etc.
+// No inline wrappers needed - callers use singletons directly.
+// ============================================================================
 
-// Sequence execution functions - delegated to SequenceExecutor module
-inline void startSequenceExecution(bool loopMode) { SeqExecutor.start(loopMode); }
-inline void stopSequenceExecution() { SeqExecutor.stop(); }
-inline void toggleSequencePause() { SeqExecutor.togglePause(); }
-inline void skipToNextSequenceLine() { SeqExecutor.skipToNextLine(); }
-inline void processSequenceExecution() { SeqExecutor.process(); }
-inline void sendSequenceStatus() { SeqExecutor.sendStatus(); }
-inline void onMovementComplete() { SeqExecutor.onMovementComplete(); }
-
-// Oscillation functions - delegated to OscillationController module
-inline void startOscillation() { Osc.start(); }
-inline void doOscillationStep() { Osc.process(); }
-inline float calculateOscillationPosition() { return Osc.calculatePosition(); }
-inline bool validateOscillationAmplitude(float centerMM, float amplitudeMM, String& errorMsg) { 
-    return Osc.validateAmplitude(centerMM, amplitudeMM, errorMsg); 
-}
-
-// Pursuit functions - delegated to PursuitController module
-inline void pursuitMove(float targetPositionMM, float maxSpeedLevel) { Pursuit.move(targetPositionMM, maxSpeedLevel); }
-inline void doPursuitStep() { Pursuit.process(); }
-
-// Status broadcasting - delegated to StatusBroadcaster module
-inline void sendStatus() { Status.send(); }
-
-// Functions
-//void stepMotor();
+// Core functions (defined below in this file)
 void handleCalibrationFailure(int& attempt);
-//void startCalibration();
 void startMovement(float distMM, float speedLevel);
 void calculateStepDelay();
 void doStep();
@@ -490,7 +460,7 @@ void setup() {
       
       // Stop sequencer if running
       if (seqState.isRunning) {
-        stopSequenceExecution();
+        SeqExecutor.stop();
       }
     });
     
@@ -618,7 +588,7 @@ void setup() {
   // Set callbacks now that sendStatus() and sendError() are available
   Calibration.setStatusCallback(sendStatus);
   Calibration.setErrorCallback([](const String& msg) { sendError(msg); });
-  Calibration.setCompletionCallback(onMovementComplete);
+  Calibration.setCompletionCallback([]() { SeqExecutor.onMovementComplete(); });
   engine->info("✅ CalibrationManager callbacks configured");
   
   // ============================================================================
@@ -726,7 +696,7 @@ void loop() {
         // SAFE: Unsigned arithmetic handles overflow correctly
         if (currentMicros - lastStepMicros >= pursuit.stepDelay) {
           lastStepMicros = currentMicros;
-          doPursuitStep();
+          Pursuit.process();
         }
       }
       break;
@@ -734,7 +704,7 @@ void loop() {
     case MOVEMENT_OSC:
       // OSCILLATION: Sinusoidal oscillation with ramping
       if (config.currentState == STATE_RUNNING && !isPaused) {
-        doOscillationStep();
+        Osc.process();
       }
       break;
       
@@ -750,7 +720,7 @@ void loop() {
   // SEQUENCER MANAGEMENT (Based on config.executionContext - WHO controls)
   // ═══════════════════════════════════════════════════════════════════════════
   if (config.executionContext == CONTEXT_SEQUENCER) {
-    processSequenceExecution();
+    SeqExecutor.process();
   }
   
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1241,7 +1211,7 @@ void startMovement(float distMM, float speedLevel) {
   // ✅ Stop sequence if running (user manually starts simple mode)
   if (seqState.isRunning) {
     engine->debug("startMovement(): stopping sequence because user manually started movement");
-    stopSequenceExecution();
+    SeqExecutor.stop();
   }
   
   // Auto-calibrate if not yet done
@@ -1611,8 +1581,8 @@ void doStep() {
       
       // NEW ARCHITECTURE: Unified completion handler
       if (config.executionContext == CONTEXT_SEQUENCER) {
-        // SEQUENCER: Call onMovementComplete() to increment cycle counter
-        onMovementComplete();
+        // SEQUENCER: Call SeqExecutor.onMovementComplete() to increment cycle counter
+        SeqExecutor.onMovementComplete();
       } else {
         // STANDALONE: VA-ET-VIENT loops infinitely, keep STATE_RUNNING
         // config.currentState stays STATE_RUNNING to continue looping
@@ -1868,6 +1838,18 @@ void resetTotalDistance() {
   totalDistanceTraveled = 0;
   lastSavedDistance = 0;  // Also reset last saved to prevent negative increment
   engine->info("🔄 Total distance counter reset to 0");
+}
+
+// ============================================================================
+// STATUS BROADCASTING - Delegates to StatusBroadcaster module
+// ============================================================================
+
+/**
+ * Broadcast current system status via WebSocket
+ * Delegates to StatusBroadcaster singleton
+ */
+void sendStatus() {
+  Status.send();
 }
 
 // ============================================================================

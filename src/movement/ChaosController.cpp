@@ -854,7 +854,7 @@ void ChaosController::process() {
             
             if (config.executionContext == CONTEXT_SEQUENCER) {
                 chaosState.isRunning = false;
-                onMovementComplete();
+                SeqExecutor.onMovementComplete();
             } else {
                 stop();
             }

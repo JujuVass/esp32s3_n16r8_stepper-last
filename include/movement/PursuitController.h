@@ -32,34 +32,7 @@
 #include "Types.h"
 #include "Config.h"
 #include "UtilityEngine.h"
-
-// ============================================================================
-// EXTERNAL REFERENCES (defined in main .ino)
-// ============================================================================
-
-// Motor control
-extern class MotorDriverClass Motor;
-extern class ContactSensorsClass Contacts;
-
-// Configuration & State
-extern SystemConfig config;
-extern PursuitState pursuit;
-
-// Position tracking
-extern volatile long currentStep;
-extern unsigned long lastStepMicros;
-extern long lastStepForDistance;
-extern unsigned long totalDistanceTraveled;
-
-// Movement state
-extern MovementType currentMovement;
-
-// Limits
-extern float effectiveMaxDistanceMM;
-
-// Function callbacks (defined in main)
-extern void sendError(String message);
-extern void sendStatus();
+#include "GlobalState.h"
 
 // ============================================================================
 // CLASS DECLARATION

@@ -21,52 +21,7 @@
 #include "Types.h"
 #include "Config.h"
 #include "UtilityEngine.h"
-
-// ============================================================================
-// EXTERN REFERENCES TO MAIN'S GLOBAL VARIABLES
-// ============================================================================
-
-// System config (from main)
-extern SystemConfig config;
-
-// Position tracking (from main)
-extern volatile long currentStep;
-extern bool isPaused;
-
-// Movement type (from main)
-extern MovementType currentMovement;
-
-// Total distance traveled (from main)
-extern unsigned long totalDistanceTraveled;
-
-// VA-ET-VIENT configs (from main)
-extern MotionConfig motion;
-extern PendingMotionConfig pendingMotion;
-extern DecelZoneConfig decelZone;
-extern CyclePauseState motionPauseState;
-
-// Pursuit state (from main)
-extern PursuitState pursuit;
-
-// Oscillation configs (from main)
-extern OscillationConfig oscillation;
-extern OscillationState oscillationState;
-extern CyclePauseState oscPauseState;
-extern float actualOscillationSpeedMMS;
-
-// Chaos configs (from main)
-extern ChaosRuntimeConfig chaos;
-extern ChaosExecutionState chaosState;
-
-// Max distance limit (from main)
-extern float maxDistanceLimitPercent;
-extern float effectiveMaxDistanceMM;
-
-// Stats on-demand tracking (from main)
-extern bool statsRequested;
-
-// WebSocket (from main)
-extern WebSocketsServer webSocket;
+#include "GlobalState.h"
 
 // ============================================================================
 // FORWARD DECLARATIONS

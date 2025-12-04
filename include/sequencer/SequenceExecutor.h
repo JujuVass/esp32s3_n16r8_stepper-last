@@ -21,72 +21,13 @@
 #include "Types.h"
 #include "Config.h"
 #include "UtilityEngine.h"
-
-// ============================================================================
-// EXTERN REFERENCES TO MAIN'S GLOBAL VARIABLES
-// ============================================================================
-// These are defined in the main .ino file and accessed via extern
-
-// Sequence table data (from main)
-extern SequenceLine sequenceTable[];
-extern int sequenceLineCount;
-
-// Sequence execution state (from main)
-extern SequenceExecutionState seqState;
-
-// System config (from main)
-extern SystemConfig config;
-
-// Movement configs (from main)
-extern MotionConfig motion;
-extern OscillationConfig oscillation;
-extern ChaosRuntimeConfig chaos;
-extern DecelZoneConfig decelZone;
-extern CyclePauseState motionPauseState;
-
-// Position tracking (from main)
-extern volatile long currentStep;
-extern long startStep;
-extern long targetStep;
-extern bool movingForward;
-extern bool hasReachedStartStep;
-extern bool isPaused;
-extern unsigned long lastStepMicros;
-
-// Movement type (from main)
-extern MovementType currentMovement;
-
-// Oscillation state (from main)
-extern OscillationState oscillationState;
-
-// Chaos state (from main)
-extern ChaosExecutionState chaosState;
-
-// Effective max distance (from main)
-extern float effectiveMaxDistanceMM;
-
-// Distance tracking (from main)
-extern unsigned long totalDistanceTraveled;
-extern long lastStepForDistance;
-extern unsigned long lastStartContactMillis;
-extern unsigned long cycleTimeMillis;
-extern float measuredCyclesPerMinute;
-extern bool wasAtStart;
-
-// WebSocket (from main)
-extern WebSocketsServer webSocket;
+#include "GlobalState.h"
 
 // ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
-// Functions defined in main that SequenceExecutor needs to call
-void sendStatus();
-void sendError(String message);
-void stopMovement();
-void calculateStepDelay();
-void validateDecelZone();
-void startOscillation();
-void saveCurrentSessionStats();
+// These functions are defined in main and need to be called
+extern void calculateStepDelay();
 
 // ============================================================================
 // SEQUENCE EXECUTOR CLASS

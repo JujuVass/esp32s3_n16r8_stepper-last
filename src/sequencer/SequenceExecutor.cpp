@@ -15,6 +15,7 @@
 #include "hardware/MotorDriver.h"
 #include "controllers/CalibrationManager.h"
 #include "movement/ChaosController.h"
+#include "movement/OscillationController.h"
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -519,7 +520,7 @@ void SequenceExecutor::startOscillationLine(SequenceLine* line) {
     seqState.lineStartTime = millis();
     
     // Start oscillation (will set currentMovement = MOVEMENT_OSC)
-    startOscillation();
+    Osc.start();
     
     // Skip initial positioning - positionForNextLine() already moved us to start position
     oscillationState.isInitialPositioning = false;

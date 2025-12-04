@@ -15,6 +15,8 @@
 #include "controllers/CalibrationManager.h"
 #include "hardware/MotorDriver.h"
 #include "sequencer/SequenceTableManager.h"
+#include "movement/OscillationController.h"
+#include "movement/PursuitController.h"
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -395,7 +397,7 @@ bool CommandDispatcher::handlePursuitCommands(const char* cmd, JsonDocument& doc
         String errorMsg;
         if (!validateAndReport(Validators::speed(maxSpd, errorMsg), errorMsg)) return true;
         
-        pursuitMove(targetPos, maxSpd);
+        Pursuit.move(targetPos, maxSpd);
         return true;
     }
     
@@ -634,7 +636,7 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
             stopMovement();
         }
         
-        startOscillation();
+        Osc.start();
         sendStatus();
         return true;
     }
