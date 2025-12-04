@@ -3,6 +3,35 @@
 > **Date**: 4 décembre 2025  
 > **Backup commit**: `f2c9d37` - "BACKUP: Pre-optimization state"  
 > **État actuel**: Fonctionnel, 6660 lignes backend + 10699 lignes frontend
+> 
+> **Mise à jour**: Session optimisation complétée le 4 déc 2025
+> **Commit optimisations**: `405eac0` - "Phase 1 Optimizations"
+
+---
+
+## ✅ Tâches Complétées
+
+### Phase 1.1 - Backend Constantes ✅
+- [x] Config.h: Ajout WS_PORT (81), HTTP_PORT (80)
+- [x] Config.h: Ajout JSON_DOC_SIZE_SMALL (256), JSON_DOC_SIZE_MEDIUM (512), JSON_DOC_SIZE_LARGE (1024)
+- [x] Config.h: Ajout RETRY_MAX_ATTEMPTS (3), RETRY_DELAY_MS (1000)
+- [x] Documentation "Why?" pour chaque constante
+
+### Phase 1.2 - Extraction CSS ✅
+- [x] Créé `data/css/styles.css` (988 lignes extraites)
+- [x] Modifié `index.html` avec `<link rel="stylesheet">`
+- [x] Ajouté route `/css/styles.css` dans APIRoutes.h avec cache 24h
+
+### Phase 1.3 - Constantes WebSocket ✅
+- [x] Créé objet `WS_CMD` avec 50+ commandes
+- [x] Organisé par catégorie (Movement, Simple, Oscillation, Chaos, Sequence, etc.)
+- [x] Object.freeze() pour immutabilité
+
+### Phase 2.2 - Helper Functions ✅
+- [x] `setupEditableInput()` - Gestion edit state standardisée
+- [x] `setupPresetButtons()` - Boutons preset génériques
+- [x] `validateNumericInput()` - Validation avec min/max/default
+- [x] `validateMinMaxPair()` - Validation paires min/max
 
 ---
 
@@ -26,11 +55,12 @@
 
 ---
 
-## 🎯 PHASE 1 - Quick Wins (Risque faible, Impact immédiat)
+## 🎯 PHASE 1 - Quick Wins (Risque faible, Impact immédiat) ✅ COMPLÉTÉE
 
-### 1.1 Backend - Extraction Constantes Magiques
+### 1.1 Backend - Extraction Constantes Magiques ✅
 **Fichier**: `include/Config.h`  
-**Effort**: 2h | **Impact**: Maintenabilité +20%
+**Effort**: 2h | **Impact**: Maintenabilité +20%  
+**Status**: ✅ COMPLÉTÉ - Commit `405eac0`
 
 ```cpp
 // À AJOUTER dans Config.h
@@ -58,14 +88,16 @@ constexpr uint16_t MAX_CYCLES_PER_LINE = 9999;
 ```
 
 **Fichiers à modifier**:
-- [ ] `stepper_controller_restructured.ino` - Remplacer magic numbers
-- [ ] `ChaosPatterns.h` - Utiliser constantes
-- [ ] `Types.h` - Valeurs par défaut des structs
+- [x] `Config.h` - Constantes réseau et JSON ajoutées
+- [ ] `stepper_controller_restructured.ino` - Remplacer magic numbers restants (future)
+- [ ] `ChaosPatterns.h` - Utiliser constantes (future)
+- [ ] `Types.h` - Valeurs par défaut des structs (future)
 
 ---
 
-### 1.2 Frontend - Extraction CSS
-**Effort**: 2h | **Impact**: Cache navigateur + Maintenabilité
+### 1.2 Frontend - Extraction CSS ✅
+**Effort**: 2h | **Impact**: Cache navigateur + Maintenabilité  
+**Status**: ✅ COMPLÉTÉ - 988 lignes extraites
 
 **Créer** `data/css/styles.css`:
 ```
@@ -76,15 +108,16 @@ data/
 ```
 
 **Étapes**:
-1. [ ] Créer `data/css/styles.css`
-2. [ ] Couper/coller le bloc `<style>...</style>` de index.html
-3. [ ] Ajouter `<link rel="stylesheet" href="/css/styles.css">` dans `<head>`
-4. [ ] Mettre à jour `APIRoutes.h` pour servir le fichier CSS
+1. [x] Créer `data/css/styles.css`
+2. [x] Couper/coller le bloc `<style>...</style>` de index.html
+3. [x] Ajouter `<link rel="stylesheet" href="/css/styles.css">` dans `<head>`
+4. [x] Mettre à jour `APIRoutes.h` pour servir le fichier CSS (route + cache 24h)
 
 ---
 
-### 1.3 Frontend - Constantes WebSocket Commands
-**Effort**: 1h | **Impact**: Typo-safe, autocomplétion IDE
+### 1.3 Frontend - Constantes WebSocket Commands ✅
+**Effort**: 1h | **Impact**: Typo-safe, autocomplétion IDE  
+**Status**: ✅ COMPLÉTÉ - Objet WS_CMD avec 50+ commandes
 
 **Ajouter en haut de `<script>` dans index.html**:
 ```javascript
