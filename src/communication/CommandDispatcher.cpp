@@ -364,7 +364,7 @@ bool CommandDispatcher::handlePursuitCommands(const char* cmd, JsonDocument& doc
         }
         
         if (seqState.isRunning) {
-            stopSequenceExecution();
+            SeqExecutor.stop();
         }
         
         currentMovement = MOVEMENT_PURSUIT;
@@ -627,7 +627,7 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
         }
         
         if (seqState.isRunning) {
-            stopSequenceExecution();
+            SeqExecutor.stop();
         }
         
         if (config.currentState == STATE_RUNNING) {
@@ -646,7 +646,7 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
         }
         
         if (seqState.isRunning) {
-            stopSequenceExecution();
+            SeqExecutor.stop();
         }
         
         sendStatus();
@@ -767,32 +767,32 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
     // ========================================================================
     
     if (message.indexOf("\"cmd\":\"startSequence\"") > 0) {
-        startSequenceExecution(false);
-        sendSequenceStatus();
+        SeqExecutor.start(false);
+        SeqExecutor.sendStatus();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"loopSequence\"") > 0) {
-        startSequenceExecution(true);
-        sendSequenceStatus();
+        SeqExecutor.start(true);
+        SeqExecutor.sendStatus();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"stopSequence\"") > 0) {
-        stopSequenceExecution();
-        sendSequenceStatus();
+        SeqExecutor.stop();
+        SeqExecutor.sendStatus();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"toggleSequencePause\"") > 0) {
-        toggleSequencePause();
-        sendSequenceStatus();
+        SeqExecutor.togglePause();
+        SeqExecutor.sendStatus();
         return true;
     }
     
     if (message.indexOf("\"cmd\":\"skipSequenceLine\"") > 0) {
-        skipToNextSequenceLine();
-        sendSequenceStatus();
+        SeqExecutor.skipToNextLine();
+        SeqExecutor.sendStatus();
         return true;
     }
     

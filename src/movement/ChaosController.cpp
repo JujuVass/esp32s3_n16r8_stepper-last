@@ -13,6 +13,7 @@
 #include "movement/ChaosController.h"
 #include "UtilityEngine.h"
 #include "hardware/MotorDriver.h"
+#include "sequencer/SequenceExecutor.h"
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -950,8 +951,7 @@ void ChaosController::start() {
     
     if (seqState.isRunning && config.executionContext != CONTEXT_SEQUENCER) {
         engine->debug("startChaos(): stopping sequence because chaos started outside of sequencer");
-        extern void stopSequenceExecution();
-        stopSequenceExecution();
+        SeqExecutor.stop();
     }
     
     float maxAllowed = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;

@@ -29,6 +29,7 @@
 #include "Config.h"
 #include "UtilityEngine.h"
 #include "Validators.h"
+#include "sequencer/SequenceExecutor.h"
 
 // ============================================================================
 // FORWARD DECLARATIONS - External functions called by handlers
@@ -61,13 +62,9 @@ extern void stopChaos();
 // Oscillation mode
 extern void startOscillation();
 
-// Sequencer
-extern void startSequenceExecution(bool loopMode);
-extern void stopSequenceExecution();
-extern void toggleSequencePause();
-extern void skipToNextSequenceLine();
+// Sequencer (via SequenceExecutor singleton - included via header)
+// Use SeqExecutor.start(), SeqExecutor.stop(), etc.
 extern void broadcastSequenceTable();
-extern void sendSequenceStatus();
 extern int addSequenceLine(SequenceLine newLine);
 extern bool deleteSequenceLine(int lineId);
 extern bool updateSequenceLine(int lineId, SequenceLine updatedLine);
