@@ -221,7 +221,7 @@ int importSequenceFromJson(String jsonData);
 int duplicateSequenceLine(int lineId);
 
 // Functions
-void stepMotor();
+//void stepMotor();
 void handleCalibrationFailure(int& attempt);
 void startCalibration();
 void startMovement(float distMM, float speedLevel);
@@ -370,7 +370,7 @@ void setup() {
   engine->info("✅ Hardware abstraction layer initialized (Motor + Contacts)");
   
   // Legacy compatibility: ensure direction tracking variable is in sync
-  setMotorDirection(false);  // Initialize direction to backward
+  Motor.setDirection(false);  // Initialize direction to backward
   
   // Connect to WiFi
   WiFi.mode(WIFI_STA);
@@ -755,29 +755,6 @@ void loop() {
 // to the new modular MotorDriver class. This allows incremental migration.
 // ============================================================================
 
-/**
- * Set motor direction with automatic delay for driver processing
- * HSS86 driver requires minimum 50µs to process direction changes
- * @param forward true = forward (HIGH), false = backward (LOW)
- * 
- * NOTE: Now delegates to Motor.setDirection() from hardware/MotorDriver.h
- */
-inline void setMotorDirection(bool forward) {
-  // Delegate to modular MotorDriver
-  Motor.setDirection(forward);
-  
-  // Keep legacy variable in sync for any code that reads it directly
-  currentMotorDirection = forward ? HIGH : LOW;
-}
-
-/**
- * Execute a single step pulse on the motor
- * 
- * NOTE: Now delegates to Motor.step() from hardware/MotorDriver.h
- */
-void stepMotor() {
-  Motor.step();
-}
 
 // ============================================================================
 // MOTOR CONTROL - Calibration Helper Functions
@@ -787,14 +764,13 @@ bool findContactWithService(int dirPin, int contactPin, const char* contactName)
   
   bool inDir = (dirPin == HIGH);
 
-  setMotorDirection(inDir);
+  Motor.setDirection(inDir);
   unsigned long stepCount = 0;
 
   // Search for contact with debouncing (3 checks, 25µs interval)
   // Fast debounce during search phase (non-critical)
-  // NOTE: Using Contacts.readDebounced() via readContactDebounced wrapper
-  while (readContactDebounced(contactPin, HIGH, 3, 25)) {
-    stepMotor();
+  while (Contacts.readDebounced(contactPin, HIGH, 3, 25)) {
+    Motor.step();
     currentStep += inDir ? 1 : -1;
     delayMicroseconds(CALIB_DELAY);
     stepCount++;
@@ -842,18 +818,18 @@ bool returnToStartContact() {
   // ============================================================================
   // SAFETY CHECK: Detect if stuck at END contact (recovery from ERROR state)
   // ============================================================================
-  if (readContactDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
+  if (Contacts.readDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
     engine->warn("⚠️ Détection contact END actif - Déblocage automatique...");
     sendStatus();  // Show "Décollement en cours..."
     
-    setMotorDirection(false);  // Backward (away from END)
+    Motor.setDirection(false);  // Backward (away from END)
     
     // Emergency decontact: Move backward until END contact releases
     int emergencySteps = 0;
     const int MAX_EMERGENCY_STEPS = 300;  // ~50mm safety margin
     
-    while (readContactDebounced(PIN_END_CONTACT, LOW, 3, 50) && emergencySteps < MAX_EMERGENCY_STEPS) {
-      stepMotor();
+    while (Contacts.readDebounced(PIN_END_CONTACT, LOW, 3, 50) && emergencySteps < MAX_EMERGENCY_STEPS) {
+      Motor.step();
       currentStep--;
       emergencySteps++;
       delayMicroseconds(CALIB_DELAY);  // Slow speed for safety
@@ -878,12 +854,12 @@ bool returnToStartContact() {
     delay(200);  // Let mechanics settle
   }
   
-  setMotorDirection(false);  // Backward to START contact
+  Motor.setDirection(false);  // Backward to START contact
   
   // Search for START contact with debouncing (3 checks, 100µs interval)
   // Precise value needed for accurate return positioning
-  while (readContactDebounced(PIN_START_CONTACT, HIGH, 3, 100)) {
-    stepMotor();
+  while (Contacts.readDebounced(PIN_START_CONTACT, HIGH, 3, 100)) {
+    Motor.step();
     currentStep--;
     delayMicroseconds(CALIB_DELAY);
     if (currentStep % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
@@ -904,15 +880,15 @@ bool returnToStartContact() {
   
   // Move forward slowly until contact releases (decontact)
   // Standard debounce for decontact phase (3 checks, 100µs)
-  setMotorDirection(true);
-  while (readContactDebounced(PIN_START_CONTACT, LOW, 3, 100)) {
-    stepMotor();
+  Motor.setDirection(true);
+  while (Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 100)) {
+    Motor.step();
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);  // Same speed as initial calibration
   }
   
   // Add safety margin (same as initial calibration)
   for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
-    stepMotor();
+    Motor.step();
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR);
   }
   
@@ -1142,9 +1118,9 @@ void startCalibration() {
   
   // Move forward VERY SLOWLY until contact releases (HIGH)
   // Slow debounce for critical initial calibration phase (3 checks, 200µs)
-  setMotorDirection(true);  // Forward to release contact
-  while (readContactDebounced(PIN_START_CONTACT, LOW, 3, 200)) {  
-    stepMotor();
+  Motor.setDirection(true);  // Forward to release contact
+  while (Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 200)) {  
+    Motor.step();
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);  // 10ms per step = ultra gentle
   }
   
@@ -1152,7 +1128,7 @@ void startCalibration() {
   
   // Move forward another 10 steps (safety margin)
   for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
-    stepMotor();
+    Motor.step();
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR);
     if (i % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
       webSocket.loop();
@@ -1181,9 +1157,9 @@ void startCalibration() {
   // CRITICAL: Enhanced debounce for END contact (5 checks, 150µs)
   // END contact requires stronger filtering due to mechanical characteristics
   // (pulley vibrations, belt tension variations at max travel)
-  setMotorDirection(false);  // Backward to release contact
-  while (readContactDebounced(PIN_END_CONTACT, LOW, 5, 150)) {
-    stepMotor();
+  Motor.setDirection(false);  // Backward to release contact
+  while (Contacts.readDebounced(PIN_END_CONTACT, LOW, 5, 150)) {
+    Motor.step();
     currentStep--;
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR * 2);
   }
@@ -1192,7 +1168,7 @@ void startCalibration() {
   
   // Reculer encore 10 steps (safety margin)
   for (int i = 0; i < SAFETY_OFFSET_STEPS; i++) {
-    stepMotor();
+    Motor.step();
     currentStep--;
     delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR);
     if (i % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
@@ -1634,7 +1610,7 @@ void startMovement(float distMM, float speedLevel) {
   }
   
   // Initialize PIN_DIR based on starting direction
-  setMotorDirection(movingForward);
+  Motor.setDirection(movingForward);
 
   
   // Initialize distance tracking
@@ -1740,9 +1716,9 @@ void doStep() {
             "Backing " + String(correctionSteps) + " steps to config.maxStep (" + 
             String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
       
-      setMotorDirection(false);  // Backward (includes 50µs delay)
+      Motor.setDirection(false);  // Backward (includes 50µs delay)
       for (int i = 0; i < correctionSteps; i++) {
-        stepMotor();
+        Motor.step();
         currentStep--;  // Update position as we move
       }
       
@@ -1763,7 +1739,7 @@ void doStep() {
     
     if (distanceToLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
       // Close to limit → activate physical contact test
-      if (readContactDebounced(PIN_END_CONTACT, LOW, 5, 75)) {
+      if (Contacts.readDebounced(PIN_END_CONTACT, LOW, 5, 75)) {
         float currentPos = currentStep / STEPS_PER_MM;
         
         engine->error(String("🔴 Hard drift END! Physical contact at ") + 
@@ -1794,8 +1770,8 @@ void doStep() {
     if (!checkChaosLimits()) return;
     
     // Set direction EVERY step (like old working code)
-    setMotorDirection(true);  // Forward
-    stepMotor();
+    Motor.setDirection(true);  // Forward
+    Motor.step();
     currentStep++;
     
     // Update total distance traveled (unified logic for both directions)
@@ -1821,9 +1797,9 @@ void doStep() {
             " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
             "Advancing " + String(correctionSteps) + " steps to position 0");
       
-      setMotorDirection(true);  // Forward (includes 50µs delay)
+      Motor.setDirection(true);  // Forward (includes 50µs delay)
       for (int i = 0; i < correctionSteps; i++) {
-        stepMotor();
+        Motor.step();
         currentStep++;  // Update position as we move
       }
       
@@ -1841,7 +1817,7 @@ void doStep() {
     
     if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {
       // Close to start → activate physical contact test
-      if (readContactDebounced(PIN_START_CONTACT, LOW, 5, 75)) {
+      if (Contacts.readDebounced(PIN_START_CONTACT, LOW, 5, 75)) {
         float currentPos = currentStep / STEPS_PER_MM;
 
         engine->error(String("🔴 Hard drift START! Physical contact at ") +
@@ -1866,8 +1842,8 @@ void doStep() {
     if (!checkChaosLimits()) return;
     
     // Set direction EVERY step (like old working code)
-    setMotorDirection(false);  // Backward
-    stepMotor();
+    Motor.setDirection(false);  // Backward
+    Motor.step();
     currentStep--;
     
     // Update total distance traveled (unified logic for both directions)
@@ -1964,7 +1940,7 @@ void doStep() {
       }
       
       // CRITICAL: Set PIN_DIR for next forward movement
-      setMotorDirection(true);  // Forward
+      Motor.setDirection(true);  // Forward
       
       // CRITICAL: Return here to allow next doStep() call to start forward movement
       engine->debug(String("🔄 End of backward cycle - State: ") + String(config.currentState) + 
@@ -2015,7 +1991,7 @@ bool checkChaosLimits() {
     // Test END contact si chaos approche de la limite haute
     float distanceToEndLimitMM = config.totalDistanceMM - maxChaosPositionMM;
     if (distanceToEndLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
-      if (readContactDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
+      if (Contacts.readDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
         sendError("❌ CHAOS: Contact END atteint - amplitude proche limite");
         config.currentState = STATE_ERROR;
         chaosState.isRunning = false;
@@ -2037,7 +2013,7 @@ bool checkChaosLimits() {
     
     // Test START contact si chaos approche de la limite basse
     if (minChaosPositionMM <= HARD_DRIFT_TEST_ZONE_MM) {
-      if (readContactDebounced(PIN_START_CONTACT, LOW, 3, 50)) {
+      if (Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 50)) {
         sendError("❌ CHAOS: Contact START atteint - amplitude proche limite");
         config.currentState = STATE_ERROR;
         chaosState.isRunning = false;
@@ -2431,7 +2407,7 @@ void pursuitMove(float targetPositionMM, float maxSpeedLevel) {
   }
   
   pursuit.direction = moveForward;
-  setMotorDirection(moveForward);
+  Motor.setDirection(moveForward);
   
   // Ensure motor is enabled (should already be, but ensure on first call)
   Motor.enable();
@@ -2473,7 +2449,7 @@ void doPursuitStep() {
     float distanceToLimitMM = stepsToLimit / STEPS_PER_MM;
     
     if (distanceToLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
-      if (readContactDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
+      if (Contacts.readDebounced(PIN_END_CONTACT, LOW, 3, 50)) {
         pursuit.isMoving = false;
         pursuit.targetStep = currentStep;
         sendError("❌ PURSUIT: Contact END atteint - arrêt sécurité");
@@ -2486,7 +2462,7 @@ void doPursuitStep() {
     float distanceToStartMM = currentStep / STEPS_PER_MM;
     
     if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {
-      if (readContactDebounced(PIN_START_CONTACT, LOW, 3, 50)) {
+      if (Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 50)) {
         pursuit.isMoving = false;
         pursuit.targetStep = currentStep;
         sendError("❌ PURSUIT: Contact START atteint - arrêt sécurité");
@@ -2497,7 +2473,7 @@ void doPursuitStep() {
   }
   
   // Execute one step
-  stepMotor();
+  Motor.step();
   
   if (moveForward) {
     currentStep++;
@@ -2843,8 +2819,8 @@ void doOscillationStep() {
     
     // Mouvement ultra-doux: 1 step à la fois
     bool moveForward = (errorSteps > 0);
-    setMotorDirection(moveForward);
-    stepMotor();
+    Motor.setDirection(moveForward);
+    Motor.step();
     
     if (moveForward) {
       currentStep++;
@@ -2916,7 +2892,7 @@ void doOscillationStep() {
   // Test END contact uniquement si oscillation approche de la limite haute
   float distanceToEndLimitMM = config.totalDistanceMM - maxOscPositionMM;
   if (distanceToEndLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
-    if (targetStep >= config.maxStep && readContactDebounced(PIN_END_CONTACT, LOW)) {
+    if (targetStep >= config.maxStep && Contacts.readDebounced(PIN_END_CONTACT, LOW)) {
       sendError("❌ OSCILLATION: Contact END atteint de manière inattendue (amplitude proche limite)");
       isPaused = true;
       return;
@@ -2972,8 +2948,8 @@ void doOscillationStep() {
     }
     
     bool moveForward = (errorSteps > 0);
-    setMotorDirection(moveForward);
-    stepMotor();
+    Motor.setDirection(moveForward);
+    Motor.step();
     
     if (moveForward) {
       currentStep++;
@@ -3015,10 +2991,10 @@ void doOscillationStep() {
   
   // Execute steps
   bool moveForward = (errorSteps > 0);
-  setMotorDirection(moveForward);
+  Motor.setDirection(moveForward);
   
   for (int i = 0; i < stepsToExecute; i++) {
-    stepMotor();
+    Motor.step();
     if (moveForward) {
       currentStep++;
       // Track distance traveled
@@ -5849,7 +5825,7 @@ void positionForNextLine() {
     
     // Set direction for repositioning
     bool moveForward = (targetStep > currentStep);
-    setMotorDirection(moveForward);
+    Motor.setDirection(moveForward);
     
     // ⚠️ CRITICAL: Keep motor ENABLED during repositioning - HSS loses position if disabled!
     // Blocking move to target position at moderate speed (990 µs = speed 5.0)
@@ -5862,10 +5838,10 @@ void positionForNextLine() {
       if (now - lastStepTime >= stepDelay) {
         // Simple step without calling doStep() to avoid triggering cycle detection
         if (moveForward) {
-          stepMotor();
+          Motor.step();
           currentStep++;
         } else {
-          stepMotor();
+          Motor.step();
           currentStep--;
         }
         lastStepTime = now;
@@ -6036,7 +6012,7 @@ bool checkAndHandleSequenceEnd() {
         engine->info("🏠 Retour automatique au contact START...");
         long startReturnStep = currentStep;
         
-        setMotorDirection(false);  // Backward to START
+        Motor.setDirection(false);  // Backward to START
         unsigned long returnStart = millis();
         unsigned long lastStepTime = micros();
         const unsigned long stepDelay = 990;  // Speed 5.0
@@ -6044,7 +6020,7 @@ bool checkAndHandleSequenceEnd() {
         while (currentStep > 0 && (millis() - returnStart < 30000)) {
           unsigned long now = micros();
           if (now - lastStepTime >= stepDelay) {
-            stepMotor();
+            Motor.step();
             currentStep--;
             lastStepTime = now;
           }
@@ -6239,7 +6215,7 @@ void processSequenceExecution() {
           movingForward = true;
         }
         
-        setMotorDirection(movingForward);
+        Motor.setDirection(movingForward);
         
         lastStepForDistance = currentStep;
         lastStartContactMillis = 0;
