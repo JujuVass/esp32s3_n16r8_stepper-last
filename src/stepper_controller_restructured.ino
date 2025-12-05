@@ -21,12 +21,16 @@
 // ============================================================================
 // PROJECT CONFIGURATION HEADERS
 // ============================================================================
-#include "Config.h"           // WiFi, OTA, GPIO, Hardware, Timing constants
-#include "Types.h"            // Data structures and enums
-#include "FilesystemManager.h"  // Filesystem browser API
-#include "UtilityEngine.h"     // Unified logging, WebSocket, LittleFS manager
-#include "APIRoutes.h"        // API routes module (extracted from main)
-#include "Validators.h"       // Parameter validation functions
+#include "Config.h"               // WiFi, OTA, GPIO, Hardware, Timing constants
+#include "Types.h"                // Data structures and enums
+#include "UtilityEngine.h"        // Unified logging, WebSocket, LittleFS manager
+
+// Web layer (reorganized structure)
+#include "web/FilesystemManager.h"  // Filesystem browser API
+#include "web/APIRoutes.h"          // API routes module (extracted from main)
+
+// Core utilities
+#include "core/Validators.h"        // Parameter validation functions
 
 // Hardware abstraction layer (modular architecture)
 #include "hardware/MotorDriver.h"    // Motor control abstraction (Motor.step(), Motor.enable()...)
@@ -43,6 +47,7 @@
 #include "movement/ChaosController.h"       // Chaos mode controller (Chaos.start(), Chaos.process()...)
 #include "movement/OscillationController.h" // Oscillation mode controller (Osc.start(), Osc.process()...)
 #include "movement/PursuitController.h"     // Pursuit mode controller (Pursuit.move(), Pursuit.process()...)
+#include "movement/VaEtVientController.h"   // Va-et-vient mode controller (VaEtVient.setDistance()...)
 
 // Sequencer (modular architecture)
 #include "sequencer/SequenceTableManager.h" // Sequence table CRUD operations
@@ -1315,60 +1320,7 @@ void updateEffectiveMaxDistance() {
 }
 
 void calculateStepDelay() {
-  // FIXED CYCLE TIME - speed adapts to distance
-  if (motion.targetDistanceMM <= 0 || motion.speedLevelForward <= 0 || motion.speedLevelBackward <= 0) {
-    stepDelayMicrosForward = 1000;
-    stepDelayMicrosBackward = 1000;
-    return;
-  }
-  
-  // Convert speed levels to cycles/min
-  float cyclesPerMinuteForward = speedLevelToCyclesPerMin(motion.speedLevelForward);
-  float cyclesPerMinuteBackward = speedLevelToCyclesPerMin(motion.speedLevelBackward);
-  
-  // Safety: prevent division by zero
-  if (cyclesPerMinuteForward <= 0.1) cyclesPerMinuteForward = 0.1;
-  if (cyclesPerMinuteBackward <= 0.1) cyclesPerMinuteBackward = 0.1;
-  
-  long stepsPerDirection = (long)(motion.targetDistanceMM * STEPS_PER_MM);
-  
-  // Calculate forward delay with compensation for system overhead
-  float halfCycleForwardMs = (60000.0 / cyclesPerMinuteForward) / 2.0;
-  float rawDelayForward = (halfCycleForwardMs * 1000.0) / (float)stepsPerDirection;
-  float delayForward = (rawDelayForward - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
-  
-  // Calculate backward delay (can be different) with compensation
-  float halfCycleBackwardMs = (60000.0 / cyclesPerMinuteBackward) / 2.0;
-  float rawDelayBackward = (halfCycleBackwardMs * 1000.0) / (float)stepsPerDirection;
-  float delayBackward = (rawDelayBackward - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
-  
-  stepDelayMicrosForward = (unsigned long)delayForward;
-  stepDelayMicrosBackward = (unsigned long)delayBackward;
-  
-  // Minimum delay for HSS86 safety (50kHz max = 20µs period)
-  if (stepDelayMicrosForward < 20) {
-    stepDelayMicrosForward = 20;
-    engine->warn("⚠️ Forward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
-          "mm too long for speed " + String(motion.speedLevelForward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
-          String(cyclesPerMinuteForward, 0) + " c/min)");
-  }
-  if (stepDelayMicrosBackward < 20) {
-    stepDelayMicrosBackward = 20;
-    engine->warn("⚠️ Backward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
-          "mm too long for speed " + String(motion.speedLevelBackward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
-          String(cyclesPerMinuteBackward, 0) + " c/min)");
-  }
-  
-  float avgCyclesPerMin = (cyclesPerMinuteForward + cyclesPerMinuteBackward) / 2.0;
-  float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
-  float totalCycleTime = (60000.0 / cyclesPerMinuteForward / 2.0) + (60000.0 / cyclesPerMinuteBackward / 2.0);
-  
-  engine->debug("⚙️  " + String(stepsPerDirection) + " steps × 2 directions | Forward: " + 
-        String(motion.speedLevelForward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(cyclesPerMinuteForward, 0) + " c/min, " + 
-        String(stepDelayMicrosForward) + " µs) | Backward: " + String(motion.speedLevelBackward, 1) + 
-        "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(cyclesPerMinuteBackward, 0) + " c/min, " + String(stepDelayMicrosBackward) + 
-        " µs) | Avg: " + String(avgSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(avgCyclesPerMin, 0) + 
-        " c/min) | Total: " + String((int)totalCycleTime) + " ms");
+  VaEtVient.calculateStepDelay();
 }
 
 void doStep() {
@@ -1695,139 +1647,23 @@ void stopMovement() {
 }
 
 // ============================================================================
-// MOTOR CONTROL - Parameter Updates
+// MOTOR CONTROL - Parameter Updates (delegates to VaEtVient module)
 // ============================================================================
 
 void setDistance(float distMM) {
-  // Limit distance to valid range
-  if (motion.startPositionMM + distMM > config.totalDistanceMM) {
-    distMM = config.totalDistanceMM - motion.startPositionMM;
-  }
-  
-  if (config.currentState == STATE_RUNNING && !isPaused) {
-    // Queue change for end of cycle
-    if (!pendingMotion.hasChanges) {
-      pendingMotion.startPositionMM = motion.startPositionMM;
-      pendingMotion.distanceMM = distMM;
-      pendingMotion.speedLevelForward = motion.speedLevelForward;
-      pendingMotion.speedLevelBackward = motion.speedLevelBackward;
-    } else {
-      pendingMotion.distanceMM = distMM;
-    }
-    pendingMotion.hasChanges = true;
-  } else {
-    // Apply immediately
-    motion.targetDistanceMM = distMM;
-    startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-    targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
-    calculateStepDelay();
-  }
+  VaEtVient.setDistance(distMM);
 }
 
 void setStartPosition(float startMM) {
-  if (startMM < 0) startMM = 0;
-  if (startMM > config.totalDistanceMM) {
-    startMM = config.totalDistanceMM;
-    engine->warn(String("⚠️ Start position limited to ") + String(startMM, 1) + " mm (maximum)");
-  }
-  
-  // Validate start position + distance don't exceed maximum
-  bool distanceWasAdjusted = false;
-  if (startMM + motion.targetDistanceMM > config.totalDistanceMM) {
-    motion.targetDistanceMM = config.totalDistanceMM - startMM;
-    distanceWasAdjusted = true;
-    engine->warn(String("⚠️ Distance auto-adjusted to ") + String(motion.targetDistanceMM, 1) + " mm to fit within maximum");
-  }
-  
-  bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
-  
-  if (wasRunning) {
-    // Queue change for end of cycle
-    if (!pendingMotion.hasChanges) {
-      // First pending change - initialize all values
-      pendingMotion.startPositionMM = startMM;
-      pendingMotion.distanceMM = motion.targetDistanceMM;
-      pendingMotion.speedLevelForward = motion.speedLevelForward;
-      pendingMotion.speedLevelBackward = motion.speedLevelBackward;
-    } else {
-      // Already have pending changes - only update start position and distance
-      // Keep pending speeds unchanged (they may have been set by speed commands)
-      pendingMotion.startPositionMM = startMM;
-      pendingMotion.distanceMM = motion.targetDistanceMM;
-    }
-    pendingMotion.hasChanges = true;
-    
-    engine->debug(String("⏳ Start position queued: ") + String(startMM) + " mm (will apply at end of cycle)");
-  } else {
-    // Apply immediately
-    motion.startPositionMM = startMM;
-    startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-    targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
-    calculateStepDelay();
-    
-    engine->debug(String("✓ Start position updated: ") + String(motion.startPositionMM) + " mm");
-    
-    // If distance was auto-adjusted, send immediate status update to sync UI
-    if (distanceWasAdjusted) {
-      sendStatus();
-    }
-  }
+  VaEtVient.setStartPosition(startMM);
 }
 
 void setSpeedForward(float speedLevel) {
-  float oldSpeedLevel = motion.speedLevelForward;
-  bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
-  
-  if (wasRunning) {
-    // Only update forward speed in pending changes
-    // Keep other pending values unchanged (they may have been set by other commands)
-    if (!pendingMotion.hasChanges) {
-      // First pending change - initialize all values
-      pendingMotion.startPositionMM = motion.startPositionMM;
-      pendingMotion.distanceMM = motion.targetDistanceMM;
-      pendingMotion.speedLevelForward = speedLevel;
-      pendingMotion.speedLevelBackward = motion.speedLevelBackward;
-    } else {
-      // Already have pending changes - only update forward speed
-      pendingMotion.speedLevelForward = speedLevel;
-    }
-    pendingMotion.hasChanges = true;
-    engine->debug(String("⏳ Forward speed queued: ") + String(oldSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " → " + 
-          String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
-  } else {
-    motion.speedLevelForward = speedLevel;
-    engine->debug(String("✓ Forward speed: ") + String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
-          String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
-    calculateStepDelay();
-  }
+  VaEtVient.setSpeedForward(speedLevel);
 }
 
 void setSpeedBackward(float speedLevel) {
-  float oldSpeedLevel = motion.speedLevelBackward;
-  bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
-  
-  if (wasRunning) {
-    // Only update backward speed in pending changes
-    // Keep other pending values unchanged (they may have been set by other commands)
-    if (!pendingMotion.hasChanges) {
-      // First pending change - initialize all values
-      pendingMotion.startPositionMM = motion.startPositionMM;
-      pendingMotion.distanceMM = motion.targetDistanceMM;
-      pendingMotion.speedLevelForward = motion.speedLevelForward;
-      pendingMotion.speedLevelBackward = speedLevel;
-    } else {
-      // Already have pending changes - only update backward speed
-      pendingMotion.speedLevelBackward = speedLevel;
-    }
-    pendingMotion.hasChanges = true;
-    engine->debug(String("⏳ Backward speed queued: ") + String(oldSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " → " + 
-          String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
-  } else {
-    motion.speedLevelBackward = speedLevel;
-    engine->debug(String("✓ Backward speed: ") + String(speedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
-          String(speedLevelToCyclesPerMin(speedLevel), 0) + " c/min)");
-    calculateStepDelay();
-  }
+  VaEtVient.setSpeedBackward(speedLevel);
 }
 
 void resetTotalDistance() {

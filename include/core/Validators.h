@@ -8,7 +8,7 @@
 // - Deceleration zone configuration
 //
 // Usage: Include this header and use Validators namespace
-//   #include "Validators.h"
+//   #include "core/Validators.h"
 //   String err;
 //   if (!Validators::distance(100.0, err)) { sendError(err); }
 // ============================================================================

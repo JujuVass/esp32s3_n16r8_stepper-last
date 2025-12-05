@@ -1,26 +1,26 @@
 // ============================================================================
-// API ROUTES MANAGER - PHASE 3.4
+// API ROUTES MANAGER - Implementation
 // ============================================================================
-// Extracted HTTP server routes from main .ino
-// Reduces main file by ~550 lines
+// HTTP server routes for ESP32 Stepper Controller
 // ============================================================================
 
-#ifndef API_ROUTES_H
-#define API_ROUTES_H
-
-#include <WebServer.h>
+#include "web/APIRoutes.h"
 #include <LittleFS.h>
 #include <ArduinoJson.h>
+#include <WiFi.h>
 #include "UtilityEngine.h"
 #include "sequencer/SequenceTableManager.h"
 
-// Forward declarations for global context
+// External globals
 extern WebServer server;
 extern WebSocketsServer webSocket;
 extern UtilityEngine* engine;
 
-// Date/Time helpers (for stats export)
-inline String getFormattedDate() {
+// ============================================================================
+// HELPER FUNCTIONS IMPLEMENTATION
+// ============================================================================
+
+String getFormattedDate() {
   time_t now = time(nullptr);
   struct tm* timeinfo = localtime(&now);
   char dateStr[11];
@@ -28,7 +28,7 @@ inline String getFormattedDate() {
   return String(dateStr);
 }
 
-inline String getFormattedTime() {
+String getFormattedTime() {
   time_t now = time(nullptr);
   struct tm* timeinfo = localtime(&now);
   char timeStr[9];
@@ -36,11 +36,7 @@ inline String getFormattedTime() {
   return String(timeStr);
 }
 
-// ============================================================================
-// HELPER FUNCTIONS (JSON responses)
-// ============================================================================
-
-inline void sendJsonError(int code, const String& message) {
+void sendJsonError(int code, const String& message) {
   JsonDocument doc;
   doc["error"] = message;
   String json;
@@ -48,7 +44,7 @@ inline void sendJsonError(int code, const String& message) {
   server.send(code, "application/json", json);
 }
 
-inline void sendJsonSuccess(const String& message = "") {
+void sendJsonSuccess(const String& message) {
   JsonDocument doc;
   doc["success"] = true;
   if (message.length() > 0) {
@@ -59,7 +55,7 @@ inline void sendJsonSuccess(const String& message = "") {
   server.send(200, "application/json", json);
 }
 
-inline void sendJsonSuccessWithId(int id) {
+void sendJsonSuccessWithId(int id) {
   JsonDocument doc;
   doc["success"] = true;
   doc["id"] = id;
@@ -68,11 +64,11 @@ inline void sendJsonSuccessWithId(int id) {
   server.send(200, "application/json", json);
 }
 
-inline void sendJsonApiError(int code, const String& message) {
+void sendJsonApiError(int code, const String& message) {
   sendJsonError(code, message);
 }
 
-inline void sendEmptyPlaylistStructure() {
+void sendEmptyPlaylistStructure() {
   JsonDocument doc;
   doc["vaet"] = JsonArray();
   doc["oscillation"] = JsonArray();
@@ -961,5 +957,3 @@ void setupAPIRoutes() {
     server.send(404, "text/plain", "Not found: " + uri);
   });
 }
-
-#endif // API_ROUTES_H

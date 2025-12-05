@@ -31,7 +31,7 @@
 #include "Types.h"
 #include "Config.h"
 #include "UtilityEngine.h"
-#include "Validators.h"
+#include "core/Validators.h"
 #include "GlobalState.h"
 
 // Module singletons - use directly instead of extern wrappers

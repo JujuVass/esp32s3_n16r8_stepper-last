@@ -19,7 +19,13 @@
 #include <Arduino.h>
 #include <WebSocketsServer.h>
 #include <WebServer.h>
-#include "Types.h"
+#include "Types.h"      // Must come before any SystemConfig usage
+#include "Config.h"     // Constants like STEPS_PER_MM, SAFETY_OFFSET_STEPS
+#include "UtilityEngine.h" // For SystemConfig definition
+
+// Forward declarations for module singletons
+class VaEtVientControllerClass;
+extern VaEtVientControllerClass VaEtVient;
 
 // ============================================================================
 // CORE SYSTEM STATE
@@ -38,6 +44,8 @@ extern bool movingForward;
 extern bool hasReachedStartStep;
 extern bool isPaused;
 extern unsigned long lastStepMicros;
+extern unsigned long stepDelayMicrosForward;
+extern unsigned long stepDelayMicrosBackward;
 
 // ============================================================================
 // MOVEMENT TYPE
