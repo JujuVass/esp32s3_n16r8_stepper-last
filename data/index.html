@@ -7739,8 +7739,10 @@ Détecte la limite physique`;
         const milestoneName = milestoneInfo.current ? milestoneInfo.current.name : 'Démarrage';
         
         // Build tooltip with milestone info (like main display)
-        let milestoneTooltip = `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)`;
-        if (milestoneInfo.current.location !== "-") {
+        let milestoneTooltip = milestoneInfo.current 
+          ? `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)` 
+          : '🏁 Démarrage';
+        if (milestoneInfo.current && milestoneInfo.current.location !== "-") {
           milestoneTooltip += ` - ${milestoneInfo.current.location}`;
         }
         
