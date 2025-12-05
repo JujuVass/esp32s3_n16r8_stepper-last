@@ -102,6 +102,48 @@ public:
      * @return true if majority of samples match expectedState
      */
     bool readDebounced(uint8_t pin, uint8_t expectedState, uint8_t checks = 3, uint16_t delayUs = 100);
+    
+    // ========================================================================
+    // DRIFT DETECTION & CORRECTION (Phase 3)
+    // ========================================================================
+    // Multi-level drift handling for va-et-vient and chaos modes
+    // Called during doStep() to detect and correct position drift
+    
+    /**
+     * Check and correct soft drift at END position
+     * Soft drift = position beyond maxStep but within buffer zone
+     * Action: Physically moves motor backward to correct position
+     * 
+     * @return true if drift was detected and corrected (caller should reverse direction)
+     */
+    bool checkAndCorrectDriftEnd();
+    
+    /**
+     * Check and correct soft drift at START position
+     * Soft drift = negative position within buffer zone
+     * Action: Physically moves motor forward to correct position
+     * 
+     * @return true if drift was detected and corrected (caller should return)
+     */
+    bool checkAndCorrectDriftStart();
+    
+    /**
+     * Check for hard drift (physical contact) at END
+     * Hard drift = critical error, physical contact reached
+     * Action: Emergency stop, ERROR state
+     * 
+     * @return true if safe to continue, false if hard drift detected (critical error)
+     */
+    bool checkHardDriftEnd();
+    
+    /**
+     * Check for hard drift (physical contact) at START
+     * Hard drift = critical error, physical contact reached
+     * Action: Emergency stop, ERROR state
+     * 
+     * @return true if safe to continue, false if hard drift detected (critical error)
+     */
+    bool checkHardDriftStart();
 
 private:
     // Singleton pattern

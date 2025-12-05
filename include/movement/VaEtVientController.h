@@ -178,6 +178,48 @@ public:
      * Recovery mechanism, works from ERROR state
      */
     void returnToStart();
+    
+    // ========================================================================
+    // STEP EXECUTION (Phase 3 - extracted from main doStep())
+    // ========================================================================
+    
+    /**
+     * Execute one step of va-et-vient movement
+     * Called from main loop() when currentMovement == MOVEMENT_VAET
+     * 
+     * Handles:
+     * - Forward/backward stepping
+     * - Drift detection & correction (via ContactSensors)
+     * - Cycle completion with pending changes
+     * - Cycle pause management
+     * - Cycle timing measurement
+     * - Distance tracking
+     */
+    void doStep();
+    
+    /**
+     * Process cycle completion (end of backward movement)
+     * Applies pending changes, handles pause, measures timing
+     * Called internally by doStep() when reaching startStep
+     */
+    void processCycleCompletion();
+    
+    /**
+     * Handle cycle pause if enabled
+     * @return true if pausing (caller should return), false to continue
+     */
+    bool handleCyclePause();
+    
+    /**
+     * Measure and log cycle timing
+     */
+    void measureCycleTime();
+    
+    /**
+     * Track distance traveled
+     * Updates totalDistanceTraveled global
+     */
+    void trackDistance();
 
 private:
     /**

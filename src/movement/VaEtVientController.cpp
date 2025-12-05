@@ -6,12 +6,14 @@
 #include "GlobalState.h"
 #include "UtilityEngine.h"
 #include "hardware/MotorDriver.h"
+#include "hardware/ContactSensors.h"
 #include "movement/PursuitController.h"
 #include "sequencer/SequenceExecutor.h"
 #include "controllers/CalibrationManager.h"
 
-// External function from main (needed for returnToStart)
+// External functions from main
 extern bool returnToStartContact();
+extern const char* movementTypeName(int type);
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -477,4 +479,176 @@ void VaEtVientControllerClass::initPendingFromCurrent() {
     pendingMotion.distanceMM = motion.targetDistanceMM;
     pendingMotion.speedLevelForward = motion.speedLevelForward;
     pendingMotion.speedLevelBackward = motion.speedLevelBackward;
+}
+
+// ============================================================================
+// STEP EXECUTION (Phase 3)
+// ============================================================================
+
+void VaEtVientControllerClass::doStep() {
+    if (movingForward) {
+        // ═══════════════════════════════════════════════════════════════════
+        // MOVING FORWARD (startStep → targetStep)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Drift detection & correction (delegated to ContactSensors)
+        if (Contacts.checkAndCorrectDriftEnd()) {
+            movingForward = false;  // Reverse direction after correction
+            return;
+        }
+        
+        // Hard drift check (critical error)
+        if (!Contacts.checkHardDriftEnd()) {
+            return;  // Error state, stop processing
+        }
+        
+        // Check if reached target position
+        if (currentStep + 1 > targetStep) {
+            movingForward = false;
+            return;
+        }
+        
+        // Check if we've reached startStep for the first time (initial approach phase)
+        if (!hasReachedStartStep && currentStep >= startStep) {
+            hasReachedStartStep = true;
+        }
+        
+        // Execute step
+        Motor.setDirection(true);  // Forward
+        Motor.step();
+        currentStep++;
+        
+        // Track distance
+        trackDistance();
+        
+    } else {
+        // ═══════════════════════════════════════════════════════════════════
+        // MOVING BACKWARD (targetStep → startStep)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Drift detection & correction (delegated to ContactSensors)
+        if (Contacts.checkAndCorrectDriftStart()) {
+            return;  // Correction done, wait for next step
+        }
+        
+        // Hard drift check (critical error)
+        if (!Contacts.checkHardDriftStart()) {
+            return;  // Error state, stop processing
+        }
+        
+        // Reset wasAtStart flag when far from start
+        if (currentStep > config.minStep + WASATSTART_THRESHOLD_STEPS) {
+            wasAtStart = false;
+        }
+        
+        // Execute step
+        Motor.setDirection(false);  // Backward
+        Motor.step();
+        currentStep--;
+        
+        // Track distance
+        trackDistance();
+        
+        // Check if reached startStep (end of backward movement)
+        // ONLY reverse if we've already been to startStep once (va-et-vient mode active)
+        if (currentStep <= startStep && hasReachedStartStep) {
+            processCycleCompletion();
+        }
+    }
+}
+
+void VaEtVientControllerClass::processCycleCompletion() {
+    // Apply pending changes at end of cycle BEFORE reversing direction
+    applyPendingChanges();
+    
+    // Handle cycle pause if enabled
+    if (handleCyclePause()) {
+        return;  // Pausing, don't reverse yet
+    }
+    
+    // Reverse direction for next cycle
+    movingForward = true;
+    
+    // Sequencer callback if in sequencer context
+    if (config.executionContext == CONTEXT_SEQUENCER) {
+        SeqExecutor.onMovementComplete();
+    }
+    
+    // Measure cycle timing
+    measureCycleTime();
+    
+    // Prepare for next forward movement
+    Motor.setDirection(true);
+    
+    engine->debug(String("🔄 End of backward cycle - State: ") + String(config.currentState) + 
+          " | Movement: " + movementTypeName(currentMovement) + 
+          " | movingForward: " + String(movingForward) + 
+          " | seqState.isRunning: " + String(seqState.isRunning));
+}
+
+bool VaEtVientControllerClass::handleCyclePause() {
+    if (!motion.cyclePause.enabled) {
+        return false;  // No pause, continue
+    }
+    
+    // Calculate pause duration
+    if (motion.cyclePause.isRandom) {
+        // Random mode: pick value between min and max
+        // Safety: ensure min ≤ max (defense in depth)
+        float minVal = min(motion.cyclePause.minPauseSec, motion.cyclePause.maxPauseSec);
+        float maxVal = max(motion.cyclePause.minPauseSec, motion.cyclePause.maxPauseSec);
+        float range = maxVal - minVal;
+        float randomOffset = (float)random(0, 10000) / 10000.0;  // 0.0 to 1.0
+        float pauseSec = minVal + (randomOffset * range);
+        motionPauseState.currentPauseDuration = (unsigned long)(pauseSec * 1000);
+    } else {
+        // Fixed mode
+        motionPauseState.currentPauseDuration = (unsigned long)(motion.cyclePause.pauseDurationSec * 1000);
+    }
+    
+    // Start pause
+    motionPauseState.isPausing = true;
+    motionPauseState.pauseStartMs = millis();
+    
+    engine->debug("⏸️ Pause cycle VAET: " + String(motionPauseState.currentPauseDuration) + "ms");
+    
+    return true;  // Pausing, don't reverse direction yet
+}
+
+void VaEtVientControllerClass::measureCycleTime() {
+    if (wasAtStart) {
+        return;  // Already measured this cycle
+    }
+    
+    unsigned long currentMillis = millis();
+    
+    if (lastStartContactMillis > 0) {
+        cycleTimeMillis = currentMillis - lastStartContactMillis;
+        measuredCyclesPerMinute = 60000.0 / cycleTimeMillis;
+        
+        float avgTargetCPM = (speedLevelToCyclesPerMin(motion.speedLevelForward) + 
+                             speedLevelToCyclesPerMin(motion.speedLevelBackward)) / 2.0;
+        float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
+        float diffPercent = ((measuredCyclesPerMinute - avgTargetCPM) / avgTargetCPM) * 100.0;
+        
+        // Only log if difference is significant (> 15% after compensation)
+        if (abs(diffPercent) > 15.0) {
+            engine->debug(String("⏱️  Cycle timing: ") + String(cycleTimeMillis) + 
+                  " ms | Target: " + String(avgSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
+                  String(avgTargetCPM, 0) + " c/min) | Actual: " + 
+                  String(measuredCyclesPerMinute, 1) + " c/min | ⚠️ Diff: " + 
+                  String(diffPercent, 1) + " %");
+        }
+    }
+    
+    lastStartContactMillis = currentMillis;
+    wasAtStart = true;
+}
+
+void VaEtVientControllerClass::trackDistance() {
+    long delta = abs(currentStep - lastStepForDistance);
+    if (delta > 0) {
+        totalDistanceTraveled += delta;
+        lastStepForDistance = currentStep;
+    }
 }

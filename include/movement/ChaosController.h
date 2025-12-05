@@ -79,6 +79,13 @@ public:
      * @return true if safe to step, false if limit hit
      */
     bool checkLimits();
+    
+    /**
+     * Execute one step in chaos mode
+     * Handles drift detection, amplitude limits, and stepping
+     * Called internally by process() - replaces global doStep() for chaos
+     */
+    void doStep();
 
 private:
     ChaosController() = default;

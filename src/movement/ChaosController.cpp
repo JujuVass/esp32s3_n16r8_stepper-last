@@ -129,6 +129,84 @@ bool ChaosController::checkLimits() {
 }
 
 // ============================================================================
+// CHAOS STEP EXECUTION (Phase 3 - replaces global doStep() for chaos mode)
+// ============================================================================
+
+void ChaosController::doStep() {
+    if (movingForward) {
+        // ═══════════════════════════════════════════════════════════════════
+        // MOVING FORWARD
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Drift detection (safety - shared with va-et-vient)
+        if (Contacts.checkAndCorrectDriftEnd()) {
+            movingForward = false;
+            return;
+        }
+        if (!Contacts.checkHardDriftEnd()) {
+            chaosState.isRunning = false;
+            return;
+        }
+        
+        // Chaos amplitude limits (specific to chaos mode)
+        if (!checkLimits()) return;
+        
+        // Check if reached target
+        if (currentStep + 1 > targetStep) {
+            movingForward = false;
+            return;
+        }
+        
+        // Execute step
+        Motor.setDirection(true);
+        Motor.step();
+        currentStep++;
+        
+        // Track distance
+        long delta = abs(currentStep - lastStepForDistance);
+        if (delta > 0) {
+            totalDistanceTraveled += delta;
+            lastStepForDistance = currentStep;
+        }
+        
+    } else {
+        // ═══════════════════════════════════════════════════════════════════
+        // MOVING BACKWARD
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Drift detection (safety - shared with va-et-vient)
+        if (Contacts.checkAndCorrectDriftStart()) {
+            return;
+        }
+        if (!Contacts.checkHardDriftStart()) {
+            chaosState.isRunning = false;
+            return;
+        }
+        
+        // Chaos amplitude limits (specific to chaos mode)
+        if (!checkLimits()) return;
+        
+        // Check if reached target
+        if (currentStep - 1 < targetStep) {
+            movingForward = true;
+            return;
+        }
+        
+        // Execute step
+        Motor.setDirection(false);
+        Motor.step();
+        currentStep--;
+        
+        // Track distance
+        long delta = abs(currentStep - lastStepForDistance);
+        if (delta > 0) {
+            totalDistanceTraveled += delta;
+            lastStepForDistance = currentStep;
+        }
+    }
+}
+
+// ============================================================================
 // STEP DELAY CALCULATION
 // ============================================================================
 

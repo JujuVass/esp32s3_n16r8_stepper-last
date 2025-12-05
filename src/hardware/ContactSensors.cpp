@@ -3,6 +3,9 @@
 // ============================================================================
 
 #include "hardware/ContactSensors.h"
+#include "hardware/MotorDriver.h"
+#include "GlobalState.h"
+#include "UtilityEngine.h"
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -84,4 +87,124 @@ bool ContactSensors::readDebounced(uint8_t pin, uint8_t expectedState, uint8_t c
     
     // Not enough valid reads to confirm expected state
     return false;
+}
+
+// ============================================================================
+// DRIFT DETECTION & CORRECTION (Phase 3)
+// ============================================================================
+
+bool ContactSensors::checkAndCorrectDriftEnd() {
+    // LEVEL 3: SOFT DRIFT at END
+    // Position beyond config.maxStep but within buffer zone (SAFETY_OFFSET_STEPS)
+    // Action: Physically move motor backward to correct position
+    
+    if (currentStep > config.maxStep && currentStep <= config.maxStep + SAFETY_OFFSET_STEPS) {
+        int correctionSteps = currentStep - config.maxStep;
+        
+        engine->debug(String("🔧 LEVEL 3 - Soft drift END: ") + String(currentStep) + 
+              " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
+              "Backing " + String(correctionSteps) + " steps to config.maxStep (" + 
+              String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
+        
+        Motor.setDirection(false);  // Backward (includes 50µs delay)
+        for (int i = 0; i < correctionSteps; i++) {
+            Motor.step();
+            currentStep--;  // Update position as we move
+        }
+        
+        // Now physically synchronized at config.maxStep
+        currentStep = config.maxStep;
+        engine->debug(String("✓ Position physically corrected to config.maxStep (") + 
+              String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
+        
+        return true;  // Drift corrected, caller should reverse direction
+    }
+    
+    return false;  // No drift detected
+}
+
+bool ContactSensors::checkAndCorrectDriftStart() {
+    // LEVEL 1: SOFT DRIFT at START
+    // Negative position within buffer zone (-SAFETY_OFFSET_STEPS to 0)
+    // Action: Physically move motor forward to correct position
+    
+    if (currentStep < 0 && currentStep >= -SAFETY_OFFSET_STEPS) {
+        int correctionSteps = abs(currentStep);
+        
+        engine->debug(String("🔧 LEVEL 1 - Soft drift START: ") + String(currentStep) + 
+              " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
+              "Advancing " + String(correctionSteps) + " steps to position 0");
+        
+        Motor.setDirection(true);  // Forward (includes 50µs delay)
+        for (int i = 0; i < correctionSteps; i++) {
+            Motor.step();
+            currentStep++;  // Update position as we move
+        }
+        
+        // Now physically synchronized at position 0
+        currentStep = 0;
+        config.minStep = 0;
+        engine->debug("✓ Position physically corrected to 0");
+        
+        return true;  // Drift corrected, caller should return
+    }
+    
+    return false;  // No drift detected
+}
+
+bool ContactSensors::checkHardDriftEnd() {
+    // HARD DRIFT at END: Physical contact reached = critical error
+    // OPTIMIZATION: Only test when close to config.maxStep (reduces false positives + CPU overhead)
+    
+    long stepsToLimit = config.maxStep - currentStep;
+    float distanceToLimitMM = stepsToLimit / STEPS_PER_MM;
+    
+    if (distanceToLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
+        // Close to limit → activate physical contact test
+        if (readDebounced(PIN_END_CONTACT, LOW, 5, 75)) {
+            float currentPos = currentStep / STEPS_PER_MM;
+            
+            engine->error(String("🔴 Hard drift END! Physical contact at ") + 
+                  String(currentPos, 1) + "mm (currentStep: " + String(currentStep) + 
+                  " | " + String(distanceToLimitMM, 1) + "mm from limit)");
+            
+            sendError("❌ ERREUR CRITIQUE: Contact END atteint - Position dérivée au-delà du buffer de sécurité");
+            
+            stopMovement();
+            config.currentState = STATE_ERROR;
+            Motor.disable();  // Safety: disable motor on critical error
+            
+            return false;  // Hard drift detected - critical error
+        }
+    }
+    
+    return true;  // Safe to continue
+}
+
+bool ContactSensors::checkHardDriftStart() {
+    // HARD DRIFT at START: Physical contact reached = critical error
+    // OPTIMIZATION: Only test when close to position 0 (reduces false positives + CPU overhead)
+    
+    float distanceToStartMM = currentStep / STEPS_PER_MM;
+    
+    if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {
+        // Close to start → activate physical contact test
+        if (readDebounced(PIN_START_CONTACT, LOW, 5, 75)) {
+            float currentPos = currentStep / STEPS_PER_MM;
+            
+            engine->error(String("🔴 Hard drift START! Physical contact at ") +
+                  String(currentPos, 1) + "mm (currentStep: " + String(currentStep) + 
+                  " | " + String(distanceToStartMM, 1) + "mm from start)");
+            
+            sendError("❌ ERREUR CRITIQUE: Contact START atteint - Position dérivée au-delà du buffer de sécurité");
+            
+            stopMovement();
+            config.currentState = STATE_ERROR;
+            Motor.disable();  // Safety: disable motor on critical error
+            
+            return false;  // Hard drift detected - critical error
+        }
+    }
+    
+    return true;  // Safe to continue
 }

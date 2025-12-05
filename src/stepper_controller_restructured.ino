@@ -689,7 +689,7 @@ void loop() {
         
         if (currentMicros - lastStepMicros >= currentDelay) {
           lastStepMicros = currentMicros;
-          doStep();
+          VaEtVient.doStep();  // Phase 3: Delegated to VaEtVient module
         }
       }
       break;
