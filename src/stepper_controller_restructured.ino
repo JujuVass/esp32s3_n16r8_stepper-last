@@ -234,156 +234,74 @@ bool validateAndReport(bool isValid, const String& errorMsg);
 // ============================================================================
 void setup() {
   Serial.begin(115200);
-  // Allow serial to initialize (non-critical, keep simple delay)
-  delay(1000);
-  
-  // Initialize random seed for cycle pause random mode
-  randomSeed(analogRead(0) + esp_random());
+  delay(100);  // Brief pause for Serial stability
   
   // ============================================================================
-  // UTILITY ENGINE INITIALIZATION (MUST BE FIRST!)
+  // 1. FILESYSTEM & LOGGING (First for early logging capability)
   // ============================================================================
-  // Creates unified instance for WebSocket, Logging, and LittleFS management
   engine = new UtilityEngine(webSocket);
   if (!engine->initialize()) {
     Serial.println("❌ UtilityEngine initialization failed!");
-    // Continue anyway - engine will degrade gracefully
   } else {
-    engine->info("✅ UtilityEngine initialized and ready");
+    engine->info("✅ UtilityEngine initialized (LittleFS + Logging ready)");
   }
   
   engine->info("\n=== ESP32-S3 Stepper Controller ===");
+  randomSeed(analogRead(0) + esp_random());
   
   // ============================================================================
-  // HARDWARE ABSTRACTION LAYER INITIALIZATION
-  // ============================================================================
-  // Initialize modular hardware drivers (MotorDriver + ContactSensors)
-  Motor.init();      // Initializes PIN_PULSE, PIN_DIR, PIN_ENABLE
-  Contacts.init();   // Initializes PIN_START_CONTACT, PIN_END_CONTACT
-  engine->info("✅ Hardware abstraction layer initialized (Motor + Contacts)");
-  
-  // ============================================================================
-  // CALIBRATION MANAGER INITIALIZATION
-  // ============================================================================
-  // Initialize CalibrationManager with WebSocket and Server references
-  // Callbacks will be set after WebSocket is fully initialized
-  Calibration.init(&webSocket, &server);
-  engine->info("✅ CalibrationManager initialized");
-  
-  // Legacy compatibility: ensure direction tracking variable is in sync
-  Motor.setDirection(false);  // Initialize direction to backward
-  
-  // ============================================================================
-  // NETWORK INITIALIZATION (WiFi + mDNS + NTP + OTA)
+  // 2. NETWORK (WiFi + mDNS + NTP + OTA)
   // ============================================================================
   Network.begin();
   
-  // Print engine status after network setup
-  engine->printStatus();
-  
   // ============================================================================
-  // HTTP SERVER CONFIGURATION
+  // 3. WEB SERVERS (HTTP + WebSocket) - Immediately after WiFi
   // ============================================================================
-  // All HTTP routes are now managed in APIRoutes.h (setupAPIRoutes())
-  // ============================================================================
-  
   server.begin();
-  engine->info("HTTP server started");
-
-  // ============================================================================
-  // FILESYSTEM MANAGER - Register all REST API routes
-  // ============================================================================
-  filesystemManager.registerRoutes();
-  engine->info("✅ Filesystem Manager initialized - Routes ready:");
-  engine->info("   GET  /filesystem           - Filesystem browser UI");
-  engine->info("   GET  /api/fs/list          - List files (recursive JSON)");
-  engine->info("   GET  /api/fs/download      - Download file");
-  engine->info("   GET  /api/fs/read          - Read file content (text)");
-  engine->info("   POST /api/fs/write         - Save edited file");
-  engine->info("   POST /api/fs/upload        - Upload file (multipart)");
-  engine->info("   POST /api/fs/delete        - Delete file");
-  engine->info("   POST /api/fs/clear         - Clear all files");
-
-  // ============================================================================
-  // API ROUTES
-  // ============================================================================
-  setupAPIRoutes();
-  engine->info("✅ API Routes initialized :");
-  engine->info("   GET  /               - Web interface");
-  engine->info("   GET  /style.css      - Stylesheet");
-  engine->info("   GET  /api/stats      - Daily statistics");
-  engine->info("   GET  /api/playlists  - Preset playlists");
-  engine->info("   GET  /logs           - Log files");
-  
-  // ============================================================================
-  // VERIFY PLAYLIST FILE INTEGRITY AT STARTUP
-  // ============================================================================
-  if (LittleFS.exists(PLAYLIST_FILE_PATH)) {
-    File pFile = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-    if (pFile) {
-      size_t pSize = pFile.size();
-      String pContent = pFile.readString();
-      pFile.close();
-      
-      engine->info("📋 Playlist file found: " + String(PLAYLIST_FILE_PATH));
-      engine->info("   Size: " + String(pSize) + " bytes");
-      
-      if (pSize == 0 || pContent.length() == 0) {
-        engine->warn("   ⚠️ File is EMPTY");
-      } else {
-        // Validate JSON structure
-        JsonDocument pDoc;
-        DeserializationError pError = deserializeJson(pDoc, pContent);
-        if (pError) {
-          engine->error("   ❌ JSON CORRUPTED: " + String(pError.c_str()));
-          engine->warn("   🔧 File will be reset on first access");
-        } else {
-          int simpleCount = pDoc["simple"].size();
-          int oscCount = pDoc["oscillation"].size();
-          int chaosCount = pDoc["chaos"].size();
-          int total = simpleCount + oscCount + chaosCount;
-          engine->info("   ✅ JSON valid - " + String(total) + " presets loaded");
-          engine->debug("      Simple: " + String(simpleCount) + 
-                        ", Osc: " + String(oscCount) + 
-                        ", Chaos: " + String(chaosCount));
-        }
-      }
-    } else {
-      engine->error("📋 ❌ Failed to open playlist file!");
-    }
-  } else {
-    engine->info("📋 No playlist file found (will be created on first save)");
-  }
-  
-  // Start WebSocket server
   webSocket.begin();
   
-  // Initialize CommandDispatcher and register as WebSocket event handler
   Dispatcher.begin(&webSocket);
   webSocket.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
     Dispatcher.onWebSocketEvent(num, type, payload, length);
   });
-  engine->info("WebSocket server started on port 81 (CommandDispatcher routing)");
   
-  // Initialize StatusBroadcaster with WebSocket reference
   Status.begin(&webSocket);
-  engine->info("✅ StatusBroadcaster initialized");
+  engine->info("✅ HTTP (80) + WebSocket (81) servers started");
   
   // ============================================================================
-  // CALIBRATION MANAGER CALLBACKS
+  // 4. API ROUTES & FILESYSTEM MANAGER
   // ============================================================================
-  // Set callbacks now that sendStatus() and sendError() are available
+  filesystemManager.registerRoutes();
+  setupAPIRoutes();
+  engine->info("✅ API routes registered");
+  
+  // ============================================================================
+  // 5. HARDWARE (Motor + Contacts)
+  // ============================================================================
+  Motor.init();
+  Contacts.init();
+  Motor.setDirection(false);
+  engine->info("✅ Hardware initialized (Motor + Contacts)");
+  
+  // ============================================================================
+  // 6. CALIBRATION MANAGER
+  // ============================================================================
+  Calibration.init(&webSocket, &server);
   Calibration.setStatusCallback(sendStatus);
   Calibration.setErrorCallback([](const String& msg) { sendError(msg); });
   Calibration.setCompletionCallback([]() { SeqExecutor.onMovementComplete(); });
-  engine->info("✅ CalibrationManager callbacks configured");
+  engine->info("✅ CalibrationManager ready");
+  
+  // ============================================================================
+  // 7. STARTUP COMPLETE
+  // ============================================================================
+  engine->printStatus();
   
   config.currentState = STATE_READY;
   engine->info("\n╔════════════════════════════════════════════════════════╗");
   engine->info("║  WEB INTERFACE READY!                                  ║");
   engine->info("║  Access: http://" + WiFi.localIP().toString() + "                          ║");
-  engine->info("║  Auto-calibration starts in 2 seconds...              ║");
-  engine->info("║  Connect now to see calibration overlay!              ║");
+  engine->info("║  Auto-calibration starts in 1 second...               ║");
   engine->info("╚════════════════════════════════════════════════════════╝\n");
 }
 

@@ -158,8 +158,8 @@ const float OSC_MAX_SPEED_MM_S = MAX_SPEED_LEVEL * 20.0;  // Maximum oscillation
 // ============================================================================
 // CONFIGURATION - Loop Timing
 // ============================================================================
-const unsigned long WEBSERVICE_INTERVAL_US = 5000;    // Service WebSocket every 3ms
-const unsigned long STATUS_UPDATE_INTERVAL_MS = 250;  // Send status every 80ms
+const unsigned long WEBSERVICE_INTERVAL_US = 3000;    // Service WebSocket every 3ms
+const unsigned long STATUS_UPDATE_INTERVAL_MS = 100;  // Send status every 100ms
 const unsigned long SUMMARY_LOG_INTERVAL_MS = 60000;  // Print summary every 60s
 
 // ============================================================================
