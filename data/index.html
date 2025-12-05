@@ -1684,6 +1684,7 @@
   <script src="/js/milestones.js"></script>  <!-- Must load BEFORE app.js -->
   <script src="/js/app.js"></script>
   <script src="/js/utils.js"></script>
+  <script src="/js/websocket.js"></script>   <!-- WebSocket connection & handlers -->
   
   <script>
     // ========================================================================
@@ -1691,6 +1692,7 @@
     // ========================================================================
     // Note: AppState, WS_CMD, PlaylistState, SystemState loaded from app.js
     // Note: showNotification, validateNumericInput, etc. loaded from utils.js
+    // Note: connectWebSocket, handleWebSocketMessage loaded from websocket.js
     
     // ========================================================================
     // PLAYLIST LOAD FROM BACKEND
@@ -4164,127 +4166,11 @@
     }
     
     // ========================================================================
-    // WEBSOCKET CONNECTION
+    // WEBSOCKET CONNECTION - Moved to /js/websocket.js
     // ========================================================================
-    
-    function connectWebSocket() {
-      AppState.ws = new WebSocket('ws://' + window.location.hostname + ':81');
-      
-      AppState.ws.onopen = function() {
-        console.log('WebSocket connected');
-        document.getElementById('state').textContent = 'Connecté au contrôleur';
-        
-        // Initialize pattern toggle button state
-        updatePatternToggleButton();
-        
-        // Request status after a short delay to ensure everything is ready
-        setTimeout(function() {
-          sendCommand(WS_CMD.GET_STATUS, {});
-        }, 50);
-      };
-      
-      AppState.ws.onmessage = function(event) {
-        try {
-          const data = JSON.parse(event.data);
-          
-          // Handle error messages (high priority)
-          if (data.type === 'error') {
-            showNotification(data.message, 'error');
-            return;
-          }
-          
-          // Handle specific message types for MODE TABLEAU
-          if (data.type === 'sequenceTable') {
-            renderSequenceTable(data.data);
-            return;
-          }
-          
-          if (data.type === 'sequenceStatus') {
-            updateSequenceStatus(data);
-            return;
-          }
-          
-          if (data.type === 'exportData') {
-            // Download JSON file
-            const jsonStr = JSON.stringify(data.data, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'sequence_' + new Date().toISOString().slice(0,10) + '.json';
-            a.click();
-            URL.revokeObjectURL(url);
-            return;
-          }
-
-          if (data.type === 'fsList') {
-            // display the index.html timestamp in the sequence tab
-            if (data.files && data.files.length > 0) {
-              const idxFile = data.files.find(f => f.name === '/index.html' || f.name === 'index.html');
-              if (idxFile) {
-                const el = document.getElementById('fsIndexTimestamp');
-                if (el) el.textContent = 'index.html: ' + idxFile.time;
-              }
-            }
-            return;
-          }
-
-          if (data.type === 'log') {
-            // Display log in the common logs panel
-            if (DOM.logConsolePanel) {
-              const level = data.level || 'INFO';
-              const msg = data.message || '';
-              
-              // Color coding based on log level (VSCode Dark+ theme inspired)
-              const colors = {
-                'ERROR': '#f48771',   // Red
-                'WARN': '#dcdcaa',    // Yellow
-                'INFO': '#4ec9b0',    // Cyan
-                'DEBUG': '#9cdcfe'    // Blue
-              };
-              const color = colors[level] || '#d4d4d4';
-              
-              const timestamp = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-              const lineEl = document.createElement('div');
-              lineEl.style.color = color;
-              lineEl.textContent = `[${timestamp}] [${level}] ${msg}`;
-              DOM.logConsolePanel.appendChild(lineEl);
-              DOM.logConsolePanel.scrollTop = DOM.logConsolePanel.scrollHeight;
-              
-              // Auto-scroll and limit to 500 lines
-              while (DOM.logConsolePanel.children.length > 500) {
-                DOM.logConsolePanel.removeChild(DOM.logConsolePanel.firstChild);
-              }
-            }
-            return;
-          }
-          
-          // Default: update main UI
-          updateUI(data);
-        } catch (e) {
-          console.error('WebSocket parse error:', e, 'Raw data:', event.data);
-          showNotification('Erreur de communication avec l\'ESP32', 'error');
-        }
-      };
-      
-      AppState.ws.onclose = function() {
-        console.log('WebSocket disconnected. Reconnecting...');
-        if (DOM.state) {
-          DOM.state.textContent = 'Déconnecté - Reconnexion...';
-        }
-        setTimeout(connectWebSocket, 2000);
-      };
-      
-      AppState.ws.onerror = function(error) {
-        console.error('WebSocket error:', error);
-        if (DOM.state) {
-          DOM.state.textContent = 'Erreur de connexion';
-        }
-        showNotification('Erreur WebSocket - Vérifiez la connexion', 'error');
-      };
-    }
-    
-    // Note: showNotification() loaded from utils.js
+    // connectWebSocket() is now loaded from external module
+    // Handles: onopen, onmessage, onclose, onerror
+    // Message routing: handleWebSocketMessage() dispatches to appropriate handlers
     
     // ============================================================================
     // UI UPDATE

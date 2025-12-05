@@ -224,6 +224,23 @@ void setupAPIRoutes() {
     }
   });
 
+  server.on("/js/websocket.js", HTTP_GET, []() {
+    if (LittleFS.exists("/js/websocket.js")) {
+      File file = LittleFS.open("/js/websocket.js", "r");
+      if (file) {
+        server.sendHeader("Cache-Control", "public, max-age=3600");
+        server.streamFile(file, "application/javascript");
+        file.close();
+        engine->debug("✅ Served /js/websocket.js from LittleFS");
+      } else {
+        server.send(500, "text/plain", "❌ Error opening /js/websocket.js");
+      }
+    } else {
+      server.send(404, "text/plain", "❌ File not found: /js/websocket.js");
+      engine->error("❌ /js/websocket.js not found in LittleFS");
+    }
+  });
+
   // ========================================================================
   // STATISTICS API ROUTES
   // ========================================================================
