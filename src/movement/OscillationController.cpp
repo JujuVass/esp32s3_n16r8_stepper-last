@@ -590,8 +590,10 @@ bool OscillationControllerClass::handleInitialPositioning() {
     long absErrorSteps = abs(errorSteps);
     if (absErrorSteps < (long)(OSC_INITIAL_POSITIONING_TOLERANCE_MM * STEPS_PER_MM)) {
         oscillationState.isInitialPositioning = false;
-        oscillationState.startTimeMs = millis();  // Reset timer
-        engine->debug("✅ Positionnement terminé");
+        oscillationState.startTimeMs = millis();  // Reset timer for oscillation
+        oscillationState.rampStartMs = millis();  // 🔧 FIX: Reset ramp timer AFTER positioning
+        oscillationState.lastPhaseUpdateMs = 0;   // Reset phase tracking
+        engine->debug("✅ Positionnement terminé - Démarrage rampe");
         return false;  // Positioning complete
     }
     
