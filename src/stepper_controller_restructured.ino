@@ -47,7 +47,7 @@
 #include "movement/ChaosController.h"       // Chaos mode controller (Chaos.start(), Chaos.process()...)
 #include "movement/OscillationController.h" // Oscillation mode controller (Osc.start(), Osc.process()...)
 #include "movement/PursuitController.h"     // Pursuit mode controller (Pursuit.move(), Pursuit.process()...)
-#include "movement/VaEtVientController.h"   // Va-et-vient mode controller (VaEtVient.setDistance()...)
+#include "movement/BaseMovementController.h"   // Base movement + decel zone (BaseMovement.validateDecelZone()...)
 
 // Sequencer (modular architecture)
 #include "sequencer/SequenceTableManager.h" // Sequence table CRUD operations
@@ -98,7 +98,7 @@ PendingMotionConfig pendingMotion;
 // Pause state for Simple mode (VAET)
 CyclePauseState motionPauseState;
 
-bool isPaused = false;
+// Note: isPaused global REMOVED - use config.currentState == STATE_PAUSED instead
 bool movingForward = true;
 long startStep = 0;
 long targetStep = 0;
@@ -116,32 +116,20 @@ unsigned long cycleTimeMillis = 0;
 float measuredCyclesPerMinute = 0;
 bool wasAtStart = false;
 
-// Motor direction tracking (for smooth direction changes)
-bool currentMotorDirection = HIGH;  // Current physical motor direction
+// ============================================================================
+// PURSUIT & DECELERATION ZONE - Now owned by their modules (Phase 4D migration)
+// ============================================================================
+// Pursuit state - owned by PursuitController
+// Access via: #include "movement/PursuitController.h" → pursuit
 
-// ============================================================================
-// PURSUIT & DECELERATION ZONE
-// ============================================================================
-PursuitState pursuit;
-DecelZoneConfig decelZone;  // Global deceleration zone configuration
+// Deceleration zone - owned by DecelZoneController
+// Access via: #include "movement/DecelZoneController.h" → decelZone
 
-// ============================================================================
-// OSCILLATION MODE
-// ============================================================================
-OscillationConfig oscillation;
-OscillationState oscillationState;
+// Oscillation state - now owned by OscillationController (Phase 4D migration)
+// Access via: #include "movement/OscillationController.h" → oscillation, oscillationState, oscPauseState, actualOscillationSpeedMMS
 
-// Pause state for Oscillation mode
-CyclePauseState oscPauseState;
-
-// Global variable for actual oscillation speed (for display)
-float actualOscillationSpeedMMS = 0.0;  // Real speed considering hardware limits
-
-// ============================================================================
-// CHAOS MODE
-// ============================================================================
-ChaosRuntimeConfig chaos;
-ChaosExecutionState chaosState;
+// Chaos state - now owned by ChaosController (Phase 4D migration)
+// Access via: #include "movement/ChaosController.h" → chaos, chaosState
 
 // ============================================================================
 // SEQUENCER
@@ -166,16 +154,11 @@ const char* executionContextName(ExecutionContext ctx) {
   }
 }
 
-// Sequence table (max 20 lines)
-#define MAX_SEQUENCE_LINES 20
-SequenceLine sequenceTable[MAX_SEQUENCE_LINES];
+// Sequence table - now owned by SequenceTableManager (Phase 4D migration)
+// Access via: #include "sequencer/SequenceTableManager.h" → sequenceTable[], sequenceLineCount
 
-// Current movement type and sequencer state
-MovementType currentMovement = MOVEMENT_VAET;  // Default: Va-et-vient
-int sequenceLineCount = 0;
-int nextLineId = 1;  // Auto-increment ID counter
-
-SequenceExecutionState seqState;
+// Sequencer state - now owned by SequenceExecutor (Phase 4D migration)
+// Access via: #include "sequencer/SequenceExecutor.h" → seqState, currentMovement
 
 // ============================================================================
 // STATISTICS
@@ -241,24 +224,9 @@ FilesystemManager filesystemManager(server);
 // ============================================================================
 
 // Core functions (defined below in this file)
-// handleCalibrationFailure() removed - now in CalibrationManager
-void startMovement(float distMM, float speedLevel);
-void calculateStepDelay();
-// doStep() removed - now delegated to VaEtVient.doStep() and Chaos.doStep()
-void togglePause();
-void stopMovement();
-void setDistance(float distMM);
-void setStartPosition(float startMM);
-void setSpeedForward(float speedLevel);
-void setSpeedBackward(float speedLevel);
 void resetTotalDistance();
 void sendStatus();
-// webSocketEvent moved to CommandDispatcher module
 void saveCurrentSessionStats();
-
-// Speed conversion utilities
-float speedLevelToCyclesPerMin(float speedLevel);
-float cyclesPerMinToSpeedLevel(float cpm);
 
 // ============================================================================
 // STATS ON-DEMAND TRACKING
@@ -311,10 +279,8 @@ void sendError(String message);
 // Validation + error reporting helper
 bool validateAndReport(bool isValid, const String& errorMsg);
 
-// Deceleration zone functions
-float calculateSlowdownFactor(float zoneProgress);
-int calculateAdjustedDelay(float currentPositionMM, float movementStartMM, float movementEndMM, int baseDelayMicros);
-void validateDecelZone();
+// Deceleration zone functions - delegated to DecelZoneController module
+// Functions: calculateSlowdownFactor(), calculateAdjustedDelay(), validateDecelZone()
 
 // Pursuit mode - delegated to PursuitController module
 // Functions: pursuitMove(), doPursuitStep()
@@ -627,47 +593,8 @@ void loop() {
   switch (currentMovement) {
     case MOVEMENT_VAET:
       // VA-ET-VIENT: Classic back-and-forth movement
-      if (config.currentState == STATE_RUNNING && !isPaused) {
-        
-        // 🆕 NOUVEAU: Vérifier si en pause entre cycles
-        if (motionPauseState.isPausing) {
-          unsigned long elapsedMs = millis() - motionPauseState.pauseStartMs;
-          if (elapsedMs >= motionPauseState.currentPauseDuration) {
-            // Fin de pause, reprendre le mouvement
-            motionPauseState.isPausing = false;
-            movingForward = true;  // Reprendre direction forward
-            engine->debug("▶️ Fin pause cycle VAET");
-          }
-          // Pendant la pause, ne rien faire (pas de step)
-          break;
-        }
-        
-        unsigned long currentMicros = micros();
-        unsigned long currentDelay = movingForward ? stepDelayMicrosForward : stepDelayMicrosBackward;
-        
-        // Apply deceleration zone adjustment if enabled
-        if (decelZone.enabled && hasReachedStartStep) {
-          float currentPositionMM = (currentStep - startStep) / STEPS_PER_MM;
-          
-          // CRITICAL: Direction matters!
-          float movementStartMM, movementEndMM;
-          if (movingForward) {
-            movementStartMM = 0.0;
-            movementEndMM = motion.targetDistanceMM;
-          } else {
-            // Inverted for backward movement
-            movementStartMM = motion.targetDistanceMM;
-            movementEndMM = 0.0;
-          }
-          
-          currentDelay = calculateAdjustedDelay(currentPositionMM, movementStartMM, movementEndMM, currentDelay);
-        }
-        
-        if (currentMicros - lastStepMicros >= currentDelay) {
-          lastStepMicros = currentMicros;
-          VaEtVient.doStep();  // Phase 3: Delegated to VaEtVient module
-        }
-      }
+      // All logic (timing, decel, stepping) encapsulated in BaseMovement.process()
+      BaseMovement.process();
       break;
       
     case MOVEMENT_PURSUIT:
@@ -684,14 +611,14 @@ void loop() {
       
     case MOVEMENT_OSC:
       // OSCILLATION: Sinusoidal oscillation with ramping
-      if (config.currentState == STATE_RUNNING && !isPaused) {
+      if (config.currentState == STATE_RUNNING) {
         Osc.process();
       }
       break;
       
     case MOVEMENT_CHAOS:
       // CHAOS: Random chaotic patterns (delegated to ChaosController module)
-      if (config.currentState == STATE_RUNNING && !isPaused) {
+      if (config.currentState == STATE_RUNNING) {
         Chaos.process();
       }
       break;
@@ -735,7 +662,7 @@ void loop() {
   static unsigned long lastSummary = 0;
   static unsigned long cycleCounter = 0;
   
-  if (config.currentState == STATE_RUNNING && !isPaused) {
+  if (config.currentState == STATE_RUNNING) {
     // Count cycles (increment when we reach start position)
     static bool lastWasAtStart = false;
     bool nowAtStart = (currentStep == startStep);
@@ -778,160 +705,13 @@ void loop() {
 // ============================================================================
 
 // ============================================================================
-// DECELERATION ZONE FUNCTIONS
+// DECELERATION ZONE FUNCTIONS - Phase 4C: Moved to DecelZoneController
 // ============================================================================
-
-/**
- * Calculate slowdown factor based on position within deceleration zone
- * @param zoneProgress Position in zone: 0.0 (at boundary/contact) to 1.0 (exiting zone)
- * @return Slowdown factor (1.0 = normal speed, >1.0 = slower)
- */
-float calculateSlowdownFactor(float zoneProgress) {
-  // Maximum slowdown based on effect percentage
-  // 0% effect = 1.0 (no slowdown)
-  // 100% effect = 10.0 (10× slower at contact)
-  float maxSlowdown = 1.0 + (decelZone.effectPercent / 100.0) * 9.0;
-  
-  float factor;
-  
-  switch (decelZone.mode) {
-    case DECEL_LINEAR:
-      // Linear: constant deceleration rate
-      // zoneProgress=0.0 (contact) → max slowdown
-      // zoneProgress=1.0 (exit) → normal speed
-      factor = 1.0 + (1.0 - zoneProgress) * (maxSlowdown - 1.0);
-      break;
-      
-    case DECEL_SINE:
-      // Sinusoidal curve (smooth, max slowdown at contact)
-      // zoneProgress=0.0: cos(0)=1.0 → smoothProgress=0.0 → max slowdown
-      // zoneProgress=1.0: cos(PI)=-1.0 → smoothProgress=1.0 → normal speed
-      {
-        float smoothProgress = (1.0 - cos(zoneProgress * PI)) / 2.0;
-        factor = 1.0 + (1.0 - smoothProgress) * (maxSlowdown - 1.0);
-      }
-      break;
-      
-    case DECEL_TRIANGLE_INV:
-      // Triangle inverted: weak deceleration at start, strong at end
-      // Uses quadratic curve: deceleration increases as we approach contact
-      // zoneProgress=0.0 (contact) → max slowdown
-      // zoneProgress=1.0 (exit) → normal speed
-      // But curve is steeper near contact (inverted triangle shape)
-      {
-        float invProgress = 1.0 - zoneProgress;  // Invert so 0=exit, 1=contact
-        float curved = invProgress * invProgress;  // Square for steeper curve at end
-        factor = 1.0 + curved * (maxSlowdown - 1.0);
-      }
-      break;
-      
-    case DECEL_SINE_INV:
-      // Sine inverted: weak deceleration at start, strong at end
-      // Uses inverted sine curve for smooth but asymmetric deceleration
-      // zoneProgress=0.0 (contact) → max slowdown
-      // zoneProgress=1.0 (exit) → minimal slowdown
-      {
-        // Inverse sine: starts slow, accelerates deceleration toward contact
-        // sin(0) = 0, sin(PI/2) = 1
-        float invProgress = 1.0 - zoneProgress;
-        float curved = sin(invProgress * PI / 2.0);  // 0 to PI/2 range
-        factor = 1.0 + curved * (maxSlowdown - 1.0);
-      }
-      break;
-      
-    default:
-      factor = 1.0;
-      break;
-  }
-  
-  return factor;
-}
-
-/**
- * Calculate adjusted delay based on position within movement range and deceleration zones
- * Zones are RELATIVE to the configured movement range, not absolute calibrated positions
- * 
- * @param currentPositionMM Current absolute position in mm (from START contact)
- * @param movementStartMM Start position of current movement in mm
- * @param movementEndMM End position of current movement in mm
- * @param baseDelayMicros Base delay in microseconds (normal speed)
- * @return Adjusted delay in microseconds (higher = slower)
- */
-int calculateAdjustedDelay(float currentPositionMM, float movementStartMM, float movementEndMM, int baseDelayMicros) {
-  // If deceleration disabled, return base speed
-  if (!decelZone.enabled) {
-    return baseDelayMicros;
-  }
-  
-  // Calculate distances relative to movement boundaries
-  float distanceFromStart = abs(currentPositionMM - movementStartMM);
-  float distanceFromEnd = abs(movementEndMM - currentPositionMM);
-  
-  float slowdownFactor = 1.0;  // Default: normal speed
-  
-  // Check if in START deceleration zone
-  if (decelZone.enableStart && distanceFromStart <= decelZone.zoneMM) {
-    // Progress: 0.0 (at start boundary) → 1.0 (exiting zone toward center)
-    float zoneProgress = distanceFromStart / decelZone.zoneMM;
-    slowdownFactor = calculateSlowdownFactor(zoneProgress);
-  }
-  
-  // Check if in END deceleration zone (takes priority if overlapping)
-  if (decelZone.enableEnd && distanceFromEnd <= decelZone.zoneMM) {
-    // Progress: 0.0 (at end boundary) → 1.0 (exiting zone toward center)
-    float zoneProgress = distanceFromEnd / decelZone.zoneMM;
-    slowdownFactor = calculateSlowdownFactor(zoneProgress);
-  }
-  
-  // Apply slowdown factor to base delay
-  return (int)(baseDelayMicros * slowdownFactor);
-}
-
-/**
- * Validate and adjust deceleration zone size to ensure it doesn't exceed movement amplitude
- * Should be called when zone config changes or movement distance changes
- */
-void validateDecelZone() {
-  if (!decelZone.enabled) {
-    return;  // No validation needed if disabled
-  }
-  
-  // Get current movement amplitude (not calibrated max)
-  float movementAmplitudeMM = motion.targetDistanceMM;
-  
-  if (movementAmplitudeMM <= 0) {
-    engine->warn("⚠️ Cannot validate decel zone: no movement configured");
-    return;
-  }
-  
-  float maxAllowedZone;
-  
-  // If both zones enabled, each can use max 50% of movement amplitude
-  if (decelZone.enableStart && decelZone.enableEnd) {
-    maxAllowedZone = movementAmplitudeMM / 2.0;
-  } else {
-    // If only one zone enabled, it can use entire amplitude
-    maxAllowedZone = movementAmplitudeMM;
-  }
-  
-  // Enforce minimum zone size (10mm) - P4 enhancement: catch negative values
-  if (decelZone.zoneMM < 0) {
-    decelZone.zoneMM = 10.0;
-    engine->warn("⚠️ Zone négative détectée, corrigée à 10 mm");
-  } else if (decelZone.zoneMM < 10.0) {
-    decelZone.zoneMM = 10.0;
-    engine->warn("⚠️ Zone augmentée à 10 mm (minimum)");
-  }
-  
-  // Enforce maximum zone size
-  if (decelZone.zoneMM > maxAllowedZone) {
-    engine->warn("⚠️ Zone réduite de " + String(decelZone.zoneMM, 1) + " mm à " + 
-          String(maxAllowedZone, 1) + " mm (max pour amplitude de " + 
-          String(movementAmplitudeMM, 1) + " mm)");
-    
-    decelZone.zoneMM = maxAllowedZone;
-  }
-}
+// Functions removed:
+//   - calculateSlowdownFactor() → Internal to DecelZoneController
+//   - calculateAdjustedDelay() → Use DecelZone.calculateAdjustedDelay()
+//   - validateDecelZone() → Use DecelZone.validate()
+// ============================================================================
 
 
 // ============================================================================
@@ -979,33 +759,6 @@ bool validateAndReport(bool isValid, const String& errorMsg) {
 }
 
 // ============================================================================
-// SPEED CONVERSION UTILITIES
-// ============================================================================
-
-float speedLevelToCyclesPerMin(float speedLevel) {
-  // Convert 0-20 scale to cycles/min (0-200)
-  float cpm = speedLevel * 10.0;
-  
-  // Safety limits
-  if (cpm < 0) cpm = 0;
-  if (cpm > MAX_SPEED_LEVEL * 10.0) cpm = MAX_SPEED_LEVEL * 10.0;
-  
-  return cpm;
-}
-
-float cyclesPerMinToSpeedLevel(float cpm) {
-  return cpm / 10.0;
-}
-
-// ============================================================================
-// MOTOR CONTROL - Movement
-// ============================================================================
-
-void startMovement(float distMM, float speedLevel) {
-  VaEtVient.start(distMM, speedLevel);
-}
-
-// ============================================================================
 // EFFECTIVE MAX DISTANCE - Calculate usable distance based on limit percent
 // ============================================================================
 void updateEffectiveMaxDistance() {
@@ -1015,48 +768,12 @@ void updateEffectiveMaxDistance() {
         String(config.totalDistanceMM, 1) + " mm)");
 }
 
-void calculateStepDelay() {
-  VaEtVient.calculateStepDelay();
-}
-
 // ============================================================================
-// MOTOR CONTROL - doStep() removed (Phase 3)
-// Stepping now delegated to:
-//   - VaEtVient.doStep() for MOVEMENT_VAET
-//   - Chaos.doStep() for MOVEMENT_CHAOS (called via Chaos.process())
+// MOTOR CONTROL - Stepping delegated to controllers
+// - BaseMovement.process() for MOVEMENT_VAET
+// - Chaos.process() for MOVEMENT_CHAOS
+// - Osc.process() for MOVEMENT_OSC
 // ============================================================================
-
-// ============================================================================
-// MOTOR CONTROL - Helper Functions (delegates to VaEtVient)
-// ============================================================================
-
-void togglePause() {
-  VaEtVient.togglePause();
-}
-
-void stopMovement() {
-  VaEtVient.stop();
-}
-
-// ============================================================================
-// MOTOR CONTROL - Parameter Updates (delegates to VaEtVient module)
-// ============================================================================
-
-void setDistance(float distMM) {
-  VaEtVient.setDistance(distMM);
-}
-
-void setStartPosition(float startMM) {
-  VaEtVient.setStartPosition(startMM);
-}
-
-void setSpeedForward(float speedLevel) {
-  VaEtVient.setSpeedForward(speedLevel);
-}
-
-void setSpeedBackward(float speedLevel) {
-  VaEtVient.setSpeedBackward(speedLevel);
-}
 
 void resetTotalDistance() {
   // Save any unsaved distance before resetting
@@ -1128,8 +845,22 @@ void saveCurrentSessionStats() {
 //                  doOscillationStep(), startOscillation()
 // Use: Osc.start(), Osc.process(), Osc.calculatePosition(), Osc.validateAmplitude()
 
+// ============================================================================
+// MOVEMENT CONTROL WRAPPERS (kept for cross-module compatibility)
+// ============================================================================
+// These thin wrappers allow modules like ContactSensors, SequenceExecutor
+// to call movement control without direct BaseMovement dependency.
+
+void stopMovement() {
+  BaseMovement.stop();
+}
+
+void togglePause() {
+  BaseMovement.togglePause();
+}
+
 void returnToStart() {
-  VaEtVient.returnToStart();
+  BaseMovement.returnToStart();
 }
 
 // ============================================================================

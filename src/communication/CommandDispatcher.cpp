@@ -17,7 +17,7 @@
 #include "sequencer/SequenceTableManager.h"
 #include "movement/OscillationController.h"
 #include "movement/PursuitController.h"
-#include "movement/ChaosController.h"  // Phase 4A: Direct access to Chaos singleton
+#include "movement/ChaosController.h"       // Phase 4A: Direct access to Chaos singleton
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -141,19 +141,19 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
         if (!validateAndReport(Validators::speed(spd, errorMsg), errorMsg)) return true;
         
         engine->info("Command: Start movement (" + String(dist, 1) + "mm @ speed " + String(spd, 1) + ")");
-        startMovement(dist, spd);
+        BaseMovement.start(dist, spd);  // Direct call to BaseMovement singleton
         return true;
     }
     
     if (strcmp(cmd, "pause") == 0) {
         engine->debug("Command: Pause/Resume");
-        togglePause();
+        BaseMovement.togglePause();  // Direct call to BaseMovement singleton
         return true;
     }
     
     if (strcmp(cmd, "stop") == 0) {
         engine->info("Command: Stop");
-        stopMovement();
+        BaseMovement.stop();  // Direct call to BaseMovement singleton
         return true;
     }
     
@@ -164,7 +164,7 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
     
     if (strcmp(cmd, "returnToStart") == 0) {
         engine->debug("Command: Return to start");
-        returnToStart();
+        BaseMovement.returnToStart();  // Direct call to BaseMovement singleton
         return true;
     }
     
@@ -219,7 +219,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
         if (!validateAndReport(Validators::distance(dist, errorMsg), errorMsg)) return true;
         
         engine->debug("Command: Set distance (" + String(dist, 1) + "mm)");
-        setDistance(dist);
+        BaseMovement.setDistance(dist);  // Direct call to BaseMovement singleton
         return true;
     }
     
@@ -230,7 +230,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
         if (!validateAndReport(Validators::position(startPos, errorMsg), errorMsg)) return true;
         
         engine->debug("Command: Set start position (" + String(startPos, 1) + "mm)");
-        setStartPosition(startPos);
+        BaseMovement.setStartPosition(startPos);  // Direct call to BaseMovement singleton
         return true;
     }
     
@@ -241,7 +241,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
         if (!validateAndReport(Validators::speed(spd, errorMsg), errorMsg)) return true;
         
         engine->debug("Command: Set forward speed (" + String(spd, 1) + ")");
-        setSpeedForward(spd);
+        BaseMovement.setSpeedForward(spd);  // Direct call to BaseMovement singleton
         return true;
     }
     
@@ -252,7 +252,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
         if (!validateAndReport(Validators::speed(spd, errorMsg), errorMsg)) return true;
         
         engine->debug("Command: Set backward speed (" + String(spd, 1) + ")");
-        setSpeedBackward(spd);
+        BaseMovement.setSpeedBackward(spd);  // Direct call to BaseMovement singleton
         return true;
     }
     
@@ -277,7 +277,7 @@ bool CommandDispatcher::handleDecelZoneCommands(const char* cmd, JsonDocument& d
         if (effectPercent >= 0 && effectPercent <= 100) decelZone.effectPercent = effectPercent;
         if (modeValue >= 0 && modeValue <= 3) decelZone.mode = (DecelMode)modeValue;
         
-        validateDecelZone();
+        BaseMovement.validateDecelZone();  // Integrated into BaseMovementController
         
         String zones = "";
         if (decelZone.enableStart) zones += "START ";
@@ -542,14 +542,16 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
                               oldFrequency != oscillation.frequencyHz ||
                               oldWaveform != oscillation.waveform);
         
+        bool isOscRunning = (currentMovement == MOVEMENT_OSC && config.currentState == STATE_RUNNING);
+        
         if (paramsChanged) {
             engine->debug("📝 OSC config: center=" + String(oscillation.centerPositionMM, 1) + 
                   "mm | amp=" + String(oscillation.amplitudeMM, 1) + 
                   "mm | freq=" + String(oscillation.frequencyHz, 3) + "Hz" +
-                  (currentMovement == MOVEMENT_OSC && !isPaused ? " | ⚡ Live update" : ""));
+                  (isOscRunning ? " | ⚡ Live update" : ""));
             
             // Smooth center transition during active oscillation
-            if (currentMovement == MOVEMENT_OSC && !isPaused && oldCenter != oscillation.centerPositionMM) {
+            if (isOscRunning && oldCenter != oscillation.centerPositionMM) {
                 oscillationState.isCenterTransitioning = true;
                 oscillationState.centerTransitionStartMs = millis();
                 oscillationState.oldCenterMM = oldCenter;
@@ -557,7 +559,7 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
             }
             
             // Smooth amplitude transition
-            if (currentMovement == MOVEMENT_OSC && !isPaused && oldAmplitude != oscillation.amplitudeMM) {
+            if (isOscRunning && oldAmplitude != oscillation.amplitudeMM) {
                 oscillationState.isAmplitudeTransitioning = true;
                 oscillationState.amplitudeTransitionStartMs = millis();
                 oscillationState.oldAmplitudeMM = oldAmplitude;
@@ -565,7 +567,7 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
             }
             
             // Disable ramps for immediate effect
-            if (currentMovement == MOVEMENT_OSC && !isPaused) {
+            if (isOscRunning) {
                 oscillationState.isRampingIn = false;
                 oscillationState.isRampingOut = false;
             }

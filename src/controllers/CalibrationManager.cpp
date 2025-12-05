@@ -5,11 +5,10 @@
 // ============================================================================
 
 #include "controllers/CalibrationManager.h"
+#include "GlobalState.h"  // Phase 4D: Use centralized extern declarations
 #include "UtilityEngine.h"
 
-// External references to global state (defined in main .ino)
-extern volatile long currentStep;
-extern struct SystemConfig config;
+// NOTE: currentStep, config now via GlobalState.h (Phase 4D cleanup)
 extern UtilityEngine* engine;
 
 // External WebSocket/Server (for servicing during long operations)

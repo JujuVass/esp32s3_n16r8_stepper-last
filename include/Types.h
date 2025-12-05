@@ -4,6 +4,33 @@
 // All type definitions (enums, structs) centralized for clarity
 // Runtime configuration structures with default values in constructors
 // ============================================================================
+//
+// PAUSE ARCHITECTURE (2 levels):
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Level 1: USER PAUSE (global)
+// ─────────────────────────────
+//   Source of truth: config.currentState == STATE_PAUSED
+//   Triggered by: User clicking "Pause" button
+//   Effect: Stops ALL motor movement immediately
+//   Scope: Global - affects all movement modes
+//   Code: BaseMovement.togglePause() → config.currentState = STATE_PAUSED
+//
+// Level 2: CYCLE PAUSE (per-mode automatic pauses)
+// ─────────────────────────────────────────────────
+//   VAET mode: motionPauseState.isPausing (CyclePauseState struct)
+//   OSC mode:  oscPauseState.isPausing (CyclePauseState struct)
+//   CHAOS mode: chaosState.isInPatternPause (internal to pattern)
+//   
+//   Triggered by: Automatic timing between cycles
+//   Effect: Brief pause at cycle boundaries (start/end positions)
+//   Scope: Mode-specific - doesn't affect UI state
+//
+// IMPORTANT: Never use a simple 'isPaused' boolean - always be explicit:
+//   - config.currentState == STATE_PAUSED  (user pause)
+//   - *PauseState.isPausing                (cycle pause)
+//   - chaosState.isInPatternPause          (pattern-internal pause)
+// ═══════════════════════════════════════════════════════════════════════════
 
 #ifndef TYPES_H
 #define TYPES_H
@@ -320,9 +347,11 @@ struct ChaosExecutionState {
   float waveFrequency;               // Frequency in Hz for sinusoidal wave
   
   // CALM specific state (breathing/heartbeat)
-  bool isPaused;                     // Currently in pause phase
-  unsigned long pauseStartTime;      // When pause started
-  unsigned long pauseDuration;       // Duration of current pause
+  // NOTE: isInPatternPause is INTERNAL to chaos patterns, NOT user pause
+  // User pause is controlled by config.currentState == STATE_PAUSED
+  bool isInPatternPause;             // Currently in pattern's internal pause phase
+  unsigned long pauseStartTime;      // When pattern pause started
+  unsigned long pauseDuration;       // Duration of current pattern pause
   
   // BRUTE FORCE specific state (3-phase: fast in, slow out, pause)
   uint8_t brutePhase;                // 0=aller rapide, 1=retour lent, 2=pause
@@ -351,7 +380,7 @@ struct ChaosExecutionState {
     pulsePhase(false),
     pulseCenterMM(0),
     waveFrequency(0),
-    isPaused(false),
+    isInPatternPause(false),
     pauseStartTime(0),
     pauseDuration(0),
     brutePhase(0),

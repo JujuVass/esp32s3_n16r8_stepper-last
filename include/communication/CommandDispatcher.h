@@ -40,6 +40,7 @@
 #include "movement/OscillationController.h"
 #include "movement/PursuitController.h"
 #include "movement/ChaosController.h"
+#include "movement/BaseMovementController.h"
 #include "controllers/CalibrationManager.h"
 
 // ============================================================================

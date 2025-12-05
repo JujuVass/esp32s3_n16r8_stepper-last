@@ -16,6 +16,12 @@
 #include "sequencer/SequenceExecutor.h"
 
 // ============================================================================
+// CHAOS STATE - Owned by this module (Phase 4D migration)
+// ============================================================================
+ChaosRuntimeConfig chaos;
+ChaosExecutionState chaosState;
+
+// ============================================================================
 // SINGLETON INSTANCE
 // ============================================================================
 
@@ -459,7 +465,7 @@ void ChaosController::handleCalm(float craziness, float effectiveMinLimit, float
     
     chaosState.waveFrequency = sin_cfg.frequencyMin + ((sin_cfg.frequencyMax - sin_cfg.frequencyMin) * random(0, 101) / 100.0);
     chaosState.pauseDuration = pause_cfg.pauseMin + (unsigned long)((pause_cfg.pauseMax - pause_cfg.pauseMin) * (1.0 - craziness));
-    chaosState.isPaused = false;
+    chaosState.isInPatternPause = false;
     chaosState.patternStartTime = millis();
     chaosState.targetPositionMM = chaos.centerPositionMM;
 }
@@ -667,10 +673,10 @@ void ChaosController::processWave(float effectiveMinLimit, float effectiveMaxLim
 }
 
 void ChaosController::processCalm(float effectiveMinLimit, float effectiveMaxLimit) {
-    if (chaosState.isPaused) {
+    if (chaosState.isInPatternPause) {
         unsigned long pauseElapsed = millis() - chaosState.pauseStartTime;
         if (pauseElapsed >= chaosState.pauseDuration) {
-            chaosState.isPaused = false;
+            chaosState.isInPatternPause = false;
             chaosState.patternStartTime = millis();
             engine->debug("😮 CALM: pause complete, resuming breathing");
         }
@@ -692,7 +698,7 @@ void ChaosController::processCalm(float effectiveMinLimit, float effectiveMaxLim
     lastSineValue = sineValue;
     
     if (crossedThreshold && random(10000) < (int)(CALM_PAUSE.pauseChancePercent * 100)) {
-        chaosState.isPaused = true;
+        chaosState.isInPatternPause = true;
         chaosState.pauseStartTime = millis();
         chaosState.pauseDuration = random(CALM_PAUSE.pauseMin, CALM_PAUSE.pauseMax);
         engine->debug("😌 CALM: entering pause for " + String(chaosState.pauseDuration) + "ms");
@@ -809,14 +815,14 @@ void ChaosController::handleBruteForceAtTarget(float effectiveMinLimit, float ef
               
     } else if (chaosState.brutePhase == 1) {
         chaosState.brutePhase = 2;
-        chaosState.isPaused = true;
+        chaosState.isInPatternPause = true;
         chaosState.pauseStartTime = millis();
         
         engine->debug("🔨 BRUTE_FORCE Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
         
     } else {
         chaosState.brutePhase = 0;
-        chaosState.isPaused = false;
+        chaosState.isInPatternPause = false;
         chaosState.movingForward = !chaosState.movingForward;
         
         chaosState.currentSpeedLevel = (0.7 + 0.3 * craziness) * chaos.maxSpeedLevel;
@@ -859,14 +865,14 @@ void ChaosController::handleLiberatorAtTarget(float effectiveMinLimit, float eff
               
     } else if (chaosState.liberatorPhase == 1) {
         chaosState.liberatorPhase = 2;
-        chaosState.isPaused = true;
+        chaosState.isInPatternPause = true;
         chaosState.pauseStartTime = millis();
         
         engine->debug("🔓 LIBERATOR Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
         
     } else {
         chaosState.liberatorPhase = 0;
-        chaosState.isPaused = false;
+        chaosState.isInPatternPause = false;
         chaosState.movingForward = !chaosState.movingForward;
         
         chaosState.currentSpeedLevel = (0.01 + 0.09 * craziness) * chaos.maxSpeedLevel;
@@ -907,13 +913,13 @@ void ChaosController::handleDiscreteAtTarget() {
 void ChaosController::process() {
     if (!chaosState.isRunning) return;
     
-    // Handle pause for multi-phase patterns
-    if (chaosState.isPaused && 
+    // Handle pause for multi-phase patterns (internal pattern pause, not user pause)
+    if (chaosState.isInPatternPause && 
         (chaosState.currentPattern == CHAOS_BRUTE_FORCE || 
          chaosState.currentPattern == CHAOS_LIBERATOR)) {
         unsigned long pauseElapsed = millis() - chaosState.pauseStartTime;
         if (pauseElapsed >= chaosState.pauseDuration) {
-            chaosState.isPaused = false;
+            chaosState.isInPatternPause = false;
             String patternName = (chaosState.currentPattern == CHAOS_BRUTE_FORCE) ? "BRUTE_FORCE" : "LIBERATOR";
             engine->debug(String(chaosState.currentPattern == CHAOS_BRUTE_FORCE ? "🔨" : "🔓") + " " + 
                   patternName + " pause complete, resuming");
@@ -964,7 +970,7 @@ void ChaosController::process() {
     
     if (chaosState.currentPattern == CHAOS_CALM) {
         processCalm(effectiveMinLimit, effectiveMaxLimit);
-        if (chaosState.isPaused) return;
+        if (chaosState.isInPatternPause) return;
     }
     
     // Check if at target
@@ -1104,8 +1110,8 @@ void ChaosController::start() {
           " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
           "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
     
+    // Set running state (config.currentState is single source of truth for user pause)
     config.currentState = STATE_RUNNING;
-    isPaused = false;
     currentMovement = MOVEMENT_CHAOS;
     
     Motor.enable();
@@ -1138,5 +1144,5 @@ void ChaosController::stop() {
     
     config.currentState = STATE_READY;
     currentMovement = MOVEMENT_VAET;
-    isPaused = true;
+    // Note: config.currentState = STATE_READY already stops movement (no need for separate isPaused)
 }

@@ -26,8 +26,10 @@
 // ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
-// These functions are defined in main and need to be called
-extern void calculateStepDelay();
+
+// Sequencer state - defined in SequenceExecutor.cpp (Phase 4D migration)
+extern SequenceExecutionState seqState;
+extern MovementType currentMovement;
 
 // ============================================================================
 // SEQUENCE EXECUTOR CLASS

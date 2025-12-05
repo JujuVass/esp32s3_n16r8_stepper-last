@@ -17,6 +17,14 @@
 #include "sequencer/SequenceExecutor.h"
 
 // ============================================================================
+// OSCILLATION STATE - Owned by this module (Phase 4D migration)
+// ============================================================================
+OscillationConfig oscillation;
+OscillationState oscillationState;
+CyclePauseState oscPauseState;
+float actualOscillationSpeedMMS = 0.0;
+
+// ============================================================================
 // LOCAL SINE LOOKUP TABLE (for fast oscillation waveform calculation)
 // ============================================================================
 
@@ -107,9 +115,8 @@ void OscillationControllerClass::start() {
     // NOTE: Don't stop sequencer here - start() can be called BY the sequencer (P4 translation)
     // Conflict safety is handled in WebSocket handlers (startMovement, enablePursuitMode, etc.)
     
-    // Start movement
+    // Start movement (config.currentState is single source of truth for pause state)
     config.currentState = STATE_RUNNING;
-    ::isPaused = false;
     
     // Set movement type (config.executionContext remains unchanged - can be STANDALONE or SEQUENCER)
     currentMovement = MOVEMENT_OSC;
@@ -162,8 +169,8 @@ void OscillationControllerClass::process() {
             oscillationState.rampStartMs = millis();
             cyclesCompleteLogged_ = false;  // Reset for next oscillation
         } else if (!oscillation.enableRampOut) {
-            // Stop immediately
-            ::isPaused = true;
+            // Stop immediately (set state to PAUSED)
+            config.currentState = STATE_PAUSED;
             
             // NEW ARCHITECTURE: Use unified completion handler
             SeqExecutor.onMovementComplete();
@@ -422,7 +429,7 @@ float OscillationControllerClass::calculatePosition() {
             // Ramp out complete, stop oscillation
             effectiveAmplitude = 0;
             oscillationState.isRampingOut = false;
-            ::isPaused = true;  // Stop movement
+            config.currentState = STATE_PAUSED;  // Stop movement (single source of truth)
             
             // ✅ SEQUENCE MODE: Set state to READY and notify sequencer
             if (seqState.isRunning) {
@@ -602,7 +609,7 @@ bool OscillationControllerClass::checkSafetyContacts(long targetStep) {
     if (distanceToEndLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
         if (targetStep >= config.maxStep && Contacts.readDebounced(PIN_END_CONTACT, LOW)) {
             sendError("❌ OSCILLATION: Contact END atteint de manière inattendue (amplitude proche limite)");
-            ::isPaused = true;
+            config.currentState = STATE_PAUSED;  // Stop movement (single source of truth)
             return false;
         }
     }
@@ -611,7 +618,7 @@ bool OscillationControllerClass::checkSafetyContacts(long targetStep) {
     if (minOscPositionMM <= HARD_DRIFT_TEST_ZONE_MM) {
         if (targetStep <= config.minStep && Contacts.readDebounced(PIN_START_CONTACT, LOW, 3, 100)) {
             sendError("❌ OSCILLATION: Contact START atteint de manière inattendue (amplitude proche limite)");
-            ::isPaused = true;
+            config.currentState = STATE_PAUSED;  // Stop movement (single source of truth)
             return false;
         }
     }

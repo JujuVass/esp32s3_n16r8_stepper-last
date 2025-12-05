@@ -11,11 +11,19 @@
  */
 
 #include "sequencer/SequenceExecutor.h"
+#include "sequencer/SequenceTableManager.h"  // Phase 4D: Access sequenceTable[], sequenceLineCount
 #include "UtilityEngine.h"
 #include "hardware/MotorDriver.h"
 #include "controllers/CalibrationManager.h"
 #include "movement/ChaosController.h"
 #include "movement/OscillationController.h"
+#include "movement/BaseMovementController.h" // For calculateStepDelay(), validateDecelZone()
+
+// ============================================================================
+// SEQUENCER STATE - Owned by this module (Phase 4D migration)
+// ============================================================================
+SequenceExecutionState seqState;
+MovementType currentMovement = MOVEMENT_VAET;  // Default: Va-et-vient
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -119,12 +127,12 @@ void SequenceExecutor::togglePause() {
     seqState.isPaused = !seqState.isPaused;
     
     if (seqState.isPaused) {
-        // Pause current movement
-        ::isPaused = true;
+        // Pause current movement (config.currentState is single source of truth)
+        config.currentState = STATE_PAUSED;
         engine->info("⏸️ Séquence en pause");
     } else {
         // Resume movement
-        ::isPaused = false;
+        config.currentState = STATE_RUNNING;
         engine->info("▶️ Séquence reprise");
     }
 }
@@ -450,10 +458,10 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     motion.cyclePause.maxPauseSec = line->vaetCyclePauseMaxSec;
     
     // Validate configuration
-    validateDecelZone();
+    BaseMovement.validateDecelZone();  // Integrated into BaseMovementController
     
     // Calculate step delays and start movement
-    calculateStepDelay();
+    BaseMovement.calculateStepDelay();
     
     Motor.enable();
     lastStepMicros = micros();
@@ -462,8 +470,8 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
     targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
     
+    // Set running state (config.currentState is single source of truth)
     config.currentState = STATE_RUNNING;
-    ::isPaused = false;
     
     // Set movement type (config.executionContext already == CONTEXT_SEQUENCER)
     currentMovement = MOVEMENT_VAET;

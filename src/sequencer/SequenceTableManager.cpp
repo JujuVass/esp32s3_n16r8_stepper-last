@@ -12,11 +12,10 @@
 #include <WebSocketsServer.h>
 
 // ============================================================================
-// EXTERNAL VARIABLES (defined in main)
+// SEQUENCE DATA - Owned by this module (Phase 4D migration)
 // ============================================================================
-extern SequenceLine sequenceTable[];
-extern int sequenceLineCount;
-extern int nextLineId;
+SequenceLine sequenceTable[MAX_SEQUENCE_LINES];
+int sequenceLineCount = 0;
 
 // ============================================================================
 // FORWARD DECLARATIONS (functions in main)
@@ -36,7 +35,8 @@ SequenceTableManager& SeqTable = SequenceTableManager::getInstance();
 
 SequenceTableManager::SequenceTableManager() {
   // engine is a global pointer (extern UtilityEngine* engine)
-  // Note: sequenceTable, sequenceLineCount, nextLineId are in main
+  // Note: sequenceTable, sequenceLineCount are in main
+  // Note: nextLineId unified to config.nextLineId (Phase 4D)
 }
 
 // ============================================================================
@@ -49,7 +49,7 @@ int SequenceTableManager::addLine(SequenceLine newLine) {
     return -1;
   }
   
-  newLine.lineId = nextLineId++;
+  newLine.lineId = config.nextLineId++;  // Phase 4D: Use config.nextLineId
   sequenceTable[sequenceLineCount] = newLine;
   sequenceLineCount++;
   
@@ -136,7 +136,7 @@ int SequenceTableManager::duplicateLine(int lineId) {
 
 void SequenceTableManager::clear() {
   sequenceLineCount = 0;
-  nextLineId = 1;
+  config.nextLineId = 1;  // Phase 4D: Use config.nextLineId
   engine->info("🗑️ Tableau vidé");
 }
 
@@ -437,10 +437,10 @@ int SequenceTableManager::importFromJson(String jsonData) {
     importedCount++;
   }
   
-  nextLineId = maxLineId + 1;
+  config.nextLineId = maxLineId + 1;  // Phase 4D: Use config.nextLineId
   
   engine->info(String("✅ ") + String(importedCount) + " lignes importées");
-  engine->info(String("📢 nextLineId mis à jour: ") + String(nextLineId));
+  engine->info(String("📢 nextLineId mis à jour: ") + String(config.nextLineId));
   
   return importedCount;
 }

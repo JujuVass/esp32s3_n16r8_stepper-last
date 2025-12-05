@@ -34,6 +34,14 @@
 #include "GlobalState.h"
 
 // ============================================================================
+// OSCILLATION STATE - Defined in OscillationController.cpp (Phase 4D)
+// ============================================================================
+extern OscillationConfig oscillation;
+extern OscillationState oscillationState;
+extern CyclePauseState oscPauseState;
+extern float actualOscillationSpeedMMS;
+
+// ============================================================================
 // CLASS DECLARATION
 // ============================================================================
 

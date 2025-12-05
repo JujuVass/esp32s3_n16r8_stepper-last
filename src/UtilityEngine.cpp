@@ -13,10 +13,8 @@
 #define EEPROM_ADDR_LOGGING_ENABLED 0
 #define EEPROM_ADDR_LOG_LEVEL 1
 
-// Forward declarations for external use
+// NOTE: isPaused removed - use config.isPaused instead (Phase 4D cleanup)
 // NOTE: currentState moved to SystemConfig struct - accessed via config.currentState
-// extern SystemState currentState;  // REMOVED - now in config struct
-extern bool isPaused;
 
 // ============================================================================
 // CONSTRUCTOR

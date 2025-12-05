@@ -1,49 +1,50 @@
 // ============================================================================
-// VA-ET-VIENT CONTROLLER - Implementation
+// BASE MOVEMENT CONTROLLER - Implementation
 // ============================================================================
 
-#include "movement/VaEtVientController.h"
+#include "movement/BaseMovementController.h"
 #include "GlobalState.h"
 #include "UtilityEngine.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
 #include "movement/PursuitController.h"
+#include "movement/ChaosController.h"       // Phase 4D: Access chaosState
+#include "movement/OscillationController.h" // Phase 4D: Access oscillationState, oscPauseState
 #include "sequencer/SequenceExecutor.h"
 #include "controllers/CalibrationManager.h"
 
-// External functions from main
-extern const char* movementTypeName(int type);
+// ============================================================================
+// DECEL ZONE STATE - Owned by BaseMovementController (integrated)
+// ============================================================================
+DecelZoneConfig decelZone;
 
 // ============================================================================
 // SINGLETON INSTANCE
 // ============================================================================
 
-VaEtVientControllerClass VaEtVient;
+BaseMovementControllerClass BaseMovement;
 
 // ============================================================================
 // CONSTRUCTOR
 // ============================================================================
 
-VaEtVientControllerClass::VaEtVientControllerClass() :
-    lastStartContactMillis(0),
-    cycleTimeMillis(0),
-    measuredCyclesPerMinute(0),
-    wasAtStart(false)
+BaseMovementControllerClass::BaseMovementControllerClass()
 {
-    // motion, pendingMotion, pauseState use default constructors from Types.h
+    // Global variables (motion, pendingMotion, motionPauseState, timing vars)
+    // are initialized in main.ino - no member initialization needed
 }
 
 // ============================================================================
 // PARAMETER UPDATE METHODS
 // ============================================================================
 
-void VaEtVientControllerClass::setDistance(float distMM) {
+void BaseMovementControllerClass::setDistance(float distMM) {
     // Limit distance to valid range
     if (motion.startPositionMM + distMM > config.totalDistanceMM) {
         distMM = config.totalDistanceMM - motion.startPositionMM;
     }
     
-    if (config.currentState == STATE_RUNNING && !isPaused) {
+    if (config.currentState == STATE_RUNNING) {
         // Queue change for end of cycle
         if (!pendingMotion.hasChanges) {
             initPendingFromCurrent();
@@ -59,7 +60,7 @@ void VaEtVientControllerClass::setDistance(float distMM) {
     }
 }
 
-void VaEtVientControllerClass::setStartPosition(float startMM) {
+void BaseMovementControllerClass::setStartPosition(float startMM) {
     if (startMM < 0) startMM = 0;
     if (startMM > config.totalDistanceMM) {
         startMM = config.totalDistanceMM;
@@ -74,7 +75,7 @@ void VaEtVientControllerClass::setStartPosition(float startMM) {
         engine->warn(String("⚠️ Distance auto-adjusted to ") + String(motion.targetDistanceMM, 1) + " mm to fit within maximum");
     }
     
-    bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
+    bool wasRunning = (config.currentState == STATE_RUNNING);
     
     if (wasRunning) {
         // Queue change for end of cycle
@@ -102,9 +103,9 @@ void VaEtVientControllerClass::setStartPosition(float startMM) {
     }
 }
 
-void VaEtVientControllerClass::setSpeedForward(float speedLevel) {
+void BaseMovementControllerClass::setSpeedForward(float speedLevel) {
     float oldSpeedLevel = motion.speedLevelForward;
-    bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
+    bool wasRunning = (config.currentState == STATE_RUNNING);
     
     if (wasRunning) {
         // Queue change for end of cycle
@@ -124,9 +125,9 @@ void VaEtVientControllerClass::setSpeedForward(float speedLevel) {
     }
 }
 
-void VaEtVientControllerClass::setSpeedBackward(float speedLevel) {
+void BaseMovementControllerClass::setSpeedBackward(float speedLevel) {
     float oldSpeedLevel = motion.speedLevelBackward;
-    bool wasRunning = (config.currentState == STATE_RUNNING && !isPaused);
+    bool wasRunning = (config.currentState == STATE_RUNNING);
     
     if (wasRunning) {
         // Queue change for end of cycle
@@ -146,7 +147,7 @@ void VaEtVientControllerClass::setSpeedBackward(float speedLevel) {
     }
 }
 
-void VaEtVientControllerClass::setCyclePause(bool enabled, float durationSec, 
+void BaseMovementControllerClass::setCyclePause(bool enabled, float durationSec, 
                                               bool isRandom, float minSec, float maxSec) {
     motion.cyclePause.enabled = enabled;
     motion.cyclePause.pauseDurationSec = durationSec;
@@ -169,7 +170,7 @@ void VaEtVientControllerClass::setCyclePause(bool enabled, float durationSec,
 // CALCULATION METHODS
 // ============================================================================
 
-void VaEtVientControllerClass::calculateStepDelay() {
+void BaseMovementControllerClass::calculateStepDelay() {
     // FIXED CYCLE TIME - speed adapts to distance
     if (motion.targetDistanceMM <= 0 || motion.speedLevelForward <= 0 || motion.speedLevelBackward <= 0) {
         stepDelayMicrosForward = 1000;
@@ -226,7 +227,7 @@ void VaEtVientControllerClass::calculateStepDelay() {
           " c/min) | Total: " + String((int)totalCycleTime) + " ms");
 }
 
-float VaEtVientControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
+float BaseMovementControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
     // Convert 0-20 scale to cycles/min (0-200)
     float cpm = speedLevel * 10.0;
     
@@ -237,15 +238,137 @@ float VaEtVientControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
     return cpm;
 }
 
-float VaEtVientControllerClass::cyclesPerMinToSpeedLevel(float cpm) {
+float BaseMovementControllerClass::cyclesPerMinToSpeedLevel(float cpm) {
     return cpm / 10.0;
+}
+
+// ============================================================================
+// DECELERATION ZONE METHODS (integrated from DecelZoneController)
+// ============================================================================
+
+float BaseMovementControllerClass::calculateSlowdownFactor(float zoneProgress) {
+    // Maximum slowdown based on effect percentage
+    // 0% effect = 1.0 (no slowdown)
+    // 100% effect = 10.0 (10× slower at contact)
+    float maxSlowdown = 1.0 + (decelZone.effectPercent / 100.0) * 9.0;
+    
+    float factor;
+    
+    switch (decelZone.mode) {
+        case DECEL_LINEAR:
+            // Linear: constant deceleration rate
+            factor = 1.0 + (1.0 - zoneProgress) * (maxSlowdown - 1.0);
+            break;
+            
+        case DECEL_SINE:
+            // Sinusoidal curve (smooth, max slowdown at contact)
+            {
+                float smoothProgress = (1.0 - cos(zoneProgress * PI)) / 2.0;
+                factor = 1.0 + (1.0 - smoothProgress) * (maxSlowdown - 1.0);
+            }
+            break;
+            
+        case DECEL_TRIANGLE_INV:
+            // Triangle inverted: weak deceleration at start, strong at end
+            {
+                float invProgress = 1.0 - zoneProgress;
+                float curved = invProgress * invProgress;
+                factor = 1.0 + curved * (maxSlowdown - 1.0);
+            }
+            break;
+            
+        case DECEL_SINE_INV:
+            // Sine inverted: weak deceleration at start, strong at end
+            {
+                float invProgress = 1.0 - zoneProgress;
+                float curved = sin(invProgress * PI / 2.0);
+                factor = 1.0 + curved * (maxSlowdown - 1.0);
+            }
+            break;
+            
+        default:
+            factor = 1.0;
+            break;
+    }
+    
+    return factor;
+}
+
+int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM, float movementStartMM, 
+                                                        float movementEndMM, int baseDelayMicros) {
+    // If deceleration disabled, return base speed
+    if (!decelZone.enabled) {
+        return baseDelayMicros;
+    }
+    
+    // Calculate distances relative to movement boundaries
+    float distanceFromStart = abs(currentPositionMM - movementStartMM);
+    float distanceFromEnd = abs(movementEndMM - currentPositionMM);
+    
+    float slowdownFactor = 1.0;  // Default: normal speed
+    
+    // Check if in START deceleration zone
+    if (decelZone.enableStart && distanceFromStart <= decelZone.zoneMM) {
+        float zoneProgress = distanceFromStart / decelZone.zoneMM;
+        slowdownFactor = calculateSlowdownFactor(zoneProgress);
+    }
+    
+    // Check if in END deceleration zone (takes priority if overlapping)
+    if (decelZone.enableEnd && distanceFromEnd <= decelZone.zoneMM) {
+        float zoneProgress = distanceFromEnd / decelZone.zoneMM;
+        slowdownFactor = calculateSlowdownFactor(zoneProgress);
+    }
+    
+    // Apply slowdown factor to base delay
+    return (int)(baseDelayMicros * slowdownFactor);
+}
+
+void BaseMovementControllerClass::validateDecelZone() {
+    if (!decelZone.enabled) {
+        return;  // No validation needed if disabled
+    }
+    
+    // Get current movement amplitude
+    float movementAmplitudeMM = motion.targetDistanceMM;
+    
+    if (movementAmplitudeMM <= 0) {
+        engine->warn("⚠️ Cannot validate decel zone: no movement configured");
+        return;
+    }
+    
+    float maxAllowedZone;
+    
+    // If both zones enabled, each can use max 50% of movement amplitude
+    if (decelZone.enableStart && decelZone.enableEnd) {
+        maxAllowedZone = movementAmplitudeMM / 2.0;
+    } else {
+        maxAllowedZone = movementAmplitudeMM;
+    }
+    
+    // Enforce minimum zone size (10mm)
+    if (decelZone.zoneMM < 0) {
+        decelZone.zoneMM = 10.0;
+        engine->warn("⚠️ Zone négative détectée, corrigée à 10 mm");
+    } else if (decelZone.zoneMM < 10.0) {
+        decelZone.zoneMM = 10.0;
+        engine->warn("⚠️ Zone augmentée à 10 mm (minimum)");
+    }
+    
+    // Enforce maximum zone size
+    if (decelZone.zoneMM > maxAllowedZone) {
+        engine->warn("⚠️ Zone réduite de " + String(decelZone.zoneMM, 1) + " mm à " + 
+              String(maxAllowedZone, 1) + " mm (max pour amplitude de " + 
+              String(movementAmplitudeMM, 1) + " mm)");
+        
+        decelZone.zoneMM = maxAllowedZone;
+    }
 }
 
 // ============================================================================
 // PENDING CHANGES MANAGEMENT
 // ============================================================================
 
-void VaEtVientControllerClass::applyPendingChanges() {
+void BaseMovementControllerClass::applyPendingChanges() {
     if (!pendingMotion.hasChanges) return;
     
     engine->debug(String("🔄 Applying pending config: ") + String(pendingMotion.distanceMM, 1) + 
@@ -263,7 +386,7 @@ void VaEtVientControllerClass::applyPendingChanges() {
     targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
 }
 
-void VaEtVientControllerClass::resetCycleTiming() {
+void BaseMovementControllerClass::resetCycleTiming() {
     lastStartContactMillis = 0;
     cycleTimeMillis = 0;
     measuredCyclesPerMinute = 0;
@@ -274,29 +397,31 @@ void VaEtVientControllerClass::resetCycleTiming() {
 // MOVEMENT CONTROL (Phase 2)
 // ============================================================================
 
-void VaEtVientControllerClass::togglePause() {
+void BaseMovementControllerClass::togglePause() {
     if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
+        bool wasPaused = (config.currentState == STATE_PAUSED);
+        
         // 💾 Save stats BEFORE toggling pause (save accumulated distance)
-        if (!isPaused) {
+        if (!wasPaused) {
             // Going from RUNNING → PAUSED: save current session
             saveCurrentSessionStats();
             engine->debug("💾 Stats saved before pause");
         }
         
-        isPaused = !isPaused;
-        config.currentState = isPaused ? STATE_PAUSED : STATE_RUNNING;
+        // Toggle state directly via config.currentState (single source of truth)
+        config.currentState = wasPaused ? STATE_RUNNING : STATE_PAUSED;
         
         // 🆕 CORRECTION: Reset timer en mode oscillation pour éviter le saut de phase lors de la reprise
-        if (!isPaused && currentMovement == MOVEMENT_OSC) {
+        if (wasPaused && currentMovement == MOVEMENT_OSC) {
             oscillationState.lastPhaseUpdateMs = millis();
             engine->debug("🔄 Phase gelée après pause (évite à-coup)");
         }
         
-        engine->info(isPaused ? "Paused" : "Resumed");
+        engine->info(config.currentState == STATE_PAUSED ? "Paused" : "Resumed");
     }
 }
 
-void VaEtVientControllerClass::stop() {
+void BaseMovementControllerClass::stop() {
     if (currentMovement == MOVEMENT_PURSUIT) {
         Pursuit.stop();  // Delegated to PursuitController
         // Keep motor enabled - HSS86 needs to stay synchronized
@@ -328,7 +453,7 @@ void VaEtVientControllerClass::stop() {
         // Disabling and re-enabling causes step loss with startPosition > 0
         
         config.currentState = STATE_READY;
-        isPaused = false;
+        // Note: isPaused global removed - config.currentState is now single source of truth
         
         pendingMotion.hasChanges = false;
         
@@ -337,7 +462,7 @@ void VaEtVientControllerClass::stop() {
     }
 }
 
-void VaEtVientControllerClass::start(float distMM, float speedLevel) {
+void BaseMovementControllerClass::start(float distMM, float speedLevel) {
     // ✅ Stop sequence if running (user manually starts simple mode)
     if (seqState.isRunning) {
         engine->debug("start(): stopping sequence because user manually started movement");
@@ -397,8 +522,8 @@ void VaEtVientControllerClass::start(float distMM, float speedLevel) {
     targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
     
     // NOW set running state - lastStepMicros is properly initialized
+    // config.currentState is single source of truth (no separate isPaused variable)
     config.currentState = STATE_RUNNING;
-    isPaused = false;
     currentMovement = MOVEMENT_VAET;  // Reset to Simple mode (va-et-vient)
     
     // Determine starting direction based on current position
@@ -428,7 +553,7 @@ void VaEtVientControllerClass::start(float distMM, float speedLevel) {
           " movingForward=" + String(movingForward ? "YES" : "NO"));
 }
 
-void VaEtVientControllerClass::returnToStart() {
+void BaseMovementControllerClass::returnToStart() {
     engine->info("🔄 Returning to start...");
     
     if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
@@ -470,10 +595,62 @@ void VaEtVientControllerClass::returnToStart() {
 }
 
 // ============================================================================
+// MAIN LOOP PROCESSING (Phase 4D - encapsulates timing + decel + step)
+// ============================================================================
+
+void BaseMovementControllerClass::process() {
+    // Guard: Only process if running (STATE_PAUSED is handled via config.currentState)
+    if (config.currentState != STATE_RUNNING) {
+        return;
+    }
+    
+    // Check if in cycle pause (between cycles)
+    if (motionPauseState.isPausing) {
+        unsigned long elapsedMs = millis() - motionPauseState.pauseStartMs;
+        if (elapsedMs >= motionPauseState.currentPauseDuration) {
+            // End of pause, resume movement
+            motionPauseState.isPausing = false;
+            movingForward = true;  // Resume forward direction
+            engine->debug("▶️ Fin pause cycle VAET");
+        }
+        // During pause, don't step
+        return;
+    }
+    
+    // Calculate current step delay
+    unsigned long currentMicros = micros();
+    unsigned long currentDelay = movingForward ? stepDelayMicrosForward : stepDelayMicrosBackward;
+    
+    // Apply deceleration zone adjustment if enabled
+    if (decelZone.enabled && hasReachedStartStep) {
+        float currentPositionMM = (currentStep - startStep) / STEPS_PER_MM;
+        
+        // CRITICAL: Direction matters for deceleration zones!
+        float movementStartMM, movementEndMM;
+        if (movingForward) {
+            movementStartMM = 0.0;
+            movementEndMM = motion.targetDistanceMM;
+        } else {
+            // Inverted for backward movement
+            movementStartMM = motion.targetDistanceMM;
+            movementEndMM = 0.0;
+        }
+        
+        currentDelay = calculateAdjustedDelay(currentPositionMM, movementStartMM, movementEndMM, currentDelay);
+    }
+    
+    // Check if enough time has passed for next step
+    if (currentMicros - lastStepMicros >= currentDelay) {
+        lastStepMicros = currentMicros;
+        doStep();
+    }
+}
+
+// ============================================================================
 // PRIVATE METHODS
 // ============================================================================
 
-void VaEtVientControllerClass::initPendingFromCurrent() {
+void BaseMovementControllerClass::initPendingFromCurrent() {
     pendingMotion.startPositionMM = motion.startPositionMM;
     pendingMotion.distanceMM = motion.targetDistanceMM;
     pendingMotion.speedLevelForward = motion.speedLevelForward;
@@ -484,7 +661,7 @@ void VaEtVientControllerClass::initPendingFromCurrent() {
 // STEP EXECUTION (Phase 3)
 // ============================================================================
 
-void VaEtVientControllerClass::doStep() {
+void BaseMovementControllerClass::doStep() {
     if (movingForward) {
         // ═══════════════════════════════════════════════════════════════════
         // MOVING FORWARD (startStep → targetStep)
@@ -556,7 +733,7 @@ void VaEtVientControllerClass::doStep() {
     }
 }
 
-void VaEtVientControllerClass::processCycleCompletion() {
+void BaseMovementControllerClass::processCycleCompletion() {
     // Apply pending changes at end of cycle BEFORE reversing direction
     applyPendingChanges();
     
@@ -580,12 +757,11 @@ void VaEtVientControllerClass::processCycleCompletion() {
     Motor.setDirection(true);
     
     engine->debug(String("🔄 End of backward cycle - State: ") + String(config.currentState) + 
-          " | Movement: " + movementTypeName(currentMovement) + 
           " | movingForward: " + String(movingForward) + 
           " | seqState.isRunning: " + String(seqState.isRunning));
 }
 
-bool VaEtVientControllerClass::handleCyclePause() {
+bool BaseMovementControllerClass::handleCyclePause() {
     if (!motion.cyclePause.enabled) {
         return false;  // No pause, continue
     }
@@ -614,7 +790,7 @@ bool VaEtVientControllerClass::handleCyclePause() {
     return true;  // Pausing, don't reverse direction yet
 }
 
-void VaEtVientControllerClass::measureCycleTime() {
+void BaseMovementControllerClass::measureCycleTime() {
     if (wasAtStart) {
         return;  // Already measured this cycle
     }
@@ -644,7 +820,7 @@ void VaEtVientControllerClass::measureCycleTime() {
     wasAtStart = true;
 }
 
-void VaEtVientControllerClass::trackDistance() {
+void BaseMovementControllerClass::trackDistance() {
     long delta = abs(currentStep - lastStepForDistance);
     if (delta > 0) {
         totalDistanceTraveled += delta;

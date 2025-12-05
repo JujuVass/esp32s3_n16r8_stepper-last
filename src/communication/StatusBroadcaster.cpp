@@ -11,6 +11,11 @@
  */
 
 #include "communication/StatusBroadcaster.h"
+#include "movement/ChaosController.h"       // Phase 4D: Access chaos, chaosState
+#include "movement/OscillationController.h" // Phase 4D: Access oscillation, oscillationState, oscPauseState, actualOscillationSpeedMMS
+#include "movement/PursuitController.h"     // Phase 4D: Access pursuit
+#include "movement/BaseMovementController.h" // For speed conversion + decelZone
+#include "sequencer/SequenceExecutor.h"     // Phase 4D: Access currentMovement
 #include "UtilityEngine.h"
 #include <WiFi.h>
 
@@ -76,7 +81,7 @@ void StatusBroadcaster::send() {
     doc["totalDistMM"] = serialized(String(config.totalDistanceMM, 2));
     doc["maxDistLimitPercent"] = serialized(String(maxDistanceLimitPercent, 0));
     doc["effectiveMaxDistMM"] = serialized(String(effectiveMaxDistanceMM, 2));
-    doc["isPaused"] = isPaused;
+    doc["isPaused"] = (config.currentState == STATE_PAUSED);  // Derived from single source of truth
     doc["totalTraveled"] = serialized(String(totalTraveledMM, 2));
     doc["canStart"] = canStart;
     doc["canCalibrate"] = canCalibrate;
@@ -120,8 +125,8 @@ void StatusBroadcaster::send() {
 
 void StatusBroadcaster::addVaEtVientFields(JsonDocument& doc) {
     // Motion-specific derived values
-    float cyclesPerMinForward = speedLevelToCyclesPerMin(motion.speedLevelForward);
-    float cyclesPerMinBackward = speedLevelToCyclesPerMin(motion.speedLevelBackward);
+    float cyclesPerMinForward = BaseMovement.speedLevelToCyclesPerMin(motion.speedLevelForward);
+    float cyclesPerMinBackward = BaseMovement.speedLevelToCyclesPerMin(motion.speedLevelBackward);
     float avgCyclesPerMin = (cyclesPerMinForward + cyclesPerMinBackward) / 2.0;
     float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
     

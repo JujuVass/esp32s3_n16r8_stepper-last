@@ -1,52 +1,42 @@
 // ============================================================================
-// VA-ET-VIENT CONTROLLER - Phase 1
+// BASE MOVEMENT CONTROLLER - Core Movement Orchestration
 // ============================================================================
-// Simple back-and-forth movement mode (default mode)
-// Handles: parameter updates, step delay calculation, speed conversion
+// Central movement controller that orchestrates all movement modes:
+// - Va-et-vient (back-and-forth) - default mode
+// - Oscillation, Chaos, Pursuit - specialized modes
 // 
-// Phase 1: Parameter management functions
-// Phase 2 (future): Full movement logic extraction from main
+// Provides: parameter updates, step delay calculation, speed conversion,
+// pause/stop/return control, step execution
 // ============================================================================
 
-#ifndef VA_ET_VIENT_CONTROLLER_H
-#define VA_ET_VIENT_CONTROLLER_H
+#ifndef BASE_MOVEMENT_CONTROLLER_H
+#define BASE_MOVEMENT_CONTROLLER_H
 
 #include <Arduino.h>
 #include "Types.h"
 #include "Config.h"
 #include "GlobalState.h"  // Access to global motion, pendingMotion, etc.
-
-// Forward declarations
-class UtilityEngine;
-extern UtilityEngine* engine;
+#include "UtilityEngine.h" // Access to engine singleton
 
 // ============================================================================
-// VA-ET-VIENT CONTROLLER CLASS
+// BASE MOVEMENT CONTROLLER CLASS
 // ============================================================================
 
-class VaEtVientControllerClass {
+class BaseMovementControllerClass {
 public:
     // ========================================================================
     // CONFIGURATION STATE
     // ========================================================================
     // Note: Phase 1 uses global variables (motion, pendingMotion, motionPauseState)
     // defined in stepper_controller_restructured.ino and declared extern in GlobalState.h
-    // These will be moved into this class in Phase 2
-    
-    // ========================================================================
-    // TIMING STATE (for cycle measurement)
-    // ========================================================================
-    
-    unsigned long lastStartContactMillis;
-    unsigned long cycleTimeMillis;
-    float measuredCyclesPerMinute;
-    bool wasAtStart;
+    // Timing variables (lastStartContactMillis, cycleTimeMillis, etc.) are also globals
+    // shared with SequenceExecutor - no member duplication needed
     
     // ========================================================================
     // CONSTRUCTOR
     // ========================================================================
     
-    VaEtVientControllerClass();
+    BaseMovementControllerClass();
     
     // ========================================================================
     // PARAMETER UPDATE METHODS
@@ -116,6 +106,33 @@ public:
     float cyclesPerMinToSpeedLevel(float cpm);
     
     // ========================================================================
+    // DECELERATION ZONE METHODS (integrated from DecelZoneController)
+    // ========================================================================
+    
+    /**
+     * Calculate slowdown factor based on position within deceleration zone
+     * @param zoneProgress Position in zone: 0.0 (at boundary) to 1.0 (exiting zone)
+     * @return Slowdown factor (1.0 = normal speed, >1.0 = slower)
+     */
+    float calculateSlowdownFactor(float zoneProgress);
+    
+    /**
+     * Calculate adjusted delay based on position within movement range
+     * @param currentPositionMM Current position in mm
+     * @param movementStartMM Start position of current movement in mm
+     * @param movementEndMM End position of current movement in mm
+     * @param baseDelayMicros Base delay in microseconds
+     * @return Adjusted delay in microseconds (higher = slower)
+     */
+    int calculateAdjustedDelay(float currentPositionMM, float movementStartMM, 
+                               float movementEndMM, int baseDelayMicros);
+    
+    /**
+     * Validate and adjust zone size to ensure it doesn't exceed movement amplitude
+     */
+    void validateDecelZone();
+    
+    // ========================================================================
     // PENDING CHANGES MANAGEMENT
     // ========================================================================
     
@@ -180,6 +197,21 @@ public:
     void returnToStart();
     
     // ========================================================================
+    // MAIN LOOP PROCESSING (Phase 4D - encapsulates timing + decel + step)
+    // ========================================================================
+    
+    /**
+     * Process va-et-vient movement (call in main loop)
+     * Handles:
+     * - Cycle pause timing
+     * - Step timing with deceleration zone adjustment
+     * - Step execution via doStep()
+     * 
+     * Encapsulates all logic previously in main loop() for MOVEMENT_VAET
+     */
+    void process();
+    
+    // ========================================================================
     // STEP EXECUTION (Phase 3 - extracted from main doStep())
     // ========================================================================
     
@@ -232,6 +264,6 @@ private:
 // SINGLETON INSTANCE
 // ============================================================================
 
-extern VaEtVientControllerClass VaEtVient;
+extern BaseMovementControllerClass BaseMovement;
 
-#endif // VA_ET_VIENT_CONTROLLER_H
+#endif // BASE_MOVEMENT_CONTROLLER_H
