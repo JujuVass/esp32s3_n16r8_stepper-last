@@ -221,3 +221,21 @@ function setupPresetButtons(dataAttribute, onClickCallback) {
     });
   });
 }
+
+// ============================================================================
+// WEBSOCKET COMMUNICATION
+// ============================================================================
+
+/**
+ * Send a command to the ESP32 via WebSocket
+ * @param {string} cmd - Command identifier (use WS_CMD constants)
+ * @param {Object} params - Additional parameters to send with the command
+ */
+function sendCommand(cmd, params = {}) {
+  if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+    const message = JSON.stringify({cmd: cmd, ...params});
+    AppState.ws.send(message);
+  } else {
+    console.warn('Cannot send command:', cmd, '- WebSocket not connected (retrying...)');
+  }
+}

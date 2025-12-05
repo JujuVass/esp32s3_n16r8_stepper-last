@@ -5989,18 +5989,7 @@ Détecte la limite physique`;
       });
     }
     
-    // Note: canStartOperation, setButtonState, setupEditableInput, setupPresetButtons loaded from utils.js
-    
-    // Note: validateNumericInput() and validateMinMaxPair() loaded from utils.js
-
-    function sendCommand(cmd, params = {}) {
-      if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({cmd: cmd, ...params});
-        AppState.ws.send(message);
-      } else {
-        console.warn('Cannot send command:', cmd, '- WebSocket not connected (retrying...)');
-      }
-    }
+    // Note: canStartOperation, setButtonState, setupEditableInput, setupPresetButtons, sendCommand loaded from utils.js
     
     document.getElementById('btnCalibrateCommon').addEventListener('click', function() {
       sendCommand(WS_CMD.CALIBRATE);
