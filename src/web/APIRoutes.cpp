@@ -146,6 +146,41 @@ void setupAPIRoutes() {
     }
   });
 
+  // JS routes: serve JavaScript modules from /js/ folder
+  server.on("/js/app.js", HTTP_GET, []() {
+    if (LittleFS.exists("/js/app.js")) {
+      File file = LittleFS.open("/js/app.js", "r");
+      if (file) {
+        server.sendHeader("Cache-Control", "public, max-age=3600");
+        server.streamFile(file, "application/javascript");
+        file.close();
+        engine->debug("✅ Served /js/app.js from LittleFS");
+      } else {
+        server.send(500, "text/plain", "❌ Error opening /js/app.js");
+      }
+    } else {
+      server.send(404, "text/plain", "❌ File not found: /js/app.js");
+      engine->error("❌ /js/app.js not found in LittleFS");
+    }
+  });
+
+  server.on("/js/utils.js", HTTP_GET, []() {
+    if (LittleFS.exists("/js/utils.js")) {
+      File file = LittleFS.open("/js/utils.js", "r");
+      if (file) {
+        server.sendHeader("Cache-Control", "public, max-age=3600");
+        server.streamFile(file, "application/javascript");
+        file.close();
+        engine->debug("✅ Served /js/utils.js from LittleFS");
+      } else {
+        server.send(500, "text/plain", "❌ Error opening /js/utils.js");
+      }
+    } else {
+      server.send(404, "text/plain", "❌ File not found: /js/utils.js");
+      engine->error("❌ /js/utils.js not found in LittleFS");
+    }
+  });
+
   // ========================================================================
   // STATISTICS API ROUTES
   // ========================================================================
