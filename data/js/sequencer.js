@@ -241,6 +241,126 @@ function buildSequenceLineDefaultsPure(effectiveMax) {
   };
 }
 
+/**
+ * Build a sequencer line from a playlist preset (PURE FUNCTION)
+ * Merges preset config with default values for missing fields.
+ * 
+ * @param {string} mode - 'simple', 'oscillation', or 'chaos'
+ * @param {Object} config - Preset configuration from playlist
+ * @param {number} effectiveMax - Maximum travel distance in mm
+ * @returns {Object} Complete sequencer line ready to be validated and sent
+ */
+function buildSequenceLineFromPresetPure(mode, config, effectiveMax) {
+  const center = effectiveMax / 2;
+  
+  // Base line with common fields
+  const baseLine = {
+    enabled: true,
+    cycleCount: 1,
+    pauseAfterMs: 0
+  };
+  
+  // Default VA-ET-VIENT fields
+  const defaultVaet = {
+    startPositionMM: 0,
+    distanceMM: Math.min(100, effectiveMax),
+    speedForward: 5,
+    speedBackward: 5,
+    decelStartEnabled: false,
+    decelEndEnabled: true,
+    decelZoneMM: 20,
+    decelEffectPercent: 50,
+    decelMode: 1,
+    vaetCyclePauseEnabled: false,
+    vaetCyclePauseIsRandom: false,
+    vaetCyclePauseDurationSec: 0.0,
+    vaetCyclePauseMinSec: 0.5,
+    vaetCyclePauseMaxSec: 3.0
+  };
+  
+  // Default OSCILLATION fields
+  const defaultOsc = {
+    oscCenterPositionMM: center,
+    oscAmplitudeMM: Math.min(50, center),
+    oscWaveform: 0,
+    oscFrequencyHz: 0.5,
+    oscEnableRampIn: false,
+    oscEnableRampOut: false,
+    oscRampInDurationMs: 1000,
+    oscRampOutDurationMs: 1000,
+    oscCyclePauseEnabled: false,
+    oscCyclePauseIsRandom: false,
+    oscCyclePauseDurationSec: 0.0,
+    oscCyclePauseMinSec: 0.5,
+    oscCyclePauseMaxSec: 3.0
+  };
+  
+  // Default CHAOS fields
+  const defaultChaos = {
+    chaosCenterPositionMM: center,
+    chaosAmplitudeMM: Math.min(50, center),
+    chaosMaxSpeedLevel: 10,
+    chaosCrazinessPercent: 50,
+    chaosDurationSeconds: 30,
+    chaosSeed: 0,
+    chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+  };
+  
+  let newLine = { ...baseLine, ...defaultVaet, ...defaultOsc, ...defaultChaos };
+  
+  if (mode === 'simple') {
+    newLine.movementType = MOVEMENT_TYPE.VAET;
+    // Override with preset values
+    newLine.startPositionMM = config.startPositionMM || 0;
+    newLine.distanceMM = config.distanceMM || 50;
+    newLine.speedForward = config.speedLevelForward || 5;
+    newLine.speedBackward = config.speedLevelBackward || 5;
+    newLine.decelStartEnabled = config.decelStartEnabled || false;
+    newLine.decelEndEnabled = config.decelEndEnabled !== undefined ? config.decelEndEnabled : true;
+    newLine.decelZoneMM = config.decelZoneMM || 20;
+    newLine.decelEffectPercent = config.decelEffectPercent || 50;
+    newLine.decelMode = config.decelMode || 1;
+    // VA-ET-VIENT Cycle Pause from preset
+    newLine.vaetCyclePauseEnabled = config.cyclePauseEnabled || false;
+    newLine.vaetCyclePauseIsRandom = config.cyclePauseIsRandom || false;
+    newLine.vaetCyclePauseDurationSec = config.cyclePauseDurationSec || 0.0;
+    newLine.vaetCyclePauseMinSec = config.cyclePauseMinSec || 0.5;
+    newLine.vaetCyclePauseMaxSec = config.cyclePauseMaxSec || 3.0;
+    
+  } else if (mode === 'oscillation') {
+    newLine.movementType = MOVEMENT_TYPE.OSCILLATION;
+    // Override with preset values
+    newLine.oscCenterPositionMM = config.centerPositionMM || center;
+    newLine.oscAmplitudeMM = config.amplitudeMM || 50;
+    newLine.oscWaveform = config.waveform || 0;
+    newLine.oscFrequencyHz = config.frequencyHz || 0.5;
+    newLine.oscEnableRampIn = config.enableRampIn || false;
+    newLine.oscEnableRampOut = config.enableRampOut || false;
+    newLine.oscRampInDurationMs = config.rampInDurationMs || 1000;
+    newLine.oscRampOutDurationMs = config.rampOutDurationMs || 1000;
+    newLine.cycleCount = config.cycleCount || 1;
+    // OSCILLATION Cycle Pause from preset
+    newLine.oscCyclePauseEnabled = config.cyclePauseEnabled || false;
+    newLine.oscCyclePauseIsRandom = config.cyclePauseIsRandom || false;
+    newLine.oscCyclePauseDurationSec = config.cyclePauseDurationSec || 0.0;
+    newLine.oscCyclePauseMinSec = config.cyclePauseMinSec || 0.5;
+    newLine.oscCyclePauseMaxSec = config.cyclePauseMaxSec || 3.0;
+    
+  } else if (mode === 'chaos') {
+    newLine.movementType = MOVEMENT_TYPE.CHAOS;
+    // Override with preset values
+    newLine.chaosCenterPositionMM = config.centerPositionMM || center;
+    newLine.chaosAmplitudeMM = config.amplitudeMM || 50;
+    newLine.chaosMaxSpeedLevel = config.maxSpeedLevel || 10;
+    newLine.chaosCrazinessPercent = config.crazinessPercent || 50;
+    newLine.chaosDurationSeconds = config.durationSeconds || 30;
+    newLine.chaosSeed = config.seed || 0;
+    newLine.chaosPatternsEnabled = config.patternsEnabled || [true, true, true, true, true, true, true, true, true, true, true];
+  }
+  
+  return newLine;
+}
+
 // ============================================================================
 // VA-ET-VIENT TOOLTIP HELPER (PURE FUNCTION)
 // ============================================================================
@@ -743,6 +863,7 @@ window.MOVEMENT_TYPE = MOVEMENT_TYPE;
 window.DECEL_MODES = DECEL_MODES;
 window.validateSequencerLinePure = validateSequencerLinePure;
 window.buildSequenceLineDefaultsPure = buildSequenceLineDefaultsPure;
+window.buildSequenceLineFromPresetPure = buildSequenceLineFromPresetPure;
 window.generateVaetTooltipPure = generateVaetTooltipPure;
 window.generateCalibrationTooltipPure = generateCalibrationTooltipPure;
 window.generateSequenceLineTooltipPure = generateSequenceLineTooltipPure;

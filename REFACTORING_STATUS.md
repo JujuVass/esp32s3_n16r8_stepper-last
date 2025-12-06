@@ -1,7 +1,7 @@
 # État du Refactoring Frontend - ESP32 Stepper Controller
 
 **Date:** 6 décembre 2025  
-**Version actuelle:** v2.4  
+**Version actuelle:** v2.5  
 **Objectif:** Découpler et modulariser le JavaScript frontend (initialement 7300+ lignes)
 
 ---
@@ -24,15 +24,16 @@
 | `presets.js` | ~220 | Module presets (name/tooltip/decel) | ✅ Fonctionnel |
 | `formatting.js` | ~240 | Module formatage (wifi/uptime/state) | ✅ Fonctionnel |
 | `validation.js` | **397** | **NOUVEAU v2.4** - Validation & field mapping | ✅ Fonctionnel |
-| `main.js` | **6852** | Logique principale (wrappers DOM) | 🔄 En cours |
+| `main.js` | **6828** | Logique principale (wrappers DOM) | 🔄 En cours |
 
 ### Progression main.js
 ```
 Initial:  ~7300 lignes
 v2.3:      7177 lignes (-123)
-v2.4:      6852 lignes (-325)  ← Actuel
+v2.4:      6852 lignes (-325)
+v2.5:      6828 lignes (-24)  ← Actuel
 ─────────────────────────────
-Total:    -448 lignes extraites
+Total:    -472 lignes extraites
 ```
 
 ### Ordre de chargement dans `index.html`
