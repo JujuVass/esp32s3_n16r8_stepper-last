@@ -1804,6 +1804,7 @@
       
       // Update pursuit mode variables
       if (data.totalDistMM !== undefined) {
+        const prevTotalDistMM = AppState.pursuit.totalDistanceMM;
         AppState.pursuit.totalDistanceMM = data.totalDistMM;
         
         // Store max distance limit percent in AppState (but not while user is editing!)
@@ -1821,6 +1822,29 @@
           DOM.gaugeLimitLine.style.display = 'block';
         } else if (DOM.gaugeLimitLine) {
           DOM.gaugeLimitLine.style.display = 'none';
+        }
+        
+        // AUTO-UPDATE centers when totalDistMM changes (after calibration)
+        // Only if user is NOT editing and value actually changed
+        if (data.totalDistMM > 0 && prevTotalDistMM !== data.totalDistMM) {
+          const effectiveMax = (data.effectiveMaxDistMM && data.effectiveMaxDistMM > 0) 
+            ? data.effectiveMaxDistMM 
+            : data.totalDistMM;
+          const newCenter = (effectiveMax / 2).toFixed(1);
+          
+          // Update oscillation center if not editing
+          const oscCenterField = document.getElementById('oscCenter');
+          if (oscCenterField && AppState.editing.oscField !== 'oscCenter') {
+            oscCenterField.value = newCenter;
+          }
+          
+          // Update chaos center if not editing
+          const chaosCenterField = document.getElementById('chaosCenterPos');
+          if (chaosCenterField && AppState.editing.oscField !== 'chaosCenterPos') {
+            chaosCenterField.value = newCenter;
+          }
+          
+          console.log('📐 Auto-updated centers to ' + newCenter + 'mm after calibration');
         }
       }
       if (data.positionMM !== undefined) {
