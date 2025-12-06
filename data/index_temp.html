@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stepper Controller</title>
-  <!-- BUILD VERSION: v2.4 - Added validation.js with error field mapping -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>âš™ï¸</text></svg>">
   <link rel="stylesheet" href="/css/styles.css">
   
   <!-- Preload JS modules for faster loading -->
@@ -14,8 +13,6 @@
   <link rel="preload" href="/js/utils.js" as="script">
   <link rel="preload" href="/js/websocket.js" as="script">
   <link rel="preload" href="/js/stats.js" as="script">
-  <link rel="preload" href="/js/context.js" as="script">
-  <link rel="preload" href="/js/main.js" as="script">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -23,7 +20,7 @@
   <!-- Calibration Overlay -->
   <div class="overlay" id="calibrationOverlay">
     <div class="overlay-content">
-      <div class="overlay-icon">🔍</div>
+      <div class="overlay-icon">ðŸ”</div>
       <div class="overlay-title">Calibration en cours...</div>
       <div class="overlay-message">Veuillez patienter pendant la recherche des limites</div>
       <div class="spinner"></div>
@@ -36,8 +33,8 @@
   <!-- Reboot Overlay -->
   <div class="overlay" id="rebootOverlay">
     <div class="overlay-content">
-      <div class="overlay-icon">🔄</div>
-      <div class="overlay-title">Redémarrage en cours...</div>
+      <div class="overlay-icon">ðŸ”„</div>
+      <div class="overlay-title">RedÃ©marrage en cours...</div>
       <div class="overlay-message" id="rebootMessage">Reconnexion automatique dans quelques secondes</div>
       <div class="spinner"></div>
       <div id="rebootStatus" style="color: #999; font-size: 14px; margin-top: 15px;">
@@ -49,32 +46,32 @@
   <!-- Playlist Management Modal -->
   <div class="modal" id="playlistModal" onclick="closePlaylistModalOnOverlayClick(event)">
     <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
-      <div class="modal-title">📋 Playlist - <span id="playlistModalTitle">Mode</span></div>
+      <div class="modal-title">ðŸ“‹ Playlist - <span id="playlistModalTitle">Mode</span></div>
       
       <!-- Sticky Current Config Preview -->
       <div id="playlistCurrentConfig" style="background: #E3F2FD; padding: 12px; border-radius: 6px; margin-bottom: 12px; flex-shrink: 0;">
-        <div style="font-weight: 500; margin-bottom: 8px; font-size: 13px;">⚙️ Configuration actuelle:</div>
+        <div style="font-weight: 500; margin-bottom: 8px; font-size: 13px;">âš™ï¸ Configuration actuelle:</div>
         <div id="playlistCurrentConfigContent" style="font-size: 12px; color: #555;"></div>
         <button class="button btn-success" id="btnAddCurrentToPlaylist" style="margin-top: 8px; width: 100%; padding: 8px; font-size: 13px;">
-          ➕ Ajouter à la playlist
+          âž• Ajouter Ã  la playlist
         </button>
       </div>
       
       <!-- Presets List with Scroll -->
       <div style="flex: 1; overflow-y: auto; overflow-x: visible; border-top: 2px solid #ddd; padding-top: 12px; min-height: 0;">
         <div style="font-weight: 500; margin-bottom: 10px; font-size: 13px; padding: 0 5px;">
-          📦 Presets sauvegardés (<span id="playlistCount">0</span>/20):
+          ðŸ“¦ Presets sauvegardÃ©s (<span id="playlistCount">0</span>/20):
         </div>
         
         <!-- Search Input -->
-        <input type="text" id="playlistSearchInput" placeholder="🔍 Rechercher un preset..." 
+        <input type="text" id="playlistSearchInput" placeholder="ðŸ” Rechercher un preset..." 
                oninput="filterPlaylistPresets(this.value)"
                style="width: 90%; margin: 0 0 10px 0; padding: 8px; border: 2px solid #ddd; border-radius: 6px; font-size: 12px;">
         
         <div id="playlistPresetsList" style="padding-right: 5px; overflow: visible;">
           <!-- Presets will be dynamically inserted here -->
           <div style="color: #999; font-style: italic; padding: 20px; text-align: center; font-size: 12px;">
-            Aucun preset sauvegardé
+            Aucun preset sauvegardÃ©
           </div>
         </div>
       </div>
@@ -82,7 +79,7 @@
       <!-- Sticky Close Button -->
       <div style="border-top: 2px solid #ddd; padding: 12px 0 0 0; margin-top: 12px; background: white; flex-shrink: 0;">
         <button class="button btn-secondary" onclick="closePlaylistModal()" style="width: 100%; padding: 10px; font-size: 14px;">
-          ✖️ Fermer
+          âœ–ï¸ Fermer
         </button>
       </div>
     </div>
@@ -94,19 +91,19 @@
   <!-- Mode Change Confirmation Modal -->
   <div class="modal" id="modeChangeModal">
     <div class="modal-content">
-      <div class="modal-title">⚠️ Changement de mode</div>
+      <div class="modal-title">âš ï¸ Changement de mode</div>
       <div class="modal-message" id="modalMessage">
-        Une opération est en cours. Le changement de mode va arrêter le mouvement et lancer une recalibration.
+        Une opÃ©ration est en cours. Le changement de mode va arrÃªter le mouvement et lancer une recalibration.
         <br><br>
         <strong>Voulez-vous continuer ?</strong>
       </div>
       <div style="margin: 20px 0; padding: 15px; background: #FFF3E0; border-radius: 5px; border: 2px solid #FF9800;">
         <label style="display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: normal;">
           <input type="checkbox" id="bypassCalibrationCheckbox" checked style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
-          <span style="color: #FF9800; font-weight: bold;">/!\ Bypasser la calibration complète</span>
+          <span style="color: #FF9800; font-weight: bold;">/!\ Bypasser la calibration complÃ¨te</span>
         </label>
         <div style="font-size: 12px; color: #666; margin-top: 8px; text-align: center;">
-          (Retour rapide au contact début uniquement)
+          (Retour rapide au contact dÃ©but uniquement)
         </div>
       </div>
       <div class="modal-buttons">
@@ -119,22 +116,22 @@
   <!-- Stop Confirmation Modal -->
   <div class="modal" id="stopModal">
     <div class="modal-content">
-      <div class="modal-title">⏹️ Arrêter le mouvement</div>
+      <div class="modal-title">â¹ï¸ ArrÃªter le mouvement</div>
       <div class="modal-message">
-        Voulez-vous arrêter le mouvement en cours ?
+        Voulez-vous arrÃªter le mouvement en cours ?
       </div>
       <div style="margin: 20px 0; padding: 15px; background: #E3F2FD; border-radius: 5px; border: 2px solid #2196F3;">
         <label style="display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: normal;">
           <input type="checkbox" id="returnToStartCheckbox" checked style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
-          <span style="color: #2196F3; font-weight: bold;">🏠 Retour à la position initiale (0mm)</span>
+          <span style="color: #2196F3; font-weight: bold;">ðŸ  Retour Ã  la position initiale (0mm)</span>
         </label>
         <div style="font-size: 12px; color: #666; margin-top: 8px; text-align: center;">
-          (Désactiver pour rester à la position actuelle)
+          (DÃ©sactiver pour rester Ã  la position actuelle)
         </div>
       </div>
       <div class="modal-buttons">
         <button class="button btn-secondary" onclick="cancelStopModal()">Annuler</button>
-        <button class="button btn-danger" onclick="confirmStopModal()">⏹️ Arrêter</button>
+        <button class="button btn-danger" onclick="confirmStopModal()">â¹ï¸ ArrÃªter</button>
       </div>
     </div>
   </div>
@@ -142,33 +139,33 @@
   <!-- Modal for Sequencer Limit Warning -->
   <div class="modal" id="sequencerLimitModal">
     <div class="modal-content">
-      <div class="modal-title">⚠️ Passage en Mode Séquenceur</div>
+      <div class="modal-title">âš ï¸ Passage en Mode SÃ©quenceur</div>
       <div class="modal-message">
         <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; border-left: 4px solid #2196F3; margin-bottom: 15px;">
-          <div style="font-weight: bold; color: #1976D2; margin-bottom: 8px;">📋 Mode Expert Activé</div>
+          <div style="font-weight: bold; color: #1976D2; margin-bottom: 8px;">ðŸ“‹ Mode Expert ActivÃ©</div>
           <div style="font-size: 14px; color: #555;">
-            La limitation de course active sera <strong>DÉSACTIVÉE</strong> :
+            La limitation de course active sera <strong>DÃ‰SACTIVÃ‰E</strong> :
           </div>
         </div>
         
         <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px; margin: 15px 0; padding: 15px; background: #FFF3E0; border-radius: 8px;">
-          <div style="font-weight: bold; color: #FF9800;">• Actuel :</div>
+          <div style="font-weight: bold; color: #FF9800;">â€¢ Actuel :</div>
           <div id="seqModalCurrentLimit" style="color: #FF9800; font-weight: bold;">--</div>
-          <div style="font-weight: bold; color: #4CAF50;">• Après :</div>
+          <div style="font-weight: bold; color: #4CAF50;">â€¢ AprÃ¨s :</div>
           <div id="seqModalAfterLimit" style="color: #4CAF50; font-weight: bold;">--</div>
         </div>
         
         <div style="background: #F5F5F5; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-          <div style="font-weight: bold; margin-bottom: 8px;">🔧 Raison :</div>
+          <div style="font-weight: bold; margin-bottom: 8px;">ðŸ”§ Raison :</div>
           <div style="font-size: 13px; color: #666; line-height: 1.5;">
-            Le séquenceur peut contenir des lignes de calibration qui réinitialisent cette limite.
+            Le sÃ©quenceur peut contenir des lignes de calibration qui rÃ©initialisent cette limite.
           </div>
         </div>
         
         <div style="background: #E8F5E9; padding: 12px; border-radius: 8px; border-left: 4px solid #4CAF50;">
-          <div style="font-weight: bold; color: #2E7D32; margin-bottom: 5px;">💡 En mode séquenceur :</div>
+          <div style="font-weight: bold; color: #2E7D32; margin-bottom: 5px;">ðŸ’¡ En mode sÃ©quenceur :</div>
           <div style="font-size: 13px; color: #555;">
-            Vous avez le <strong>contrôle total</strong> des valeurs de chaque ligne.
+            Vous avez le <strong>contrÃ´le total</strong> des valeurs de chaque ligne.
           </div>
         </div>
         
@@ -187,33 +184,33 @@
     <!-- Common Status (COMPACT VERSION) -->
     <div class="status-compact" style="background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:15px; overflow:hidden;">
       
-      <!-- Header Row: État + Actions -->
+      <!-- Header Row: Ã‰tat + Actions -->
       <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 15px; background:#E3F2FD; border-bottom:1px solid #BBDEFB;">
         <span style="font-weight:bold; font-size:15px; color:#1976D2;">
-          État: <span id="state" style="color:#333;">Initialisation...</span>
+          Ã‰tat: <span id="state" style="color:#333;">Initialisation...</span>
         </span>
         <div style="display:flex; gap:6px;">
-          <button class="btn-compact btn-primary" id="btnCalibrateCommon" title="Calibrer les limites">🔍 Calib</button>
-          <button class="btn-compact btn-info" id="btnShowLogs" title="Afficher logs">📋 Logs</button>
+          <button class="btn-compact btn-primary" id="btnCalibrateCommon" title="Calibrer les limites">ðŸ” Calib</button>
+          <button class="btn-compact btn-info" id="btnShowLogs" title="Afficher logs">ðŸ“‹ Logs</button>
           
-          <button class="btn-compact btn-success" id="btnShowStats" title="Afficher statistiques">📊 Stats</button>
-          <button class="btn-compact" id="btnShowSystem" title="Afficher statistiques système" style="background: #2196F3; color: white;">⚙️ Sys</button>
+          <button class="btn-compact btn-success" id="btnShowStats" title="Afficher statistiques">ðŸ“Š Stats</button>
+          <button class="btn-compact" id="btnShowSystem" title="Afficher statistiques systÃ¨me" style="background: #2196F3; color: white;">âš™ï¸ Sys</button>
         </div>
       </div>
       
       <!-- Row 2: Position + Course -->
       <div style="padding:6px 15px; font-size:13px; border-bottom:1px solid #f0f0f0;">
-        📍 <strong>Position:</strong> <span id="position">0.0 mm (0 steps)</span>
-        &nbsp;&nbsp;•&nbsp;&nbsp;
+        ðŸ“ <strong>Position:</strong> <span id="position">0.0 mm (0 steps)</span>
+        &nbsp;&nbsp;â€¢&nbsp;&nbsp;
         <strong>Course:</strong> <span id="totalDist">-- mm</span>
-        <button id="btnConfigMaxDist" class="btn-icon" title="Limiter course" style="padding:2px 6px; font-size:13px; background:transparent; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-left:4px;">⚙️</button>
+        <button id="btnConfigMaxDist" class="btn-icon" title="Limiter course" style="padding:2px 6px; font-size:13px; background:transparent; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-left:4px;">âš™ï¸</button>
       </div>
       
       <!-- Max Distance Config Panel (collapsible) -->
       <div id="maxDistConfigPanel" style="display:none; padding:10px 15px; background:#FFF3E0; border-bottom:1px solid #FFE0B2;">
-        <div style="font-weight:bold; color:#FF9800; margin-bottom:6px; font-size:12px;">⚙️ Limitation de course</div>
+        <div style="font-weight:bold; color:#FF9800; margin-bottom:6px; font-size:12px;">âš™ï¸ Limitation de course</div>
         <div style="font-size:11px; color:#666; margin-bottom:8px;">
-          ℹ️ Limite la zone utilisable sans recalibrer
+          â„¹ï¸ Limite la zone utilisable sans recalibrer
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
           <span style="font-size:11px; font-weight:bold; min-width:45px;">Limite:</span>
@@ -222,24 +219,24 @@
           <span id="maxDistLimitMM" style="color:#666; font-size:11px; min-width:70px;">(-- mm)</span>
         </div>
         <div style="display:flex; gap:6px;">
-          <button id="btnApplyMaxDistLimit" class="btn-compact btn-success" disabled>✅ OK</button>
-          <button id="btnCancelMaxDistLimit" class="btn-compact btn-secondary">✕ Annuler</button>
+          <button id="btnApplyMaxDistLimit" class="btn-compact btn-success" disabled>âœ… OK</button>
+          <button id="btnCancelMaxDistLimit" class="btn-compact btn-secondary">âœ• Annuler</button>
         </div>
         <div style="font-size:10px; color:#d32f2f; margin-top:6px; display:none;" id="maxDistLimitWarning">
-          ⚠️ Modification en état PRÊT uniquement
+          âš ï¸ Modification en Ã©tat PRÃŠT uniquement
         </div>
       </div>
       
       <!-- Row 3: Vitesses -->
       <div style="padding:6px 15px; font-size:13px; border-bottom:1px solid #f0f0f0;">
-        ⚡ <strong>Vitesse:</strong> <span id="currentSpeed">↗️ --  •  ↙️ --</span>
+        âš¡ <strong>Vitesse:</strong> <span id="currentSpeed">â†—ï¸ --  â€¢  â†™ï¸ --</span>
         <span style="color:#999; font-size:11px; margin-left:8px;">(-- c/min)</span>
       </div>
       
       <!-- Row 4: Distance + Progress Bar (colonnes fixes) -->
       <div style="padding:6px 15px; font-size:13px; display:grid; grid-template-columns: 280px 1fr 50px; gap:10px; align-items:center; border-bottom:1px solid #f0f0f0;">
         <div style="white-space:nowrap;">
-          📊 <strong>Distance:</strong> <span id="milestoneIcon" style="font-size: 20px; margin-left: 8px; cursor: help; display: inline-block; transition: transform 0.3s;" title=""></span> <span id="totalTraveled">0.000 m</span> <button class="btn-icon" id="btnResetDistanceCommon" title="Réinitialiser distance" style="padding:2px 6px; font-size:13px; background:transparent; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-left:4px;">↻</button>
+          ðŸ“Š <strong>Distance:</strong> <span id="milestoneIcon" style="font-size: 20px; margin-left: 8px; cursor: help; display: inline-block; transition: transform 0.3s;" title=""></span> <span id="totalTraveled">0.000 m</span> <button class="btn-icon" id="btnResetDistanceCommon" title="RÃ©initialiser distance" style="padding:2px 6px; font-size:13px; background:transparent; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-left:4px;">â†»</button>
           
         </div>
         <div style="height:8px; background:#e0e0e0; border-radius:4px; overflow:hidden;">
@@ -250,7 +247,7 @@
       
       <!-- Pending Changes Alert (conditional) -->
       <div id="pendingChanges" style="display:none; padding:6px 15px; background:#FFF3E0; color:#FF9800; font-weight:bold; font-size:12px; border-bottom:1px solid #FFE0B2;">
-        ⏳ Changements en attente (fin de cycle)
+        â³ Changements en attente (fin de cycle)
       </div>
       
     </div>
@@ -258,38 +255,38 @@
     <!-- Logs Panel (hidden by default) -->
     <div id="logsPanel" style="display: none; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #2196F3; padding-bottom: 8px;">
-        <h3 style="margin: 0; color: #2196F3; font-size: 18px;">📋 Logs & Debug</h3>
-        <button id="btnCloseLogs" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">✕</button>
+        <h3 style="margin: 0; color: #2196F3; font-size: 18px;">ðŸ“‹ Logs & Debug</h3>
+        <button id="btnCloseLogs" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">âœ•</button>
       </div>
 
       <!-- Log Console -->
       <div style="margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <label style="font-weight: bold; color: #333; font-size: 13px;">Console temps réel:</label>
+          <label style="font-weight: bold; color: #333; font-size: 13px;">Console temps rÃ©el:</label>
           <div style="display: flex; gap: 6px;">
-            <button class="button btn-secondary" id="btnClearLogsPanel" style="padding: 4px 10px; font-size: 11px;">🗑️ Effacer</button>
+            <button class="button btn-secondary" id="btnClearLogsPanel" style="padding: 4px 10px; font-size: 11px;">ðŸ—‘ï¸ Effacer</button>
           </div>
         </div>
-        <div id="logConsolePanel" style="height: 180px; overflow: auto; background: #1e1e1e; color: #d4d4d4; padding: 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; white-space: pre-wrap; border: 1px solid #333;">(les logs apparaîtront ici...)</div>
+        <div id="logConsolePanel" style="height: 180px; overflow: auto; background: #1e1e1e; color: #d4d4d4; padding: 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; white-space: pre-wrap; border: 1px solid #333;">(les logs apparaÃ®tront ici...)</div>
       </div>
 
       <!-- Debug Controls -->
       <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-        <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 13px;">⚙️ Niveau de debug:</label>
+        <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 13px;">âš™ï¸ Niveau de debug:</label>
         <div style="display: flex; gap: 8px; align-items: center;">
           <label style="display: flex; align-items: center; cursor: pointer;">
             <input type="checkbox" id="debugLevelCheckbox" style="width: 16px; height: 16px; margin-right: 6px;">
             <span style="font-size: 12px;">Activer logs DEBUG (verbose)</span>
           </label>
-          <span style="color: #666; font-size: 11px; margin-left: auto;">⚠️ Peut ralentir</span>
+          <span style="color: #666; font-size: 11px; margin-left: auto;">âš ï¸ Peut ralentir</span>
         </div>
       </div>
 
       <!-- Historical Logs -->
       <div style="background: #fff3cd; padding: 10px; border-radius: 6px; border-left: 4px solid #ffc107;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <label style="font-weight: bold; color: #856404; font-size: 13px;">📚 Historique des logs:</label>
-          <button class="button btn-danger" id="btnClearAllLogFiles" style="padding: 4px 10px; font-size: 11px;">🗑️ Nettoyer tout</button>
+          <label style="font-weight: bold; color: #856404; font-size: 13px;">ðŸ“š Historique des logs:</label>
+          <button class="button btn-danger" id="btnClearAllLogFiles" style="padding: 4px 10px; font-size: 11px;">ðŸ—‘ï¸ Nettoyer tout</button>
         </div>
         <div id="logFilesList" style="max-height: 130px; overflow-y: auto; background: white; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
           <div style="color: #999; font-style: italic; font-size: 11px;">Chargement de la liste...</div>
@@ -300,8 +297,8 @@
     <!-- Statistics Panel -->
     <div id="statsPanel" style="display: none; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #4CAF50; padding-bottom: 8px;">
-        <h3 style="margin: 0; color: #4CAF50; font-size: 18px;">📊 Statistiques</h3>
-        <button id="btnCloseStats" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">✕</button>
+        <h3 style="margin: 0; color: #4CAF50; font-size: 18px;">ðŸ“Š Statistiques</h3>
+        <button id="btnCloseStats" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">âœ•</button>
       </div>
 
       <!-- Stats Table -->
@@ -311,7 +308,7 @@
             <tr style="background: #f5f5f5; border-bottom: 2px solid #4CAF50;">
               <th style="padding: 8px; text-align: left; font-weight: bold;">Date</th>
               <th style="padding: 8px; text-align: center; font-weight: bold;">Jour</th>
-              <th style="padding: 8px; text-align: center; font-weight: bold;">🏆</th>
+              <th style="padding: 8px; text-align: center; font-weight: bold;">ðŸ†</th>
               <th style="padding: 8px; text-align: right; font-weight: bold;">Distance</th>
             </tr>
           </thead>
@@ -323,8 +320,8 @@
           <tfoot>
             <tr style="background: #e8f5e9; border-top: 2px solid #4CAF50; font-weight: bold;">
               <td style="padding: 10px;">TOTAL</td>
-              <td style="padding: 10px; text-align: center;">🏆</td>
-              <td id="statsTotalMilestone" style="padding: 10px; text-align: center; font-size: 18px;">🎯</td>
+              <td style="padding: 10px; text-align: center;">ðŸ†</td>
+              <td id="statsTotalMilestone" style="padding: 10px; text-align: center; font-size: 18px;">ðŸŽ¯</td>
               <td id="statsTotalDistance" style="padding: 10px; text-align: right; color: #4CAF50; font-size: 15px;">0 km</td>
             </tr>
           </tfoot>
@@ -334,13 +331,13 @@
       <!-- Stats Action Buttons -->
       <div style="margin-bottom: 20px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
         <button id="btnExportStats" class="button" style="padding: 8px 20px; font-size: 13px; background: #4CAF50; color: white;">
-          📥 Exporter
+          ðŸ“¥ Exporter
         </button>
         <button id="btnImportStats" class="button" style="padding: 8px 20px; font-size: 13px; background: #2196F3; color: white;">
-          📤 Importer
+          ðŸ“¤ Importer
         </button>
         <button id="btnClearStats" class="button btn-danger" style="padding: 8px 20px; font-size: 13px;">
-          🗑️ Effacer tout
+          ðŸ—‘ï¸ Effacer tout
         </button>
       </div>
       
@@ -349,7 +346,7 @@
 
       <!-- Histogram -->
       <div style="background: #f9f9f9; padding: 12px; border-radius: 6px; border: 1px solid #ddd;">
-        <h4 style="margin: 0 0 12px 0; color: #333; font-size: 14px;">📈 Historique (3 mois glissants)</h4>
+        <h4 style="margin: 0 0 12px 0; color: #333; font-size: 14px;">ðŸ“ˆ Historique (3 mois glissants)</h4>
         <canvas id="statsChart" style="max-height: 250px;"></canvas>
       </div>
     </div>
@@ -357,8 +354,8 @@
     <!-- System Stats Panel (hidden by default like Stats panel) -->
     <div id="systemPanel" style="display: none; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #2196F3; padding-bottom: 8px;">
-        <h3 style="margin: 0; color: #2196F3; font-size: 18px;">⚙️ Système</h3>
-        <button id="btnCloseSystem" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">✕</button>
+        <h3 style="margin: 0; color: #2196F3; font-size: 18px;">âš™ï¸ SystÃ¨me</h3>
+        <button id="btnCloseSystem" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">âœ•</button>
       </div>
 
       <!-- System Stats Grid -->
@@ -369,27 +366,27 @@
         </div>
         
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
-          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">🌡️ Température</div>
-          <div id="sysTemp" style="font-weight: bold; color: #333; font-size: 15px;">-- °C</div>
+          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">ðŸŒ¡ï¸ TempÃ©rature</div>
+          <div id="sysTemp" style="font-weight: bold; color: #333; font-size: 15px;">-- Â°C</div>
         </div>
         
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
-          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">💾 RAM</div>
+          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">ðŸ’¾ RAM</div>
           <div id="sysRam" style="font-weight: bold; color: #333; font-size: 15px;">-- KB libre</div>
-          <div id="sysRamPercent" style="font-size: 11px; color: #666; margin-top: 2px;">--% utilisé</div>
+          <div id="sysRamPercent" style="font-size: 11px; color: #666; margin-top: 2px;">--% utilisÃ©</div>
         </div>
         
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
-          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">🧠 PSRAM</div>
+          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">ðŸ§  PSRAM</div>
           <div id="sysPsram" style="font-weight: bold; color: #333; font-size: 15px;">-- MB libre</div>
-          <div id="sysPsramPercent" style="font-size: 11px; color: #666; margin-top: 2px;">--% utilisé</div>
+          <div id="sysPsramPercent" style="font-size: 11px; color: #666; margin-top: 2px;">--% utilisÃ©</div>
         </div>
         
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <div style="color: #666; font-size: 11px;">📶 WiFi</div>
+            <div style="color: #666; font-size: 11px;">ðŸ“¶ WiFi</div>
             <button id="btnRefreshWifi" style="background: #2196F3; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;" title="Reconnecter le WiFi">
-              🔄
+              ðŸ”„
             </button>
           </div>
           <div id="sysWifi" style="font-weight: bold; color: #333; font-size: 15px;">-- dBm</div>
@@ -397,14 +394,14 @@
         </div>
         
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
-          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">⚡ Uptime</div>
+          <div style="color: #666; font-size: 11px; margin-bottom: 4px;">âš¡ Uptime</div>
           <div id="sysUptime" style="font-weight: bold; color: #333; font-size: 15px;">--</div>
         </div>
       </div>
 
       <!-- Logging Configuration -->
       <div style="margin-top: 15px; background: #f5f5f5; padding: 12px; border-radius: 6px;">
-        <div style="font-weight: bold; color: #333; font-size: 13px; margin-bottom: 10px;">📋 Configuration des logs</div>
+        <div style="font-weight: bold; color: #333; font-size: 13px; margin-bottom: 10px;">ðŸ“‹ Configuration des logs</div>
         
         <!-- Enable/Disable Logging -->
         <div style="margin-bottom: 10px;">
@@ -413,7 +410,7 @@
             <span style="font-size: 13px; color: #333;">Activer les logs (console + fichiers)</span>
           </label>
           <div style="font-size: 11px; color: #666; margin-left: 26px; margin-top: 4px;">
-            ⚠️ Désactiver réduit l'utilisation CPU mais supprime tous les logs
+            âš ï¸ DÃ©sactiver rÃ©duit l'utilisation CPU mais supprime tous les logs
           </div>
         </div>
         
@@ -424,7 +421,7 @@
             <span style="font-size: 13px; color: #333;">Activer logs DEBUG (verbose)</span>
           </label>
           <div style="font-size: 11px; color: #666; margin-left: 26px; margin-top: 4px;">
-            ℹ️ Niveau INFO (messages normaux) par défaut
+            â„¹ï¸ Niveau INFO (messages normaux) par dÃ©faut
           </div>
         </div>
       </div>
@@ -432,28 +429,28 @@
       <!-- Reboot Button -->
       <div style="margin-top: 15px;">
         <button id="btnReboot" class="button btn-danger" style="width: 100%; padding: 12px; font-size: 14px; font-weight: bold;">
-          🔄 Redémarrer l'ESP32
+          ðŸ”„ RedÃ©marrer l'ESP32
         </button>
       </div>
     </div>
 
     <!-- Welcome message (shown before first calibration) -->
     <div class="welcome-message" id="welcomeMessage">
-      <h2>👋 Bienvenue!</h2>
-      <p>🔧 Avant de commencer, veuillez effectuer une calibration pour détecter les limites de course.</p>
-      <p>👆 Cliquez sur le bouton <strong>"🔍 Calibrer"</strong> dans la section "Outils communs" ci-dessus.</p>
+      <h2>ðŸ‘‹ Bienvenue!</h2>
+      <p>ðŸ”§ Avant de commencer, veuillez effectuer une calibration pour dÃ©tecter les limites de course.</p>
+      <p>ðŸ‘† Cliquez sur le bouton <strong>"ðŸ” Calibrer"</strong> dans la section "Outils communs" ci-dessus.</p>
       <p style="font-size: 14px; opacity: 0.8; margin-top: 20px;">
-        ⚙️ Les modes de contrôle apparaîtront automatiquement après la calibration.
+        âš™ï¸ Les modes de contrÃ´le apparaÃ®tront automatiquement aprÃ¨s la calibration.
       </p>
     </div>
 
     <!-- Tabs Navigation (after status) -->
     <div class="tabs hidden-until-calibrated" id="tabsContainer">
-      <button class="tab active" data-tab="simple">🔄 Simple</button>
-      <button class="tab" data-tab="pursuit">🎯 Poursuite</button>
-      <button class="tab" data-tab="oscillation">〰️ Oscillation</button>
-      <button class="tab" data-tab="chaos">🎲 Chaos</button>
-      <button class="tab" data-tab="tableau">📋 Séquenceur</button>
+      <button class="tab active" data-tab="simple">ðŸ”„ Simple</button>
+      <button class="tab" data-tab="pursuit">ðŸŽ¯ Poursuite</button>
+      <button class="tab" data-tab="oscillation">ã€°ï¸ Oscillation</button>
+      <button class="tab" data-tab="chaos">ðŸŽ² Chaos</button>
+      <button class="tab" data-tab="tableau">ðŸ“‹ SÃ©quenceur</button>
     </div>
 
     <!-- MODE SIMPLE Tab Content -->
@@ -464,7 +461,7 @@
       <div class="form-row-compact">
         <div class="form-group-compact" style="display: block;">
           <div>
-            <label class="label-inline">Position départ:</label>
+            <label class="label-inline">Position dÃ©part:</label>
             <input type="number" id="startPosition" min="0" step="0.1" value="0" class="input-compact">
             <span class="unit-label">mm</span>
           </div>
@@ -493,20 +490,20 @@
         </div>
       </div>
       
-      <!-- Séparateur -->
+      <!-- SÃ©parateur -->
       <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
       
       <!-- Speed Mode Toggle - Radio Buttons -->
       <div class="form-group-compact" style="margin-bottom: 15px;">
-        <label class="label-inline">⚙️ Vitesse:</label>
+        <label class="label-inline">âš™ï¸ Vitesse:</label>
         <div class="radio-inline">
           <label>
             <input type="radio" name="speedMode" id="speedModeUnified" checked>
-            Unifiée
+            UnifiÃ©e
           </label>
           <label>
             <input type="radio" name="speedMode" id="speedModeSeparate">
-            Séparée
+            SÃ©parÃ©e
           </label>
         </div>
       </div>
@@ -515,14 +512,14 @@
       <div id="speedUnifiedGroup" class="speed-control-inline" style="margin-bottom: 12px;">
         <label class="label-inline">Vitesse:</label>
         <input type="number" id="speedUnified" min="0" max="20" step="0.1" value="5" class="input-compact">
-        <button class="preset-btn-sm btn-preset" data-speed-unified="0.5" title="Ultra lent">0.5 🐌</button>
-        <button class="preset-btn-sm btn-preset" data-speed-unified="1" title="Très lent">1</button>
+        <button class="preset-btn-sm btn-preset" data-speed-unified="0.5" title="Ultra lent">0.5 ðŸŒ</button>
+        <button class="preset-btn-sm btn-preset" data-speed-unified="1" title="TrÃ¨s lent">1</button>
         <button class="preset-btn-sm btn-preset" data-speed-unified="2">2</button>
         <button class="preset-btn-sm btn-preset" data-speed-unified="3">3</button>
-        <button class="preset-btn-sm btn-preset active" data-speed-unified="5" title="Normal">5 ✓</button>
+        <button class="preset-btn-sm btn-preset active" data-speed-unified="5" title="Normal">5 âœ“</button>
         <button class="preset-btn-sm btn-preset" data-speed-unified="10">10</button>
         <button class="preset-btn-sm btn-preset" data-speed-unified="15">15</button>
-        <button class="preset-btn-sm btn-preset" data-speed-unified="20" title="Maximum">20 ⚡</button>
+        <button class="preset-btn-sm btn-preset" data-speed-unified="20" title="Maximum">20 âš¡</button>
       </div>
       
       <!-- Separate Speeds - Stacked -->
@@ -530,36 +527,36 @@
         <div class="speed-control-inline" style="margin-bottom: 8px;">
           <label class="label-inline">Aller:</label>
           <input type="number" id="speedForward" min="0" max="20" step="0.1" value="5" class="input-compact">
-          <button class="preset-btn-sm btn-preset" data-speed-forward="0.5">0.5 🐌</button>
+          <button class="preset-btn-sm btn-preset" data-speed-forward="0.5">0.5 ðŸŒ</button>
           <button class="preset-btn-sm btn-preset" data-speed-forward="1">1</button>
           <button class="preset-btn-sm btn-preset" data-speed-forward="2">2</button>
           <button class="preset-btn-sm btn-preset" data-speed-forward="3">3</button>
-          <button class="preset-btn-sm btn-preset active" data-speed-forward="5">5 ✓</button>
+          <button class="preset-btn-sm btn-preset active" data-speed-forward="5">5 âœ“</button>
           <button class="preset-btn-sm btn-preset" data-speed-forward="10">10</button>
           <button class="preset-btn-sm btn-preset" data-speed-forward="15">15</button>
-          <button class="preset-btn-sm btn-preset" data-speed-forward="20">20 ⚡</button>
+          <button class="preset-btn-sm btn-preset" data-speed-forward="20">20 âš¡</button>
         </div>
         <div class="speed-control-inline">
           <label class="label-inline">Retour:</label>
           <input type="number" id="speedBackward" min="0" max="20" step="0.1" value="5" class="input-compact">
-          <button class="preset-btn-sm btn-preset" data-speed-backward="0.5">0.5 🐌</button>
+          <button class="preset-btn-sm btn-preset" data-speed-backward="0.5">0.5 ðŸŒ</button>
           <button class="preset-btn-sm btn-preset" data-speed-backward="1">1</button>
           <button class="preset-btn-sm btn-preset" data-speed-backward="2">2</button>
           <button class="preset-btn-sm btn-preset" data-speed-backward="3">3</button>
-          <button class="preset-btn-sm btn-preset active" data-speed-backward="5">5 ✓</button>
+          <button class="preset-btn-sm btn-preset active" data-speed-backward="5">5 âœ“</button>
           <button class="preset-btn-sm btn-preset" data-speed-backward="10">10</button>
           <button class="preset-btn-sm btn-preset" data-speed-backward="15">15</button>
-          <button class="preset-btn-sm btn-preset" data-speed-backward="20">20 ⚡</button>
+          <button class="preset-btn-sm btn-preset" data-speed-backward="20">20 âš¡</button>
         </div>
       </div>
 
-      <!-- Séparateur -->
+      <!-- SÃ©parateur -->
       <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
 
       <!-- Deceleration - Collapsible Section -->
       <div class="section-collapsible collapsed" id="decelSection">
         <div class="section-collapsible-header" onclick="toggleDecelSection()">
-          <span class="collapse-icon">▼</span> <span id="decelHeaderText">🎯 Décélération - désactivée</span>
+          <span class="collapse-icon">â–¼</span> <span id="decelHeaderText">ðŸŽ¯ DÃ©cÃ©lÃ©ration - dÃ©sactivÃ©e</span>
         </div>
         
         <div class="section-collapsible-content">
@@ -574,12 +571,12 @@
             <button class="preset-btn-sm btn-preset" data-decel-zone="75">75</button>
           </div>
           
-          <!-- Mode, Effect, Début/Fin - All on one line -->
+          <!-- Mode, Effect, DÃ©but/Fin - All on one line -->
           <div class="speed-control-inline" style="margin-bottom: 10px;">
             <label class="label-inline">Mode:</label>
             <select id="decelModeSelect" style="width: 120px; padding: 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 4px;">
-              <option value="0">Linéaire</option>
-              <option value="1" selected>Sinusoïdal</option>
+              <option value="0">LinÃ©aire</option>
+              <option value="1" selected>SinusoÃ¯dal</option>
               <option value="2">Triangle Inv.</option>
               <option value="3">Sinus Inv.</option>
             </select>
@@ -591,7 +588,7 @@
             <span style="margin-left: 10px; font-size: 13px;">-</span>
             <label style="margin-left: 5px; font-size: 13px;">
               <input type="checkbox" id="decelZoneStart" checked style="margin-right: 3px;">
-              Début
+              DÃ©but
             </label>
             <label style="margin-left: 10px; font-size: 13px;">
               <input type="checkbox" id="decelZoneEnd" checked style="margin-right: 3px;">
@@ -607,7 +604,7 @@
       <!-- ===== CYCLE PAUSE SECTION ===== -->
       <div class="section-collapsible collapsed" style="margin-bottom: 20px;">
         <div class="section-collapsible-header" onclick="toggleCyclePauseSection()">
-          <span class="collapse-icon">▼</span> <span id="cyclePauseHeaderText">⏸️ Pause entre cycles - désactivée</span>
+          <span class="collapse-icon">â–¼</span> <span id="cyclePauseHeaderText">â¸ï¸ Pause entre cycles - dÃ©sactivÃ©e</span>
         </div>
         
         <div class="section-collapsible-content">
@@ -616,17 +613,17 @@
             <label class="label-inline">Mode:</label>
             <label style="margin-right: 15px; font-size: 13px;">
               <input type="radio" name="cyclePauseMode" value="fixed" id="pauseModeFixed" checked style="margin-right: 5px;">
-              ⏱️ Fixe
+              â±ï¸ Fixe
             </label>
             <label style="font-size: 13px;">
               <input type="radio" name="cyclePauseMode" value="random" id="pauseModeRandom" style="margin-right: 5px;">
-              🎲 Aléatoire
+              ðŸŽ² AlÃ©atoire
             </label>
           </div>
           
           <!-- Fixed Mode: Single Duration -->
           <div id="pauseFixedControls" class="speed-control-inline" style="margin-bottom: 10px;">
-            <label class="label-inline">Durée:</label>
+            <label class="label-inline">DurÃ©e:</label>
             <input type="number" id="cyclePauseDuration" min="0.1" max="60" step="0.1" value="1.5" class="input-compact">
             <span class="unit-label">s</span>
             <button class="preset-btn-sm btn-preset" data-pause-duration="0.5">0.5s</button>
@@ -660,17 +657,17 @@
           
           <!-- Real-time Pause Indicator -->
           <div id="cyclePauseStatus" style="margin-top: 10px; padding: 8px; background: #f0f0f0; border-radius: 5px; font-size: 13px; text-align: center; display: none;">
-            <strong>⏱️ En pause:</strong> <span id="cyclePauseRemaining">0.0s</span> restantes
+            <strong>â±ï¸ En pause:</strong> <span id="cyclePauseRemaining">0.0s</span> restantes
           </div>
         </div>
       </div>
 
     <div class="button-group">
-      <button class="button btn-success" id="btnStart">▶ Démarrer</button>
-      <button class="button btn-warning" id="btnPause">⏸ Pause</button>
-      <button class="button btn-danger" id="btnStop">⏹ Arrêter</button>
+      <button class="button btn-success" id="btnStart">â–¶ DÃ©marrer</button>
+      <button class="button btn-warning" id="btnPause">â¸ Pause</button>
+      <button class="button btn-danger" id="btnStop">â¹ ArrÃªter</button>
       <button class="button btn-info" id="btnManagePlaylistSimple">
-        📋 Playlist (0/20)
+        ðŸ“‹ Playlist (0/20)
       </button>
     </div>
     
@@ -705,31 +702,31 @@
               <!-- Current Position Indicator -->
               <div id="gaugePosition" style="position: absolute; left: 0; right: 0; height: 6px; background: #00E676; border: 2px solid white; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,255,118,0.6); transition: top 0.1s linear; z-index: 5;">
                 <div style="position: absolute; left: -60px; top: -8px; background: #00E676; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap;">
-                  RÉEL
+                  RÃ‰EL
                 </div>
               </div>
               
               <!-- Software Limit Line (dynamically positioned if limit < 100%) -->
               <div id="gaugeLimitLine" style="position: absolute; left: -8px; right: -8px; height: 3px; background: #000; border-top: 2px dashed #FF5722; display: none; z-index: 15;">
                 <div style="position: absolute; right: -90px; top: -10px; background: #000; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap;">
-                  🚫 LIMITE
+                  ðŸš« LIMITE
                 </div>
               </div>
               
               <!-- Scale markers -->
               <div style="position: absolute; right: -40px; top: 0; height: 100%; display: flex; flex-direction: column; justify-content: space-between; font-size: 11px; color: #666;">
-                <span>FIN ▶</span>
-                <span>75% ▶</span>
-                <span>50% ▶</span>
-                <span>25% ▶</span>
-                <span>0mm ▶</span>
+                <span>FIN â–¶</span>
+                <span>75% â–¶</span>
+                <span>50% â–¶</span>
+                <span>25% â–¶</span>
+                <span>0mm â–¶</span>
               </div>
             </div>
             
             <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #666;">
               <div><strong>Cible:</strong> <span id="targetPositionMM" style="color: #FF5722;">0.0</span> mm</div>
               <div><strong>Actuel:</strong> <span id="currentPositionMM" style="color: #00E676;">0.0</span> mm</div>
-              <div><strong>Écart:</strong> <span id="positionError" style="color: #666;">0.0</span> mm</div>
+              <div><strong>Ã‰cart:</strong> <span id="positionError" style="color: #666;">0.0</span> mm</div>
             </div>
           </div>
           
@@ -739,10 +736,10 @@
             <div style="padding: 10px 15px; background: #E3F2FD; border-radius: 6px; margin-bottom: 15px;">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="checkbox" id="pursuitActiveCheckbox" autocomplete="off">
-                <span style="font-weight: 500; color: #1976D2;">🎯 Activer poursuite</span>
+                <span style="font-weight: 500; color: #1976D2;">ðŸŽ¯ Activer poursuite</span>
               </label>
               <small style="color: #666; display: block; margin-top: 4px; font-size: 11px; padding-left: 28px;">
-                ⚠️ Le moteur suivra automatiquement le curseur
+                âš ï¸ Le moteur suivra automatiquement le curseur
               </small>
             </div>
             
@@ -754,19 +751,19 @@
                 <span class="unit-label">(0-20)</span>
               </div>
               <div style="margin-top: 8px;">
-                <button class="preset-btn-sm btn-preset" data-pursuit-speed="2">2🐌</button>
+                <button class="preset-btn-sm btn-preset" data-pursuit-speed="2">2ðŸŒ</button>
                 <button class="preset-btn-sm btn-preset" data-pursuit-speed="5">5</button>
-                <button class="preset-btn-sm btn-preset active" data-pursuit-speed="10">10✓</button>
+                <button class="preset-btn-sm btn-preset active" data-pursuit-speed="10">10âœ“</button>
                 <button class="preset-btn-sm btn-preset" data-pursuit-speed="15">15</button>
-                <button class="preset-btn-sm btn-preset" data-pursuit-speed="20">20⚡</button>
+                <button class="preset-btn-sm btn-preset" data-pursuit-speed="20">20âš¡</button>
               </div>
             </div>
           </div>
         </div>
 
         <div class="button-group">
-          <button class="button btn-success" id="btnActivatePursuit">▶ Démarrer</button>
-          <button class="button btn-danger" id="btnStopPursuit">⏹ Arrêter</button>
+          <button class="button btn-success" id="btnActivatePursuit">â–¶ DÃ©marrer</button>
+          <button class="button btn-danger" id="btnStopPursuit">â¹ ArrÃªter</button>
         </div>
       </div>
     </div>
@@ -776,16 +773,16 @@
     <div class="tab-content hidden-until-calibrated" id="tabOscillation">
       <div class="controls">
         
-        <!-- Help Section (masquée par défaut) -->
+        <!-- Help Section (masquÃ©e par dÃ©faut) -->
         <div id="oscHelpSection" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin-bottom: 15px; border-radius: 4px; font-size: 12px;">
-          <strong style="color: #856404;">💡 Conseils d'utilisation:</strong>
+          <strong style="color: #856404;">ðŸ’¡ Conseils d'utilisation:</strong>
           <ul style="margin: 8px 0 0 20px; color: #856404;">
-            <li><strong>Forme sinusoïdale:</strong> Mouvement fluide et doux, idéal pour tests mécaniques (comme une vague 🌊)</li>
-            <li><strong>Forme triangle:</strong> Accélération/décélération linéaire constante (mouvement mécanique)</li>
-            <li><strong>Forme carrée:</strong> Changements de direction instantanés (attention aux contraintes mécaniques!)</li>
-            <li><strong>Rampes:</strong> Évitent les à-coups au démarrage/arrêt en augmentant/réduisant progressivement l'amplitude</li>
-            <li><strong>Limites auto:</strong> L'amplitude est automatiquement limitée aux bornes calibrées</li>
-            <li><strong>Modification temps réel:</strong> Vous pouvez changer les paramètres pendant l'oscillation!</li>
+            <li><strong>Forme sinusoÃ¯dale:</strong> Mouvement fluide et doux, idÃ©al pour tests mÃ©caniques (comme une vague ðŸŒŠ)</li>
+            <li><strong>Forme triangle:</strong> AccÃ©lÃ©ration/dÃ©cÃ©lÃ©ration linÃ©aire constante (mouvement mÃ©canique)</li>
+            <li><strong>Forme carrÃ©e:</strong> Changements de direction instantanÃ©s (attention aux contraintes mÃ©caniques!)</li>
+            <li><strong>Rampes:</strong> Ã‰vitent les Ã -coups au dÃ©marrage/arrÃªt en augmentant/rÃ©duisant progressivement l'amplitude</li>
+            <li><strong>Limites auto:</strong> L'amplitude est automatiquement limitÃ©e aux bornes calibrÃ©es</li>
+            <li><strong>Modification temps rÃ©el:</strong> Vous pouvez changer les paramÃ¨tres pendant l'oscillation!</li>
           </ul>
         </div>
 
@@ -809,7 +806,7 @@
           <!-- Amplitude -->
           <div class="form-group-compact" style="display: block;">
             <div>
-              <label class="label-inline">Amplitude ±:</label>
+              <label class="label-inline">Amplitude Â±:</label>
               <input type="number" id="oscAmplitude" min="1" step="0.1" value="20" class="input-compact">
               <span class="unit-label">mm</span>
             </div>
@@ -825,21 +822,21 @@
         
         <!-- Warning limite (compact) -->
         <div id="oscLimitWarning" style="display:none; color: #f44336; font-size: 12px; padding: 5px 10px; background: #ffe5e5; border-radius: 4px; margin-bottom: 10px;">
-          ⚠️ Limites dépassées! Ajuster centre ou amplitude.
+          âš ï¸ Limites dÃ©passÃ©es! Ajuster centre ou amplitude.
         </div>
         
-        <!-- Séparateur -->
+        <!-- SÃ©parateur -->
         <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
         
-        <!-- Forme + Fréquence inline -->
+        <!-- Forme + FrÃ©quence inline -->
         <div class="speed-control-inline" style="margin-bottom: 12px;">
           <label class="label-inline">Forme:</label>
           <select id="oscWaveform" style="width: 150px; padding: 5px; font-size: 12px; border: 2px solid #ddd; border-radius: 4px;">
-            <option value="0">Sinusoïdale</option>
+            <option value="0">SinusoÃ¯dale</option>
             <option value="1">Triangle</option>
-            <option value="2">Carrée</option>
+            <option value="2">CarrÃ©e</option>
           </select>
-          <label class="label-inline" style="margin-left: 15px;">Fréquence:</label>
+          <label class="label-inline" style="margin-left: 15px;">FrÃ©quence:</label>
           <input type="number" id="oscFrequency" min="0.01" max="10" step="0.01" value="0.5" class="input-compact">
           <span class="unit-label">Hz</span>
           <button class="preset-btn-sm btn-preset" data-osc-frequency="0.1">0.1Hz</button>
@@ -849,14 +846,14 @@
           <button class="preset-btn-sm btn-preset" data-osc-frequency="2">2Hz</button>
         </div>
         
-        <!-- Séparateur -->
+        <!-- SÃ©parateur -->
         <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
 
         <!-- Rampes inline (pas d'accordion) -->
         <div class="speed-control-inline" style="margin-bottom: 10px;">
           <label style="display: flex; align-items: center; cursor: pointer;">
             <input type="checkbox" id="oscRampInEnable" checked style="width: auto; margin-right: 5px;">
-            <span style="font-size: 12px;">Rampe entrée:</span>
+            <span style="font-size: 12px;">Rampe entrÃ©e:</span>
           </label>
           <input type="number" id="oscRampInDuration" min="100" step="100" value="2000" class="input-compact" style="width: 70px;">
           <span class="unit-label">ms</span>
@@ -881,10 +878,10 @@
           </label>
         </div>
         
-        <!-- Séparateur -->
+        <!-- SÃ©parateur -->
         <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
 
-        <!-- État temps réel - COMPACT -->
+        <!-- Ã‰tat temps rÃ©el - COMPACT -->
         <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
             <div>
@@ -909,7 +906,7 @@
         <!-- ===== CYCLE PAUSE SECTION (OSCILLATION) ===== -->
         <div class="section-collapsible collapsed" style="margin-bottom: 20px;">
           <div class="section-collapsible-header" onclick="toggleCyclePauseOscSection()">
-            <span class="collapse-icon">▼</span> <span id="cyclePauseOscHeaderText">⏸️ Pause entre cycles - désactivée</span>
+            <span class="collapse-icon">â–¼</span> <span id="cyclePauseOscHeaderText">â¸ï¸ Pause entre cycles - dÃ©sactivÃ©e</span>
           </div>
           
           <div class="section-collapsible-content">
@@ -918,17 +915,17 @@
               <label class="label-inline">Mode:</label>
               <label style="margin-right: 15px; font-size: 13px;">
                 <input type="radio" name="cyclePauseModeOsc" value="fixed" id="pauseModeFixedOsc" checked style="margin-right: 5px;">
-                ⏱️ Fixe
+                â±ï¸ Fixe
               </label>
               <label style="font-size: 13px;">
                 <input type="radio" name="cyclePauseModeOsc" value="random" id="pauseModeRandomOsc" style="margin-right: 5px;">
-                🎲 Aléatoire
+                ðŸŽ² AlÃ©atoire
               </label>
             </div>
             
             <!-- Fixed Mode: Single Duration -->
             <div id="pauseFixedControlsOsc" class="speed-control-inline" style="margin-bottom: 10px;">
-              <label class="label-inline">Durée:</label>
+              <label class="label-inline">DurÃ©e:</label>
               <input type="number" id="cyclePauseDurationOsc" min="0.1" max="60" step="0.1" value="1.5" class="input-compact">
               <span class="unit-label">s</span>
               <button class="preset-btn-sm btn-preset" data-pause-duration-osc="0.5">0.5s</button>
@@ -962,20 +959,20 @@
             
             <!-- Real-time Pause Indicator -->
             <div id="cyclePauseStatusOsc" style="margin-top: 10px; padding: 8px; background: #f0f0f0; border-radius: 5px; font-size: 13px; text-align: center; display: none;">
-              <strong>⏱️ En pause:</strong> <span id="cyclePauseRemainingOsc">0.0s</span> restantes
+              <strong>â±ï¸ En pause:</strong> <span id="cyclePauseRemainingOsc">0.0s</span> restantes
             </div>
           </div>
         </div>
         
-        <!-- Boutons de contrôle (comme Simple - en bas) -->
+        <!-- Boutons de contrÃ´le (comme Simple - en bas) -->
         <div class="button-group">
-          <button class="button btn-success" id="btnStartOscillation">▶️ Démarrer</button>
-          <button class="button btn-warning" id="btnPauseOscillation">⏸ Pause</button>
-          <button class="button btn-danger" id="btnStopOscillation">⏹️ Arrêter</button>
+          <button class="button btn-success" id="btnStartOscillation">â–¶ï¸ DÃ©marrer</button>
+          <button class="button btn-warning" id="btnPauseOscillation">â¸ Pause</button>
+          <button class="button btn-danger" id="btnStopOscillation">â¹ï¸ ArrÃªter</button>
           <button class="button btn-info" id="btnManagePlaylistOscillation">
-            📋 Playlist (0/20)
+            ðŸ“‹ Playlist (0/20)
           </button>
-          <button class="button btn-help" onclick="toggleOscHelp()" style="padding: 12px 20px;">❓</button>
+          <button class="button btn-help" onclick="toggleOscHelp()" style="padding: 12px 20px;">â“</button>
         </div>
         
 
@@ -987,28 +984,28 @@
     <div class="tab-content hidden-until-calibrated" id="tabChaos">
       <div class="controls">
         
-        <!-- Help Section (masquée par défaut) -->
+        <!-- Help Section (masquÃ©e par dÃ©faut) -->
         <div id="chaosHelpSection" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin-bottom: 15px; border-radius: 4px; font-size: 12px;">
-          <strong style="color: #856404;">💡 Patterns Chaos (11 patterns):</strong>
-          <p style="margin: 8px 0 0 0; color: #856404; font-weight: bold;">🌊 Patterns DOUX (mouvements continus - 45%):</p>
+          <strong style="color: #856404;">ðŸ’¡ Patterns Chaos (11 patterns):</strong>
+          <p style="margin: 8px 0 0 0; color: #856404; font-weight: bold;">ðŸŒŠ Patterns DOUX (mouvements continus - 45%):</p>
           <ul style="margin: 5px 0 10px 20px; color: #856404;">
             <li><strong>WAVE:</strong> Vagues lentes et continues, fluide, 25-75% vitesse, 4-8s</li>
-            <li><strong>PENDULUM:</strong> Balancier régulier, oscillations douces, 30-90% vitesse, 3-6s</li>
+            <li><strong>PENDULUM:</strong> Balancier rÃ©gulier, oscillations douces, 30-90% vitesse, 3-6s</li>
             <li><strong>SPIRAL:</strong> Spirale progressive expansion/contraction, 20-75% vitesse, 5-10s</li>
-            <li><strong>BREATHING:</strong> Respiration apaisante, petites amplitudes 10-50%, pauses aléatoires, 15-60% vitesse, 2-5s</li>
+            <li><strong>BREATHING:</strong> Respiration apaisante, petites amplitudes 10-50%, pauses alÃ©atoires, 15-60% vitesse, 2-5s</li>
           </ul>
-          <p style="margin: 8px 0 0 0; color: #856404; font-weight: bold;">⚡ Patterns DYNAMIQUES (sauts de position - 55%):</p>
+          <p style="margin: 8px 0 0 0; color: #856404; font-weight: bold;">âš¡ Patterns DYNAMIQUES (sauts de position - 55%):</p>
           <ul style="margin: 5px 0 10px 20px; color: #856404;">
-            <li><strong>ZIGZAG:</strong> Va-et-vient modérés, sauts max 60%, 40-100% vitesse, 1-2.5s</li>
-            <li><strong>SWEEP:</strong> Balayages bout-à-bout, 30-90% vitesse, 2-4s</li>
-            <li><strong>PULSE:</strong> Impulsions depuis centre ±40%, 50-100% vitesse, 0.8-1.5s</li>
-            <li><strong>DRIFT:</strong> Dérive micro-changements 25%, 20-70% vitesse, 3-6s</li>
+            <li><strong>ZIGZAG:</strong> Va-et-vient modÃ©rÃ©s, sauts max 60%, 40-100% vitesse, 1-2.5s</li>
+            <li><strong>SWEEP:</strong> Balayages bout-Ã -bout, 30-90% vitesse, 2-4s</li>
+            <li><strong>PULSE:</strong> Impulsions depuis centre Â±40%, 50-100% vitesse, 0.8-1.5s</li>
+            <li><strong>DRIFT:</strong> DÃ©rive micro-changements 25%, 20-70% vitesse, 3-6s</li>
             <li><strong>BURST:</strong> Sauts ultrarapides 70%, 60-100% vitesse, 0.6-1.2s</li>
-            <li><strong>BRUTE FORCE:</strong> Bélier 3 phases: entrée rapide 70-100%, sortie lente 20-30%, pause 200-1500ms</li>
-            <li><strong>LIBERATOR:</strong> Extraction 3 phases: entrée lente 20-30%, sortie rapide 70-100%, pause 200-1500ms</li>
+            <li><strong>BRUTE FORCE:</strong> BÃ©lier 3 phases: entrÃ©e rapide 70-100%, sortie lente 20-30%, pause 200-1500ms</li>
+            <li><strong>LIBERATOR:</strong> Extraction 3 phases: entrÃ©e lente 20-30%, sortie rapide 70-100%, pause 200-1500ms</li>
           </ul>
           <p style="margin: 8px 0 0 0; color: #856404;">
-            ✨ <strong>45% doux, 55% dynamiques.</strong> Degré de folie module vitesse/durée/sauts/pauses.
+            âœ¨ <strong>45% doux, 55% dynamiques.</strong> DegrÃ© de folie module vitesse/durÃ©e/sauts/pauses.
           </p>
         </div>
 
@@ -1029,7 +1026,7 @@
           </div>
           <div class="form-group-compact" style="display: block;">
             <div>
-              <label class="label-inline">Amplitude ±:</label>
+              <label class="label-inline">Amplitude Â±:</label>
               <input type="number" id="chaosAmplitude" min="1" step="0.1" value="50" class="input-compact">
               <span class="unit-label">mm</span>
             </div>
@@ -1043,104 +1040,104 @@
           </div>
         </div>
 
-        <!-- Séparateur -->
+        <!-- SÃ©parateur -->
         <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
 
         <!-- Vitesse max -->
         <div class="speed-control-inline" style="margin-bottom: 12px;">
           <label class="label-inline">Vitesse max:</label>
           <input type="number" id="chaosMaxSpeed" min="0.5" max="20" step="0.5" value="10" class="input-compact">
-          <button class="preset-btn-sm btn-preset" data-chaos-speed="0.5">0.5 🐌</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-speed="0.5">0.5 ðŸŒ</button>
           <button class="preset-btn-sm btn-preset" data-chaos-speed="1">1</button>
           <button class="preset-btn-sm btn-preset" data-chaos-speed="2">2</button>
-          <button class="preset-btn-sm btn-preset" data-chaos-speed="5">5 ✓</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-speed="5">5 âœ“</button>
           <button class="preset-btn-sm btn-preset" data-chaos-speed="10">10</button>
           <button class="preset-btn-sm btn-preset" data-chaos-speed="15">15</button>
-          <button class="preset-btn-sm btn-preset" data-chaos-speed="20">20 ⚡</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-speed="20">20 âš¡</button>
         </div>
 
-        <!-- Degré de folie -->
+        <!-- DegrÃ© de folie -->
         <div class="speed-control-inline" style="margin-bottom: 12px;">
-          <label class="label-inline">🔥 Degré folie: <span id="crazinessValue" style="font-weight: bold; color: #C850C0;">50</span>%</label>
+          <label class="label-inline">ðŸ”¥ DegrÃ© folie: <span id="crazinessValue" style="font-weight: bold; color: #C850C0;">50</span>%</label>
           <input type="range" id="chaosCraziness" min="0" max="100" step="5" value="50" style="width: 180px; margin-left: 10px;">
-          <button class="preset-btn-sm btn-preset" data-chaos-craziness="0">0% 😴</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-craziness="0">0% ðŸ˜´</button>
           <button class="preset-btn-sm btn-preset" data-chaos-craziness="25">25%</button>
-          <button class="preset-btn-sm btn-preset" data-chaos-craziness="50">50% ✓</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-craziness="50">50% âœ“</button>
           <button class="preset-btn-sm btn-preset" data-chaos-craziness="75">75%</button>
-          <button class="preset-btn-sm btn-preset" data-chaos-craziness="100">100% 🔥</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-craziness="100">100% ðŸ”¥</button>
         </div>
 
-        <!-- Durée -->
+        <!-- DurÃ©e -->
         <div class="speed-control-inline" style="margin-bottom: 12px;">
-          <label class="label-inline">Durée:</label>
+          <label class="label-inline">DurÃ©e:</label>
           <input type="number" id="chaosDuration" min="0" step="1" value="0" class="input-compact" style="width: 70px;">
           <span class="unit-label">s (0=Infini)</span>
           <button class="preset-btn-sm btn-preset" data-chaos-duration="30">30s</button>
           <button class="preset-btn-sm btn-preset" data-chaos-duration="60">60s</button>
           <button class="preset-btn-sm btn-preset" data-chaos-duration="120">120s</button>
-          <button class="preset-btn-sm btn-preset" data-chaos-duration="0">∞</button>
+          <button class="preset-btn-sm btn-preset" data-chaos-duration="0">âˆž</button>
         </div>
 
-        <!-- Séparateur -->
+        <!-- SÃ©parateur -->
         <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
 
-        <!-- Accordion: Options avancées -->
+        <!-- Accordion: Options avancÃ©es -->
         <details style="margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f9f9f9;">
-          <summary style="cursor: pointer; font-weight: bold; font-size: 13px; color: #333;">▼ Options avancées</summary>
+          <summary style="cursor: pointer; font-weight: bold; font-size: 13px; color: #333;">â–¼ Options avancÃ©es</summary>
           
           <!-- Patterns actifs -->
           <div style="margin-top: 10px; padding: 10px; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
-            <label style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 8px;">✅ Patterns actifs:</label>
+            <label style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 8px;">âœ… Patterns actifs:</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;">
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternWave" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🌊 WAVE</span>
+                <span>ðŸŒŠ WAVE</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternPendulum" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🎯 PENDULUM</span>
+                <span>ðŸŽ¯ PENDULUM</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternSpiral" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🌀 SPIRAL</span>
+                <span>ðŸŒ€ SPIRAL</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternZigzag" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>⚡ ZIGZAG</span>
+                <span>âš¡ ZIGZAG</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternSweep" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>↔️ SWEEP</span>
+                <span>â†”ï¸ SWEEP</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternPulse" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>💫 PULSE</span>
+                <span>ðŸ’« PULSE</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternDrift" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🌫️ DRIFT</span>
+                <span>ðŸŒ«ï¸ DRIFT</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternBurst" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🔥 BURST</span>
+                <span>ðŸ”¥ BURST</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternCalm" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>😌 BREATHING</span>
+                <span>ðŸ˜Œ BREATHING</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternBruteForce" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🔨 BRUTE FORCE</span>
+                <span>ðŸ”¨ BRUTE FORCE</span>
               </label>
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
                 <input type="checkbox" id="patternLiberator" checked style="margin-right: 5px; transform: scale(1.1);">
-                <span>🔓 LIBERATOR</span>
+                <span>ðŸ”“ LIBERATOR</span>
               </label>
             </div>
             <div style="display: flex; gap: 5px; margin-top: 8px;">
-              <button class="preset-btn-sm btn-preset" id="btnEnableAllPatterns" style="flex: 1; font-size: 10px; padding: 4px;">✅ Tout</button>
-              <button class="preset-btn-sm btn-preset" id="btnEnableSoftPatterns" style="flex: 1; font-size: 10px; padding: 4px;">🌊 Doux</button>
-              <button class="preset-btn-sm btn-preset" id="btnEnableDynamicPatterns" style="flex: 1; font-size: 10px; padding: 4px;">⚡ Dynamiques</button>
+              <button class="preset-btn-sm btn-preset" id="btnEnableAllPatterns" style="flex: 1; font-size: 10px; padding: 4px;">âœ… Tout</button>
+              <button class="preset-btn-sm btn-preset" id="btnEnableSoftPatterns" style="flex: 1; font-size: 10px; padding: 4px;">ðŸŒŠ Doux</button>
+              <button class="preset-btn-sm btn-preset" id="btnEnableDynamicPatterns" style="flex: 1; font-size: 10px; padding: 4px;">âš¡ Dynamiques</button>
             </div>
           </div>
 
@@ -1148,11 +1145,11 @@
           <div style="margin-top: 10px;">
             <label class="label-inline" style="font-size: 12px;">Seed (optionnel):</label>
             <input type="number" id="chaosSeed" min="0" step="1" value="0" class="input-compact" style="width: 90px;">
-            <span class="unit-label" style="font-size: 11px;">(0=aléatoire)</span>
+            <span class="unit-label" style="font-size: 11px;">(0=alÃ©atoire)</span>
           </div>
         </details>
 
-        <!-- Séparateur -->
+        <!-- SÃ©parateur -->
         <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
 
         <!-- Real-time Stats Section -->
@@ -1164,55 +1161,55 @@
             <div><strong>Patterns:</strong> <span id="statCount" style="color: #2196F3;">0</span></div>
           </div>
           <div id="statTimer" style="margin-top: 8px; text-align: center; font-size: 12px;">
-            ⏱️ Temps: <span id="statElapsed">0</span>s
+            â±ï¸ Temps: <span id="statElapsed">0</span>s
           </div>
         </div>
 
-        <!-- Boutons de contrôle -->
+        <!-- Boutons de contrÃ´le -->
         <div class="button-group">
-          <button class="button btn-success" id="btnStartChaos">▶️ Démarrer</button>
-          <button class="button btn-warning" id="btnPauseChaos">⏸ Pause</button>
-          <button class="button btn-danger" id="btnStopChaos">⏹️ Arrêter</button>
+          <button class="button btn-success" id="btnStartChaos">â–¶ï¸ DÃ©marrer</button>
+          <button class="button btn-warning" id="btnPauseChaos">â¸ Pause</button>
+          <button class="button btn-danger" id="btnStopChaos">â¹ï¸ ArrÃªter</button>
           <button class="button btn-info" id="btnManagePlaylistChaos">
-            📋 Playlist (0/20)
+            ðŸ“‹ Playlist (0/20)
           </button>
-          <button class="button btn-help" onclick="toggleChaosHelp()" style="padding: 12px 20px;">❓</button>
+          <button class="button btn-help" onclick="toggleChaosHelp()" style="padding: 12px 20px;">â“</button>
         </div>
       </div>
     </div>
     <!-- END MODE CHAOS -->
 
-    <!-- MODE Séquenceur Tab Content -->
+    <!-- MODE SÃ©quenceur Tab Content -->
     <div class="tab-content hidden-until-calibrated" id="tabTableau">
       <div class="controls">
         
         <!-- Toolbar -->
         <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-          <button class="button btn-success" id="btnAddLine" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">➕ Ajouter</button>
-          <button class="button btn-warning" id="btnClearAll" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">🗑️ Effacer</button>
-          <button class="button btn-primary" id="btnImportSeq" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">📥 Import</button>
-          <button class="button btn-primary" id="btnExportSeq" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">📤 Export</button>
-          <button class="button btn-info" id="btnDownloadTemplate" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px; background: #17a2b8;" title="Télécharger un template JSON avec exemples">📄 Template</button>
+          <button class="button btn-success" id="btnAddLine" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">âž• Ajouter</button>
+          <button class="button btn-warning" id="btnClearAll" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">ðŸ—‘ï¸ Effacer</button>
+          <button class="button btn-primary" id="btnImportSeq" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">ðŸ“¥ Import</button>
+          <button class="button btn-primary" id="btnExportSeq" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px;">ðŸ“¤ Export</button>
+          <button class="button btn-info" id="btnDownloadTemplate" style="flex: 1; min-width: 110px; padding: 8px; font-size: 13px; background: #17a2b8;" title="TÃ©lÃ©charger un template JSON avec exemples">ðŸ“„ Template</button>
         </div>
 
         <!-- Phase 2: Batch Operations Toolbar (hidden by default) -->
         <div id="sequenceBatchToolbar" class="sequence-batch-toolbar">
           <div class="sequence-batch-info">
-            <span id="batchSelectionCount">0 ligne(s) sélectionnée(s)</span>
+            <span id="batchSelectionCount">0 ligne(s) sÃ©lectionnÃ©e(s)</span>
           </div>
           <div class="sequence-batch-actions">
             <button class="sequence-batch-btn" onclick="batchEnableLines(true)">
-              <span>✓</span> Activer
+              <span>âœ“</span> Activer
             </button>
             <button class="sequence-batch-btn" onclick="batchEnableLines(false)">
-              <span>✗</span> Désactiver
+              <span>âœ—</span> DÃ©sactiver
             </button>
             <div id="sequenceTrashZone" class="sequence-trash-zone">
-              <span class="trash-icon">🗑️</span>
+              <span class="trash-icon">ðŸ—‘ï¸</span>
               <span>Glisser ici</span>
             </div>
             <button class="sequence-batch-btn" onclick="clearSelection()">
-              <span>✖</span> Annuler
+              <span>âœ–</span> Annuler
             </button>
           </div>
         </div>
@@ -1222,23 +1219,23 @@
           <table id="sequenceTable" style="width: 100%; border-collapse: collapse; font-size: 11px;">
             <thead>
               <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 30px;">✓</th>
+                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 30px;">âœ“</th>
                 <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 30px;">#</th>
                 <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 40px;">Type</th>
-                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);">Début<br><small style="font-size: 9px;">(mm)</small></th>
+                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);">DÃ©but<br><small style="font-size: 9px;">(mm)</small></th>
                 <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);">Dist.<br><small style="font-size: 9px;">(mm)</small></th>
                 <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);">Vitesses<br><small style="font-size: 9px;">A/R</small></th>
-                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);">Décel.</th>
+                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);">DÃ©cel.</th>
                 <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 45px;">Cycles</th>
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 50px;">⏱️<br><small style="font-size: 9px;">(s)</small></th>
+                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 50px;">â±ï¸<br><small style="font-size: 9px;">(s)</small></th>
                 <th style="padding: 8px 4px; text-align: center;">Actions</th>
               </tr>
             </thead>
             <tbody id="sequenceTableBody">
               <tr>
                 <td colspan="10" style="padding: 40px; text-align: center; color: #999;">
-                  <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
-                  <div style="font-size: 16px;">Aucune ligne - Cliquez sur "➕ Ajouter ligne" pour commencer</div>
+                  <div style="font-size: 48px; margin-bottom: 10px;">ðŸ“‹</div>
+                  <div style="font-size: 16px;">Aucune ligne - Cliquez sur "âž• Ajouter ligne" pour commencer</div>
                 </td>
               </tr>
             </tbody>
@@ -1247,7 +1244,7 @@
 
         <!-- Permanent Trash Drop Zone -->
         <div id="sequenceTrashDropZone" class="sequence-trash-drop-zone">
-          <span class="trash-icon">🗑️</span>
+          <span class="trash-icon">ðŸ—‘ï¸</span>
           <span>Glisser une ligne ici pour la supprimer</span>
         </div>
 
@@ -1255,35 +1252,35 @@
         <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
           <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
             <button class="button btn-success" id="btnStartSequence" style="flex: 1; min-width: 130px; font-size: 14px; padding: 10px;">
-              ▶️ Unique
+              â–¶ï¸ Unique
             </button>
             <button class="button btn-primary" id="btnLoopSequence" style="flex: 1; min-width: 130px; font-size: 14px; padding: 10px; background: #FF9800;">
-              🔁 Boucle
+              ðŸ” Boucle
             </button>
             <button class="button btn-warning" id="btnPauseSequence" style="flex: 1; min-width: 90px; font-size: 14px; padding: 10px;" disabled>
-              ⏸️ Pause
+              â¸ï¸ Pause
             </button>
             <button class="button btn-danger" id="btnStopSequence" style="flex: 1; min-width: 90px; font-size: 14px; padding: 10px;" disabled>
-              ⏹️ Stop
+              â¹ï¸ Stop
             </button>
             <button class="button btn-primary" id="btnSkipLine" style="flex: 1; min-width: 110px; font-size: 14px; padding: 10px; background: #9C27B0;" disabled>
-              ⏭️ Suivant
+              â­ï¸ Suivant
             </button>
           </div>
 
           <!-- Sequence Status - COMPACT -->
           <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; padding: 10px 15px; background: white; border-radius: 6px; border: 1px solid #ddd;">
-            <div><span style="color: #666;">Mode:</span> <strong id="seqMode" style="color: #333;">Arrêté</strong></div>
+            <div><span style="color: #666;">Mode:</span> <strong id="seqMode" style="color: #333;">ArrÃªtÃ©</strong></div>
             <div><span style="color: #666;">Ligne:</span> <strong id="seqCurrentLine" style="color: #2196F3;">-- / --</strong></div>
             <div><span style="color: #666;">Cycle:</span> <strong id="seqLineCycle" style="color: #4CAF50;">--</strong></div>
             <div><span style="color: #666;">Boucles:</span> <strong id="seqLoopCount" style="color: #FF9800;">0</strong></div>
-            <div><span style="color: #666;">⏱️ Pause:</span> <strong id="seqPauseRemaining" style="color: #9C27B0;">-- ms</strong></div>
+            <div><span style="color: #666;">â±ï¸ Pause:</span> <strong id="seqPauseRemaining" style="color: #9C27B0;">-- ms</strong></div>
           </div>
         </div>
 
       </div>
     </div>
-    <!-- END MODE Séquenceur -->
+    <!-- END MODE SÃ©quenceur -->
 
     <!-- Modal for Line Editing -->
     <div id="editLineModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; overflow-y: auto;" onclick="closeEditLineModalOnOverlayClick(event)">
@@ -1291,8 +1288,8 @@
         
         <!-- Modal Header -->
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; font-size: 20px;">✏️ Éditer la ligne #<span id="editLineNumber">--</span></h3>
-          <button id="btnCloseModal" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; line-height: 1;">×</button>
+          <h3 style="margin: 0; font-size: 20px;">âœï¸ Ã‰diter la ligne #<span id="editLineNumber">--</span></h3>
+          <button id="btnCloseModal" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; line-height: 1;">Ã—</button>
         </div>
 
         <!-- Modal Body -->
@@ -1301,70 +1298,70 @@
             
             <!-- Movement Type Selection -->
             <div class="type-selection-row">
-              <label class="label-inline">🎛️ Type:</label>
+              <label class="label-inline">ðŸŽ›ï¸ Type:</label>
               <div class="type-selection-buttons">
                 <label class="radio-label-inline">
                   <input type="radio" name="movementType" id="editTypeVaet" value="0" checked style="width: auto;">
-                  <span>🔄 Va-et-vient</span>
+                  <span>ðŸ”„ Va-et-vient</span>
                 </label>
                 <label class="radio-label-inline">
                   <input type="radio" name="movementType" id="editTypeOsc" value="1" style="width: auto;">
-                  <span>〰️ Oscillation</span>
+                  <span>ã€°ï¸ Oscillation</span>
                 </label>
                 <label class="radio-label-inline">
                   <input type="radio" name="movementType" id="editTypeChaos" value="2" style="width: auto;">
-                  <span>🌀 Chaos</span>
+                  <span>ðŸŒ€ Chaos</span>
                 </label>
                 <label class="radio-label-inline">
                   <input type="radio" name="movementType" id="editTypeCalibration" value="4" style="width: auto;">
-                  <span>📏 Calibration</span>
+                  <span>ðŸ“ Calibration</span>
                 </label>
               </div>
             </div>
 
             <!-- PLAYLIST PRESETS LOADING (for all modes) -->
             <div id="playlistLoaderSimple" style="background: #E3F2FD; padding: 12px; margin: 15px 0; border-radius: 6px; border: 2px solid #2196F3;">
-              <label style="font-weight: 500; color: #1976D2; display: block; margin-bottom: 8px;">📋 Charger un preset Simple:</label>
+              <label style="font-weight: 500; color: #1976D2; display: block; margin-bottom: 8px;">ðŸ“‹ Charger un preset Simple:</label>
               <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <select id="editSimplePresetSelect" onchange="previewSequencerPreset('simple', this.value)" style="flex: 1; padding: 8px; border: 1px solid #2196F3; border-radius: 4px;">
-                  <option value="">-- Sélectionner un preset --</option>
+                  <option value="">-- SÃ©lectionner un preset --</option>
                 </select>
-                <button type="button" onclick="previewSequencerPreset('simple', document.getElementById('editSimplePresetSelect').value)" style="padding: 8px 12px; background: #64B5F6; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Voir les détails">
-                  👁️
+                <button type="button" onclick="previewSequencerPreset('simple', document.getElementById('editSimplePresetSelect').value)" style="padding: 8px 12px; background: #64B5F6; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Voir les dÃ©tails">
+                  ðŸ‘ï¸
                 </button>
               </div>
               <button type="button" onclick="loadPresetIntoSequencerModal('simple')" style="width: 100%; padding: 8px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                ⬇️ Charger les valeurs
+                â¬‡ï¸ Charger les valeurs
               </button>
             </div>
 
             <div id="playlistLoaderOscillation" style="background: #FFF3E0; padding: 12px; margin: 15px 0; border-radius: 6px; border: 2px solid #FF9800; display: none;">
-              <label style="font-weight: 500; color: #F57C00; display: block; margin-bottom: 8px;">📋 Charger un preset Oscillation:</label>
+              <label style="font-weight: 500; color: #F57C00; display: block; margin-bottom: 8px;">ðŸ“‹ Charger un preset Oscillation:</label>
               <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <select id="editOscillationPresetSelect" onchange="previewSequencerPreset('oscillation', this.value)" style="flex: 1; padding: 8px; border: 1px solid #FF9800; border-radius: 4px;">
-                  <option value="">-- Sélectionner un preset --</option>
+                  <option value="">-- SÃ©lectionner un preset --</option>
                 </select>
-                <button type="button" onclick="previewSequencerPreset('oscillation', document.getElementById('editOscillationPresetSelect').value)" style="padding: 8px 12px; background: #FFB74D; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Voir les détails">
-                  👁️
+                <button type="button" onclick="previewSequencerPreset('oscillation', document.getElementById('editOscillationPresetSelect').value)" style="padding: 8px 12px; background: #FFB74D; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Voir les dÃ©tails">
+                  ðŸ‘ï¸
                 </button>
               </div>
               <button type="button" onclick="loadPresetIntoSequencerModal('oscillation')" style="width: 100%; padding: 8px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                ⬇️ Charger les valeurs
+                â¬‡ï¸ Charger les valeurs
               </button>
             </div>
 
             <div id="playlistLoaderChaos" style="background: #FCE4EC; padding: 12px; margin: 15px 0; border-radius: 6px; border: 2px solid #E91E63; display: none;">
-              <label style="font-weight: 500; color: #C2185B; display: block; margin-bottom: 8px;">📋 Charger un preset Chaos:</label>
+              <label style="font-weight: 500; color: #C2185B; display: block; margin-bottom: 8px;">ðŸ“‹ Charger un preset Chaos:</label>
               <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <select id="editChaosPresetSelect" onchange="previewSequencerPreset('chaos', this.value)" style="flex: 1; padding: 8px; border: 1px solid #E91E63; border-radius: 4px;">
-                  <option value="">-- Sélectionner un preset --</option>
+                  <option value="">-- SÃ©lectionner un preset --</option>
                 </select>
-                <button type="button" onclick="previewSequencerPreset('chaos', document.getElementById('editChaosPresetSelect').value)" style="padding: 8px 12px; background: #F06292; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Voir les détails">
-                  👁️
+                <button type="button" onclick="previewSequencerPreset('chaos', document.getElementById('editChaosPresetSelect').value)" style="padding: 8px 12px; background: #F06292; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Voir les dÃ©tails">
+                  ðŸ‘ï¸
                 </button>
               </div>
               <button type="button" onclick="loadPresetIntoSequencerModal('chaos')" style="width: 100%; padding: 8px; background: #E91E63; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                ⬇️ Charger les valeurs
+                â¬‡ï¸ Charger les valeurs
               </button>
             </div>
 
@@ -1373,7 +1370,7 @@
               <!-- Position & Distance -->
               <div class="grid-2col-12">
                 <div>
-                  <label class="label-inline">Position départ:</label>
+                  <label class="label-inline">Position dÃ©part:</label>
                   <input type="number" name="startPositionMM" id="editStartPos" step="0.1" min="0" class="input-modal">
                 </div>
                 <div>
@@ -1396,12 +1393,12 @@
 
               <!-- Deceleration Section -->
               <fieldset style="border: 1px solid #667eea; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
-                <legend style="color: #667eea; font-weight: 500; padding: 0 8px; font-size: 12px;">Décélération</legend>
+                <legend style="color: #667eea; font-weight: 500; padding: 0 8px; font-size: 12px;">DÃ©cÃ©lÃ©ration</legend>
                 
                 <div class="flex-gap-15 mb-8" style="font-size: 12px;">
                   <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
                     <input type="checkbox" name="decelStartEnabled" id="editDecelStart" style="width: 16px; height: 16px;">
-                    <span>Activer DÉBUT</span>
+                    <span>Activer DÃ‰BUT</span>
                   </label>
                   <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
                     <input type="checkbox" name="decelEndEnabled" id="editDecelEnd" style="width: 16px; height: 16px;" checked>
@@ -1423,17 +1420,17 @@
                 <div>
                   <label class="label-inline">Mode courbe:</label>
                   <select name="decelMode" id="editDecelMode" class="input-modal">
-                    <option value="0">Linéaire</option>
-                    <option value="1" selected>Sinusoïdal</option>
-                    <option value="2">Triangle Inversé</option>
-                    <option value="3">Sinus Inversé</option>
+                    <option value="0">LinÃ©aire</option>
+                    <option value="1" selected>SinusoÃ¯dal</option>
+                    <option value="2">Triangle InversÃ©</option>
+                    <option value="3">Sinus InversÃ©</option>
                   </select>
                 </div>
               </fieldset>
 
               <!-- Cycle Pause Section (VA-ET-VIENT) -->
               <fieldset style="border: 1px solid #f39c12; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
-                <legend style="color: #f39c12; font-weight: 500; padding: 0 8px; font-size: 12px;">⏸️ Pause entre cycles</legend>
+                <legend style="color: #f39c12; font-weight: 500; padding: 0 8px; font-size: 12px;">â¸ï¸ Pause entre cycles</legend>
                 
                 <div class="flex-gap-15 mb-8" style="font-size: 12px;">
                   <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
@@ -1442,13 +1439,13 @@
                   </label>
                   <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
                     <input type="checkbox" name="vaetCyclePauseIsRandom" id="editVaetPauseRandom" style="width: 16px; height: 16px;">
-                    <span>Aléatoire (range)</span>
+                    <span>AlÃ©atoire (range)</span>
                   </label>
                 </div>
 
                 <div class="grid-2col-12" style="margin-bottom: 8px; gap: 10px;" id="vaetPauseFixedDiv">
                   <div>
-                    <label class="label-inline">Durée pause (s):</label>
+                    <label class="label-inline">DurÃ©e pause (s):</label>
                     <input type="number" name="vaetCyclePauseDurationSec" id="editVaetPauseDuration" min="0" max="60" step="0.1" value="0.0" class="input-modal">
                   </div>
                 </div>
@@ -1488,13 +1485,13 @@
                 <div>
                   <label class="label-inline">Forme d'onde:</label>
                   <select name="oscWaveform" id="editOscWaveform" class="input-modal">
-                    <option value="0">〰️ Sinusoïdal</option>
-                    <option value="1">📐 Triangle</option>
-                    <option value="2">⬜ Carré</option>
+                    <option value="0">ã€°ï¸ SinusoÃ¯dal</option>
+                    <option value="1">ðŸ“ Triangle</option>
+                    <option value="2">â¬œ CarrÃ©</option>
                   </select>
                 </div>
                 <div>
-                  <label class="label-inline">Fréquence (Hz):</label>
+                  <label class="label-inline">FrÃ©quence (Hz):</label>
                   <input type="number" name="oscFrequencyHz" id="editOscFrequency" step="0.01" min="0.01" max="10" value="0.5" class="input-modal">
                 </div>
               </div>
@@ -1503,7 +1500,7 @@
               <div class="flex-gap-12" style="flex-direction: column; font-size: 12px; margin-bottom: 12px;">
                 <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
                   <input type="checkbox" name="oscEnableRampIn" id="editOscRampIn" style="width: 16px; height: 16px;">
-                  <span>Rampe entrée</span>
+                  <span>Rampe entrÃ©e</span>
                 </label>
                 <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
                   <input type="checkbox" name="oscEnableRampOut" id="editOscRampOut" style="width: 16px; height: 16px;">
@@ -1514,18 +1511,18 @@
               <!-- Ramp Durations -->
               <div class="grid-2col-12">
                 <div>
-                  <label class="label-inline">Durée rampe IN (ms):</label>
+                  <label class="label-inline">DurÃ©e rampe IN (ms):</label>
                   <input type="number" name="oscRampInDurationMs" id="editOscRampInDur" min="100" max="10000" step="100" value="1000" class="input-modal">
                 </div>
                 <div>
-                  <label class="label-inline">Durée rampe OUT (ms):</label>
+                  <label class="label-inline">DurÃ©e rampe OUT (ms):</label>
                   <input type="number" name="oscRampOutDurationMs" id="editOscRampOutDur" min="100" max="10000" step="100" value="1000" class="input-modal">
                 </div>
               </div>
 
               <!-- Cycle Pause Section (OSCILLATION) -->
               <fieldset style="border: 1px solid #f39c12; border-radius: 6px; padding: 10px; margin-top: 10px;">
-                <legend style="color: #f39c12; font-weight: 500; padding: 0 8px; font-size: 12px;">⏸️ Pause entre cycles</legend>
+                <legend style="color: #f39c12; font-weight: 500; padding: 0 8px; font-size: 12px;">â¸ï¸ Pause entre cycles</legend>
                 
                 <div class="flex-gap-15 mb-8" style="font-size: 12px;">
                   <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
@@ -1534,13 +1531,13 @@
                   </label>
                   <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
                     <input type="checkbox" name="oscCyclePauseIsRandom" id="editOscPauseRandom" style="width: 16px; height: 16px;">
-                    <span>Aléatoire (range)</span>
+                    <span>AlÃ©atoire (range)</span>
                   </label>
                 </div>
 
                 <div class="grid-2col-12" style="margin-bottom: 8px; gap: 10px;" id="oscPauseFixedDiv">
                   <div>
-                    <label class="label-inline">Durée pause (s):</label>
+                    <label class="label-inline">DurÃ©e pause (s):</label>
                     <input type="number" name="oscCyclePauseDurationSec" id="editOscPauseDuration" min="0" max="60" step="0.1" value="0.0" class="input-modal">
                   </div>
                 </div>
@@ -1582,7 +1579,7 @@
                   <input type="number" name="chaosMaxSpeedLevel" id="editChaosSpeed" min="1" max="20" step="0.5" value="10" class="input-modal">
                 </div>
                 <div>
-                  <label class="label-inline">🎲 Folie (%):</label>
+                  <label class="label-inline">ðŸŽ² Folie (%):</label>
                   <input type="number" name="chaosCrazinessPercent" id="editChaosCraziness" min="0" max="100" step="5" value="50" class="input-modal">
                 </div>
               </div>
@@ -1590,62 +1587,62 @@
               <!-- Duration & Seed -->
               <div class="grid-2col-12">
                 <div>
-                  <label class="label-inline">⏱️ Durée (s) 5-600:</label>
+                  <label class="label-inline">â±ï¸ DurÃ©e (s) 5-600:</label>
                   <input type="number" name="chaosDurationSeconds" id="editChaosDuration" min="5" max="600" step="5" value="30" class="input-modal">
                 </div>
                 <div>
-                  <label class="label-inline">🌱 Seed (0=aléa):</label>
+                  <label class="label-inline">ðŸŒ± Seed (0=alÃ©a):</label>
                   <input type="number" name="chaosSeed" id="editChaosSeed" min="0" max="9999999" step="1" value="0" class="input-modal">
                 </div>
               </div>
 
               <!-- Patterns Selection -->
               <div class="mb-10">
-                <label class="label-inline">🎭 Patterns actifs:</label>
+                <label class="label-inline">ðŸŽ­ Patterns actifs:</label>
                 <div class="grid-4col-patterns">
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern0" checked style="width: 14px; height: 14px;">
-                    <span>⚡ ZigZag</span>
+                    <span>âš¡ ZigZag</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern1" checked style="width: 14px; height: 14px;">
-                    <span>📊 Sweep</span>
+                    <span>ðŸ“Š Sweep</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern2" checked style="width: 14px; height: 14px;">
-                    <span>💥 Pulse</span>
+                    <span>ðŸ’¥ Pulse</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern3" checked style="width: 14px; height: 14px;">
-                    <span>🌊 Drift</span>
+                    <span>ðŸŒŠ Drift</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern4" checked style="width: 14px; height: 14px;">
-                    <span>💨 Burst</span>
+                    <span>ðŸ’¨ Burst</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern5" checked style="width: 14px; height: 14px;">
-                    <span>〰️ Wave</span>
+                    <span>ã€°ï¸ Wave</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern6" checked style="width: 14px; height: 14px;">
-                    <span>⚖️ Pendul</span>
+                    <span>âš–ï¸ Pendul</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern7" checked style="width: 14px; height: 14px;">
-                    <span>🌀 Spiral</span>
+                    <span>ðŸŒ€ Spiral</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern8" checked style="width: 14px; height: 14px;">
-                    <span>😌 Breathing</span>
+                    <span>ðŸ˜Œ Breathing</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern9" checked style="width: 14px; height: 14px;">
-                    <span>🔨 BruteForce</span>
+                    <span>ðŸ”¨ BruteForce</span>
                   </label>
                   <label class="checkbox-label-sm">
                     <input type="checkbox" name="chaosPattern10" checked style="width: 14px; height: 14px;">
-                    <span>🔓 Liberator</span>
+                    <span>ðŸ”“ Liberator</span>
                   </label>
                 </div>
               </div>
@@ -1661,14 +1658,14 @@
                 <input type="number" name="cycleCount" id="editCycles" min="1" max="1000" step="1" value="1" class="input-modal">
               </div>
               <div id="pauseFieldDiv">
-                <label class="label-inline">⏱️ Pause (s) 0-60:</label>
+                <label class="label-inline">â±ï¸ Pause (s) 0-60:</label>
                 <input type="number" name="pauseAfterSec" id="editPause" min="0" max="60" step="0.1" value="0" class="input-modal">
               </div>
             </div>
 
             <!-- Validation Error Display -->
             <div id="editValidationErrors" style="display: none; margin-bottom: 10px; padding: 10px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 5px; font-size: 12px;">
-              <div style="font-weight: bold; color: #d32f2f; margin-bottom: 5px;">❌ Erreurs de validation :</div>
+              <div style="font-weight: bold; color: #d32f2f; margin-bottom: 5px;">âŒ Erreurs de validation :</div>
               <ul id="editValidationErrorsList" style="margin: 0; padding-left: 20px; color: #c62828; font-size: 13px;">
               </ul>
             </div>
@@ -1676,10 +1673,10 @@
             <!-- Action Buttons -->
             <div class="flex-gap-10 flex-end">
               <button type="submit" id="btnSaveEdit" class="button btn-success" style="padding: 10px 24px; font-size: 14px;">
-                💾 Enregistrer
+                ðŸ’¾ Enregistrer
               </button>
               <button type="button" id="btnCancelEdit" class="button btn-secondary" style="padding: 10px 24px; font-size: 14px; background: #999;">
-                ❌ Annuler
+                âŒ Annuler
               </button>
             </div>
 
@@ -1697,14 +1694,4 @@
   <script src="/js/utils.js"></script>
   <script src="/js/websocket.js"></script>   <!-- WebSocket connection & handlers -->
   <script src="/js/stats.js"></script>       <!-- Statistics & charts -->
-  <script src="/js/context.js"></script>     <!-- Dependency injection container -->
-  <script src="/js/chaos.js"></script>       <!-- Chaos mode pure functions -->
-  <script src="/js/oscillation.js"></script> <!-- Oscillation mode pure functions -->
-  <script src="/js/sequencer.js"></script>   <!-- Sequencer pure functions -->
-  <script src="/js/presets.js"></script>     <!-- Preset name/tooltip pure functions -->
-  <script src="/js/formatting.js"></script>  <!-- Formatting pure functions -->
-  <script src="/js/validation.js"></script>  <!-- Validation logic & field mapping -->
-  <script src="/js/main.js"></script> 
   
-</body>
-</html>

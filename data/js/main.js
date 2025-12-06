@@ -634,171 +634,33 @@
     function highlightErrorFields(movementType, line, emptyFieldErrors) {
       clearErrorFields();
       
-      const form = document.getElementById('editLineForm');
       const effectiveMax = AppState.pursuit.effectiveMaxDistMM || AppState.pursuit.totalDistanceMM || 0;
       
-      // Check for empty fields and highlight them
-      if (emptyFieldErrors && emptyFieldErrors.length > 0) {
-        emptyFieldErrors.forEach(error => {
-          if (error.includes('Position de départ')) {
-            document.getElementById('editStartPos').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Distance')) {
-            document.getElementById('editDistance').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Vitesse aller')) {
-            document.getElementById('editSpeedFwd').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Vitesse retour')) {
-            document.getElementById('editSpeedBack').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Zone décélération')) {
-            document.getElementById('editDecelZone').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Centre oscillation')) {
-            document.getElementById('editOscCenter').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Amplitude oscillation')) {
-            document.getElementById('editOscAmplitude').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Fréquence')) {
-            document.getElementById('editOscFrequency').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Durée rampe IN')) {
-            document.getElementById('editOscRampInDur').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Durée rampe OUT')) {
-            document.getElementById('editOscRampOutDur').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Centre chaos')) {
-            document.getElementById('editChaosCenter').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Amplitude chaos')) {
-            document.getElementById('editChaosAmplitude').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Vitesse max chaos')) {
-            document.getElementById('editChaosSpeed').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Degré de folie')) {
-            document.getElementById('editChaosCraziness').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Durée chaos')) {
-            document.getElementById('editChaosDuration').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Seed')) {
-            document.getElementById('editChaosSeed').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Nombre de cycles')) {
-            document.getElementById('editCycles').style.border = '2px solid #f44336';
-          }
-          if (error.includes('Pause')) {
-            document.getElementById('editPause').style.border = '2px solid #f44336';
-          }
-        });
-      }
-      
-      if (movementType === 0) {
-        // VA-ET-VIENT
-        const endPosition = line.startPositionMM + line.distanceMM;
-        
-        // Position départ
-        if (line.startPositionMM < 0 || line.startPositionMM > effectiveMax) {
-          document.getElementById('editStartPos').style.border = '2px solid #f44336';
-        }
-        
-        // Distance
-        if (endPosition > effectiveMax || line.distanceMM <= 0) {
-          document.getElementById('editDistance').style.border = '2px solid #f44336';
-        }
-        
-        // Vitesses
-        if (line.speedForward < 0 || line.speedForward > 20) {
-          document.getElementById('editSpeedFwd').style.border = '2px solid #f44336';
-        }
-        if (line.speedBackward < 0 || line.speedBackward > 20) {
-          document.getElementById('editSpeedBack').style.border = '2px solid #f44336';
-        }
-        
-        // Zone décélération
-        if (line.decelZoneMM < 10 || line.decelZoneMM > 200) {
-          document.getElementById('editDecelZone').style.border = '2px solid #f44336';
-        }
-        
-      } else if (movementType === 1) {
-        // OSCILLATION
-        const minPos = line.oscCenterPositionMM - line.oscAmplitudeMM;
-        const maxPos = line.oscCenterPositionMM + line.oscAmplitudeMM;
-        
-        // Centre & Amplitude
-        if (minPos < 0 || maxPos > effectiveMax) {
-          document.getElementById('editOscCenter').style.border = '2px solid #f44336';
-        }
-        if (line.oscAmplitudeMM <= 0 || maxPos > effectiveMax) {
-          document.getElementById('editOscAmplitude').style.border = '2px solid #f44336';
-        }
-        
-        // Fréquence
-        if (line.oscFrequencyHz < 0.01 || line.oscFrequencyHz > 10) {
-          document.getElementById('editOscFrequency').style.border = '2px solid #f44336';
-        }
-        
-        // Durée rampes
-        if (line.oscRampInDurationMs < 100 || line.oscRampInDurationMs > 10000) {
-          document.getElementById('editOscRampInDur').style.border = '2px solid #f44336';
-        }
-        if (line.oscRampOutDurationMs < 100 || line.oscRampOutDurationMs > 10000) {
-          document.getElementById('editOscRampOutDur').style.border = '2px solid #f44336';
-        }
-        
-      } else if (movementType === 2) {
-        // CHAOS
-        const minPos = line.chaosCenterPositionMM - line.chaosAmplitudeMM;
-        const maxPos = line.chaosCenterPositionMM + line.chaosAmplitudeMM;
-        
-        // Centre & Amplitude
-        if (minPos < 0 || maxPos > effectiveMax) {
-          document.getElementById('editChaosCenter').style.border = '2px solid #f44336';
-        }
-        if (line.chaosAmplitudeMM <= 0 || maxPos > effectiveMax) {
-          document.getElementById('editChaosAmplitude').style.border = '2px solid #f44336';
-        }
-        
-        // Vitesse max
-        if (line.chaosMaxSpeedLevel < 1 || line.chaosMaxSpeedLevel > 20) {
-          document.getElementById('editChaosSpeed').style.border = '2px solid #f44336';
-        }
-        
-        // Degré de folie
-        if (line.chaosCrazinessPercent < 0 || line.chaosCrazinessPercent > 100) {
-          document.getElementById('editChaosCraziness').style.border = '2px solid #f44336';
-        }
-        
-        // Durée
-        if (line.chaosDurationSeconds < 5 || line.chaosDurationSeconds > 600) {
-          document.getElementById('editChaosDuration').style.border = '2px solid #f44336';
-        }
-        
-        // Seed
-        if (line.chaosSeed < 0 || line.chaosSeed > 9999999) {
-          document.getElementById('editChaosSeed').style.border = '2px solid #f44336';
+      // Use pure function to get all invalid field IDs
+      let invalidFieldIds = [];
+      if (typeof getAllInvalidFieldsPure === 'function') {
+        invalidFieldIds = getAllInvalidFieldsPure(line, movementType, effectiveMax, emptyFieldErrors);
+      } else {
+        // Fallback: use error field mapping for empty fields
+        if (typeof getErrorFieldIdsPure === 'function') {
+          invalidFieldIds = getErrorFieldIdsPure(emptyFieldErrors);
         }
       }
       
-      // Validation commune
-      if (movementType !== 2 && movementType !== 4) {  // CHAOS & CALIBRATION
-        if (line.cycleCount < 1 || line.cycleCount > 1000) {
-          document.getElementById('editCycles').style.border = '2px solid #f44336';
+      // Apply error styling to all invalid fields
+      const errorStyle = '2px solid #f44336';
+      invalidFieldIds.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.style.border = errorStyle;
         }
-      }
-      
-      if (line.pauseAfterMs < 0 || line.pauseAfterMs > 60000) {
-        document.getElementById('editPause').style.border = '2px solid #f44336';
-      }
+      });
     }
     
     // Clear all error field highlights
     function clearErrorFields() {
-      const fields = [
+      // Use ALL_EDIT_FIELDS from validation.js if available
+      const fields = (typeof ALL_EDIT_FIELDS !== 'undefined') ? ALL_EDIT_FIELDS : [
         // VA-ET-VIENT
         'editStartPos', 'editDistance', 'editSpeedFwd', 'editSpeedBack', 'editDecelZone',
         // OSCILLATION
@@ -1348,240 +1210,53 @@
      * Helps users create their own sequence files
      */
     function downloadTemplate() {
-      const template = {
-        version: "2.0",
-        lineCount: 5,
-        lines: [
-          {
-            lineId: 1,
-            enabled: true,
-            movementType: 4,  // CALIBRATION (toujours en premier!)
-            cycleCount: 1,
-            pauseAfterMs: 1000,
-            // Note: Les autres champs sont ignorés pour la calibration
-            startPositionMM: 0,
-            distanceMM: 100,
-            speedForward: 5.0,
-            speedBackward: 5.0,
-            decelStartEnabled: false,
-            decelEndEnabled: false,
-            decelZoneMM: 50.0,
-            decelEffectPercent: 50.0,
-            decelMode: 0,
-            oscCenterPositionMM: 100.0,
-            oscAmplitudeMM: 50.0,
-            oscWaveform: 0,
-            oscFrequencyHz: 0.1,
-            oscEnableRampIn: false,
-            oscEnableRampOut: false,
-            oscRampInDurationMs: 1000.0,
-            oscRampOutDurationMs: 1000.0,
-            chaosCenterPositionMM: 110.0,
-            chaosAmplitudeMM: 50.0,
-            chaosMaxSpeedLevel: 10.0,
-            chaosCrazinessPercent: 50.0,
-            chaosDurationSeconds: 30,
-            chaosSeed: 0,
-            chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+      // Use pure function from sequencer.js if available
+      let fullDoc;
+      if (typeof getSequenceTemplateDocPure === 'function') {
+        fullDoc = getSequenceTemplateDocPure();
+      } else {
+        // Fallback - minimal template
+        fullDoc = {
+          TEMPLATE: {
+            version: "2.0",
+            lineCount: 1,
+            lines: [{
+              lineId: 1,
+              enabled: true,
+              movementType: 4,  // CALIBRATION
+              cycleCount: 1,
+              pauseAfterMs: 1000,
+              startPositionMM: 0,
+              distanceMM: 100,
+              speedForward: 5.0,
+              speedBackward: 5.0,
+              decelStartEnabled: false,
+              decelEndEnabled: false,
+              decelZoneMM: 50.0,
+              decelEffectPercent: 50.0,
+              decelMode: 0,
+              oscCenterPositionMM: 100.0,
+              oscAmplitudeMM: 50.0,
+              oscWaveform: 0,
+              oscFrequencyHz: 0.1,
+              oscEnableRampIn: false,
+              oscEnableRampOut: false,
+              oscRampInDurationMs: 1000.0,
+              oscRampOutDurationMs: 1000.0,
+              chaosCenterPositionMM: 110.0,
+              chaosAmplitudeMM: 50.0,
+              chaosMaxSpeedLevel: 10.0,
+              chaosCrazinessPercent: 50.0,
+              chaosDurationSeconds: 30,
+              chaosSeed: 0,
+              chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+            }]
           },
-          {
-            lineId: 2,
-            enabled: true,
-            movementType: 0,  // VA-ET-VIENT (Simple)
-            cycleCount: 10,
-            pauseAfterMs: 500,
-            // Paramètres VA-ET-VIENT
-            startPositionMM: 0.0,
-            distanceMM: 100.0,
-            speedForward: 8.0,
-            speedBackward: 8.0,
-            decelStartEnabled: true,
-            decelEndEnabled: true,
-            decelZoneMM: 20.0,
-            decelEffectPercent: 75.0,
-            decelMode: 1,  // 0=LINEAR, 1=SINE, 2=TRIANGLE_INV, 3=SINE_INV
-            // Les autres champs (osc/chaos) ne sont pas utilisés mais doivent être présents
-            oscCenterPositionMM: 100.0,
-            oscAmplitudeMM: 50.0,
-            oscWaveform: 0,
-            oscFrequencyHz: 0.25,
-            oscEnableRampIn: false,
-            oscEnableRampOut: false,
-            oscRampInDurationMs: 1000.0,
-            oscRampOutDurationMs: 1000.0,
-            chaosCenterPositionMM: 110.0,
-            chaosAmplitudeMM: 50.0,
-            chaosMaxSpeedLevel: 10.0,
-            chaosCrazinessPercent: 50.0,
-            chaosDurationSeconds: 30,
-            chaosSeed: 0,
-            chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
-          },
-          {
-            lineId: 3,
-            enabled: true,
-            movementType: 1,  // OSCILLATION
-            cycleCount: 5,
-            pauseAfterMs: 2000,
-            // Paramètres OSCILLATION (les autres champs doivent être présents)
-            startPositionMM: 0.0,
-            distanceMM: 100.0,
-            speedForward: 5.0,
-            speedBackward: 5.0,
-            decelStartEnabled: false,
-            decelEndEnabled: false,
-            decelZoneMM: 50.0,
-            decelEffectPercent: 50.0,
-            decelMode: 0,
-            oscCenterPositionMM: 100.0,
-            oscAmplitudeMM: 80.0,
-            oscWaveform: 0,  // 0=SINE, 1=TRIANGLE, 2=SQUARE
-            oscFrequencyHz: 0.5,
-            oscEnableRampIn: true,
-            oscEnableRampOut: true,
-            oscRampInDurationMs: 2000.0,
-            oscRampOutDurationMs: 2000.0,
-            chaosCenterPositionMM: 110.0,
-            chaosAmplitudeMM: 50.0,
-            chaosMaxSpeedLevel: 10.0,
-            chaosCrazinessPercent: 50.0,
-            chaosDurationSeconds: 30,
-            chaosSeed: 0,
-            chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
-          },
-          {
-            lineId: 4,
-            enabled: true,
-            movementType: 2,  // CHAOS
-            cycleCount: 1,
-            pauseAfterMs: 1000,
-            // Paramètres CHAOS (les autres champs doivent être présents)
-            startPositionMM: 0.0,
-            distanceMM: 100.0,
-            speedForward: 5.0,
-            speedBackward: 5.0,
-            decelStartEnabled: false,
-            decelEndEnabled: false,
-            decelZoneMM: 50.0,
-            decelEffectPercent: 50.0,
-            decelMode: 0,
-            oscCenterPositionMM: 100.0,
-            oscAmplitudeMM: 50.0,
-            oscWaveform: 0,
-            oscFrequencyHz: 1.0,
-            oscEnableRampIn: false,
-            oscEnableRampOut: false,
-            oscRampInDurationMs: 1000.0,
-            oscRampOutDurationMs: 1000.0,
-            chaosCenterPositionMM: 100.0,
-            chaosAmplitudeMM: 80.0,
-            chaosMaxSpeedLevel: 15.0,
-            chaosCrazinessPercent: 75.0,
-            chaosDurationSeconds: 60,
-            chaosSeed: 12345,
-            chaosPatternsEnabled: [false, false, false, false, false, true, true, true, true, false, false]  // Doux: WAVE, PENDULUM, SPIRAL, BREATHING
-          },
-          {
-            lineId: 5,
-            enabled: true,
-            movementType: 0,  // VA-ET-VIENT (retour à 0)
-            cycleCount: 1,
-            pauseAfterMs: 0,
-            startPositionMM: 0.0,
-            distanceMM: 50.0,
-            speedForward: 5.0,
-            speedBackward: 5.0,
-            decelStartEnabled: false,
-            decelEndEnabled: true,
-            decelZoneMM: 10.0,
-            decelEffectPercent: 50.0,
-            decelMode: 1,
-            oscCenterPositionMM: 100.0,
-            oscAmplitudeMM: 50.0,
-            oscWaveform: 0,
-            oscFrequencyHz: 2.0,
-            oscEnableRampIn: false,
-            oscEnableRampOut: false,
-            oscRampInDurationMs: 1000.0,
-            oscRampOutDurationMs: 1000.0,
-            chaosCenterPositionMM: 110.0,
-            chaosAmplitudeMM: 50.0,
-            chaosMaxSpeedLevel: 10.0,
-            chaosCrazinessPercent: 50.0,
-            chaosDurationSeconds: 30,
-            chaosSeed: 0,
-            chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+          DOCUMENTATION: {
+            "Note": "Template minimal - Voir sequencer.js pour la version complète"
           }
-        ]
-      };
-      
-      // Create help documentation
-      const help = {
-        "🔧 GUIDE D'UTILISATION": {
-          "Format": "JSON version 2.0",
-          "Structure": "Objet avec 'version', 'lineCount' et 'lines' (array)",
-          "Ordre": "⚠️ TOUJOURS commencer par CALIBRATION (movementType=4) !"
-        },
-        "📋 TYPES DE MOUVEMENT (movementType)": {
-          "0": "VA-ET-VIENT (Simple) - Mouvement aller-retour classique",
-          "1": "OSCILLATION - Mouvement sinusoïdal continu",
-          "2": "CHAOS - Mouvements aléatoires chaotiques",
-          "4": "CALIBRATION - Calibration automatique (toujours en premier)"
-        },
-        "⚙️ PARAMÈTRES COMMUNS": {
-          "lineId": "ID unique de la ligne (entier)",
-          "enabled": "Ligne active ? (true/false)",
-          "cycleCount": "Nombre de cycles (1 forcé pour CALIBRATION)",
-          "pauseAfterMs": "Pause après mouvement en millisecondes (0 = aucune)"
-        },
-        "🎯 VA-ET-VIENT (movementType=0)": {
-          "startPositionMM": "Position de départ (mm)",
-          "distanceMM": "Distance du mouvement (mm)",
-          "speedForward": "Vitesse aller (1-20)",
-          "speedBackward": "Vitesse retour (1-20)",
-          "decelStartEnabled": "Décélération au départ ? (true/false)",
-          "decelEndEnabled": "Décélération à la fin ? (true/false)",
-          "decelZoneMM": "Taille zone décélération (mm)",
-          "decelEffectPercent": "Effet décélération (0-100%)",
-          "decelMode": "Type: 0=LINEAR, 1=SINE, 2=TRIANGLE_INV, 3=SINE_INV"
-        },
-        "🌊 OSCILLATION (movementType=1)": {
-          "oscCenterPositionMM": "Position centrale (mm)",
-          "oscAmplitudeMM": "Amplitude ±amplitude (mm)",
-          "oscWaveform": "Forme d'onde: 0=SINE, 1=TRIANGLE, 2=SQUARE",
-          "oscFrequencyHz": "Fréquence (0.1-10 Hz)",
-          "oscEnableRampIn": "Rampe d'entrée ? (true/false)",
-          "oscEnableRampOut": "Rampe de sortie ? (true/false)",
-          "oscRampInDurationMs": "Durée rampe entrée (ms)",
-          "oscRampOutDurationMs": "Durée rampe sortie (ms)"
-        },
-        "🌪️ CHAOS (movementType=2)": {
-          "chaosCenterPositionMM": "Position centrale (mm)",
-          "chaosAmplitudeMM": "Amplitude max ±amplitude (mm)",
-          "chaosMaxSpeedLevel": "Vitesse max (1-20)",
-          "chaosCrazinessPercent": "Degré folie (0-100%)",
-          "chaosDurationSeconds": "Durée en secondes (0=infini)",
-          "chaosSeed": "Graine aléatoire (0=auto)",
-          "chaosPatternsEnabled": "Array[11] booléens (ZIGZAG, SWEEP, PULSE, DRIFT, BURST, WAVE, PENDULUM, SPIRAL, BREATHING, BRUTE_FORCE, LIBERATOR)"
-        },
-        "📏 CALIBRATION (movementType=4)": {
-          "Note": "Calibration automatique complète",
-          "cycleCount": "Toujours forcé à 1",
-          "Autres_params": "Ignorés mais doivent être présents dans le JSON"
-        },
-        "⚠️ IMPORTANT": {
-          "Tous_les_champs": "TOUS les champs doivent être présents dans chaque ligne !",
-          "Ordre_execution": "Les lignes sont exécutées dans l'ordre du tableau",
-          "Validation": "Les valeurs sont validées côté backend (limites physiques)",
-          "IDs": "Les lineId doivent être uniques"
-        }
-      };
-      
-      // Combine template and help
-      const fullDoc = {
-        TEMPLATE: template,
-        DOCUMENTATION: help
-      };
+        };
+      }
       
       // Create downloadable file
       const jsonStr = JSON.stringify(fullDoc, null, 2);

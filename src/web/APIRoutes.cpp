@@ -361,6 +361,23 @@ void setupAPIRoutes() {
     }
   });
 
+  server.on("/js/validation.js", HTTP_GET, []() {
+    if (LittleFS.exists("/js/validation.js")) {
+      File file = LittleFS.open("/js/validation.js", "r");
+      if (file) {
+        server.sendHeader("Cache-Control", "public, max-age=86400");
+        server.streamFile(file, "application/javascript");
+        file.close();
+        engine->debug("✅ Served /js/validation.js from LittleFS");
+      } else {
+        server.send(500, "text/plain", "❌ Error opening /js/validation.js");
+      }
+    } else {
+      server.send(404, "text/plain", "❌ File not found: /js/validation.js");
+      engine->error("❌ /js/validation.js not found in LittleFS");
+    }
+  });
+
   server.on("/js/main.js", HTTP_GET, []() {
     if (LittleFS.exists("/js/main.js")) {
       File file = LittleFS.open("/js/main.js", "r");

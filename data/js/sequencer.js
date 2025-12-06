@@ -491,6 +491,251 @@ function getLineCyclesPausePure(line, movementType) {
 }
 
 // ============================================================================
+// SEQUENCE TEMPLATE DATA (for downloadTemplate)
+// ============================================================================
+
+/**
+ * Example sequence template with all movement types
+ * Used by downloadTemplate() in main.js
+ */
+const SEQUENCE_TEMPLATE = {
+  version: "2.0",
+  lineCount: 5,
+  lines: [
+    {
+      lineId: 1,
+      enabled: true,
+      movementType: 4,  // CALIBRATION (toujours en premier!)
+      cycleCount: 1,
+      pauseAfterMs: 1000,
+      startPositionMM: 0,
+      distanceMM: 100,
+      speedForward: 5.0,
+      speedBackward: 5.0,
+      decelStartEnabled: false,
+      decelEndEnabled: false,
+      decelZoneMM: 50.0,
+      decelEffectPercent: 50.0,
+      decelMode: 0,
+      oscCenterPositionMM: 100.0,
+      oscAmplitudeMM: 50.0,
+      oscWaveform: 0,
+      oscFrequencyHz: 0.1,
+      oscEnableRampIn: false,
+      oscEnableRampOut: false,
+      oscRampInDurationMs: 1000.0,
+      oscRampOutDurationMs: 1000.0,
+      chaosCenterPositionMM: 110.0,
+      chaosAmplitudeMM: 50.0,
+      chaosMaxSpeedLevel: 10.0,
+      chaosCrazinessPercent: 50.0,
+      chaosDurationSeconds: 30,
+      chaosSeed: 0,
+      chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+    },
+    {
+      lineId: 2,
+      enabled: true,
+      movementType: 0,  // VA-ET-VIENT (Simple)
+      cycleCount: 10,
+      pauseAfterMs: 500,
+      startPositionMM: 0.0,
+      distanceMM: 100.0,
+      speedForward: 8.0,
+      speedBackward: 8.0,
+      decelStartEnabled: true,
+      decelEndEnabled: true,
+      decelZoneMM: 20.0,
+      decelEffectPercent: 75.0,
+      decelMode: 1,
+      oscCenterPositionMM: 100.0,
+      oscAmplitudeMM: 50.0,
+      oscWaveform: 0,
+      oscFrequencyHz: 0.25,
+      oscEnableRampIn: false,
+      oscEnableRampOut: false,
+      oscRampInDurationMs: 1000.0,
+      oscRampOutDurationMs: 1000.0,
+      chaosCenterPositionMM: 110.0,
+      chaosAmplitudeMM: 50.0,
+      chaosMaxSpeedLevel: 10.0,
+      chaosCrazinessPercent: 50.0,
+      chaosDurationSeconds: 30,
+      chaosSeed: 0,
+      chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+    },
+    {
+      lineId: 3,
+      enabled: true,
+      movementType: 1,  // OSCILLATION
+      cycleCount: 5,
+      pauseAfterMs: 2000,
+      startPositionMM: 0.0,
+      distanceMM: 100.0,
+      speedForward: 5.0,
+      speedBackward: 5.0,
+      decelStartEnabled: false,
+      decelEndEnabled: false,
+      decelZoneMM: 50.0,
+      decelEffectPercent: 50.0,
+      decelMode: 0,
+      oscCenterPositionMM: 100.0,
+      oscAmplitudeMM: 80.0,
+      oscWaveform: 0,
+      oscFrequencyHz: 0.5,
+      oscEnableRampIn: true,
+      oscEnableRampOut: true,
+      oscRampInDurationMs: 2000.0,
+      oscRampOutDurationMs: 2000.0,
+      chaosCenterPositionMM: 110.0,
+      chaosAmplitudeMM: 50.0,
+      chaosMaxSpeedLevel: 10.0,
+      chaosCrazinessPercent: 50.0,
+      chaosDurationSeconds: 30,
+      chaosSeed: 0,
+      chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+    },
+    {
+      lineId: 4,
+      enabled: true,
+      movementType: 2,  // CHAOS
+      cycleCount: 1,
+      pauseAfterMs: 1000,
+      startPositionMM: 0.0,
+      distanceMM: 100.0,
+      speedForward: 5.0,
+      speedBackward: 5.0,
+      decelStartEnabled: false,
+      decelEndEnabled: false,
+      decelZoneMM: 50.0,
+      decelEffectPercent: 50.0,
+      decelMode: 0,
+      oscCenterPositionMM: 100.0,
+      oscAmplitudeMM: 50.0,
+      oscWaveform: 0,
+      oscFrequencyHz: 1.0,
+      oscEnableRampIn: false,
+      oscEnableRampOut: false,
+      oscRampInDurationMs: 1000.0,
+      oscRampOutDurationMs: 1000.0,
+      chaosCenterPositionMM: 100.0,
+      chaosAmplitudeMM: 80.0,
+      chaosMaxSpeedLevel: 15.0,
+      chaosCrazinessPercent: 75.0,
+      chaosDurationSeconds: 60,
+      chaosSeed: 12345,
+      chaosPatternsEnabled: [false, false, false, false, false, true, true, true, true, false, false]
+    },
+    {
+      lineId: 5,
+      enabled: true,
+      movementType: 0,  // VA-ET-VIENT (retour à 0)
+      cycleCount: 1,
+      pauseAfterMs: 0,
+      startPositionMM: 0.0,
+      distanceMM: 50.0,
+      speedForward: 5.0,
+      speedBackward: 5.0,
+      decelStartEnabled: false,
+      decelEndEnabled: true,
+      decelZoneMM: 10.0,
+      decelEffectPercent: 50.0,
+      decelMode: 1,
+      oscCenterPositionMM: 100.0,
+      oscAmplitudeMM: 50.0,
+      oscWaveform: 0,
+      oscFrequencyHz: 2.0,
+      oscEnableRampIn: false,
+      oscEnableRampOut: false,
+      oscRampInDurationMs: 1000.0,
+      oscRampOutDurationMs: 1000.0,
+      chaosCenterPositionMM: 110.0,
+      chaosAmplitudeMM: 50.0,
+      chaosMaxSpeedLevel: 10.0,
+      chaosCrazinessPercent: 50.0,
+      chaosDurationSeconds: 30,
+      chaosSeed: 0,
+      chaosPatternsEnabled: [true, true, true, true, true, true, true, true, true, true, true]
+    }
+  ]
+};
+
+/**
+ * Documentation for sequence template
+ */
+const SEQUENCE_TEMPLATE_HELP = {
+  "🔧 GUIDE D'UTILISATION": {
+    "Format": "JSON version 2.0",
+    "Structure": "Objet avec 'version', 'lineCount' et 'lines' (array)",
+    "Ordre": "⚠️ TOUJOURS commencer par CALIBRATION (movementType=4) !"
+  },
+  "📋 TYPES DE MOUVEMENT (movementType)": {
+    "0": "VA-ET-VIENT (Simple) - Mouvement aller-retour classique",
+    "1": "OSCILLATION - Mouvement sinusoïdal continu",
+    "2": "CHAOS - Mouvements aléatoires chaotiques",
+    "4": "CALIBRATION - Calibration automatique (toujours en premier)"
+  },
+  "⚙️ PARAMÈTRES COMMUNS": {
+    "lineId": "ID unique de la ligne (entier)",
+    "enabled": "Ligne active ? (true/false)",
+    "cycleCount": "Nombre de cycles (1 forcé pour CALIBRATION)",
+    "pauseAfterMs": "Pause après mouvement en millisecondes (0 = aucune)"
+  },
+  "🎯 VA-ET-VIENT (movementType=0)": {
+    "startPositionMM": "Position de départ (mm)",
+    "distanceMM": "Distance du mouvement (mm)",
+    "speedForward": "Vitesse aller (1-20)",
+    "speedBackward": "Vitesse retour (1-20)",
+    "decelStartEnabled": "Décélération au départ ? (true/false)",
+    "decelEndEnabled": "Décélération à la fin ? (true/false)",
+    "decelZoneMM": "Taille zone décélération (mm)",
+    "decelEffectPercent": "Effet décélération (0-100%)",
+    "decelMode": "Type: 0=LINEAR, 1=SINE, 2=TRIANGLE_INV, 3=SINE_INV"
+  },
+  "🌊 OSCILLATION (movementType=1)": {
+    "oscCenterPositionMM": "Position centrale (mm)",
+    "oscAmplitudeMM": "Amplitude ±amplitude (mm)",
+    "oscWaveform": "Forme d'onde: 0=SINE, 1=TRIANGLE, 2=SQUARE",
+    "oscFrequencyHz": "Fréquence (0.1-10 Hz)",
+    "oscEnableRampIn": "Rampe d'entrée ? (true/false)",
+    "oscEnableRampOut": "Rampe de sortie ? (true/false)",
+    "oscRampInDurationMs": "Durée rampe entrée (ms)",
+    "oscRampOutDurationMs": "Durée rampe sortie (ms)"
+  },
+  "🌪️ CHAOS (movementType=2)": {
+    "chaosCenterPositionMM": "Position centrale (mm)",
+    "chaosAmplitudeMM": "Amplitude max ±amplitude (mm)",
+    "chaosMaxSpeedLevel": "Vitesse max (1-20)",
+    "chaosCrazinessPercent": "Degré folie (0-100%)",
+    "chaosDurationSeconds": "Durée en secondes (0=infini)",
+    "chaosSeed": "Graine aléatoire (0=auto)",
+    "chaosPatternsEnabled": "Array[11] booléens (ZIGZAG, SWEEP, PULSE, DRIFT, BURST, WAVE, PENDULUM, SPIRAL, BREATHING, BRUTE_FORCE, LIBERATOR)"
+  },
+  "📏 CALIBRATION (movementType=4)": {
+    "Note": "Calibration automatique complète",
+    "cycleCount": "Toujours forcé à 1",
+    "Autres_params": "Ignorés mais doivent être présents dans le JSON"
+  },
+  "⚠️ IMPORTANT": {
+    "Tous_les_champs": "TOUS les champs doivent être présents dans chaque ligne !",
+    "Ordre_execution": "Les lignes sont exécutées dans l'ordre du tableau",
+    "Validation": "Les valeurs sont validées côté backend (limites physiques)",
+    "IDs": "Les lineId doivent être uniques"
+  }
+};
+
+/**
+ * Get full template document with documentation (PURE FUNCTION)
+ * @returns {Object} { TEMPLATE, DOCUMENTATION }
+ */
+function getSequenceTemplateDocPure() {
+  return {
+    TEMPLATE: SEQUENCE_TEMPLATE,
+    DOCUMENTATION: SEQUENCE_TEMPLATE_HELP
+  };
+}
+
+// ============================================================================
 // EXPORTS (Browser globals)
 // ============================================================================
 window.SEQUENCER_LIMITS = SEQUENCER_LIMITS;
@@ -505,5 +750,8 @@ window.getMovementTypeDisplayPure = getMovementTypeDisplayPure;
 window.getDecelSummaryPure = getDecelSummaryPure;
 window.getLineSpeedsDisplayPure = getLineSpeedsDisplayPure;
 window.getLineCyclesPausePure = getLineCyclesPausePure;
+window.SEQUENCE_TEMPLATE = SEQUENCE_TEMPLATE;
+window.SEQUENCE_TEMPLATE_HELP = SEQUENCE_TEMPLATE_HELP;
+window.getSequenceTemplateDocPure = getSequenceTemplateDocPure;
 
 console.log('✅ sequencer.js loaded');
