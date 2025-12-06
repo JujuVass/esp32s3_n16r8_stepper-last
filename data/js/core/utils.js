@@ -93,6 +93,43 @@ function parseNumericValue(value, defaultValue = 0) {
   return isValidNumber(parsed) ? parsed : defaultValue;
 }
 
+/**
+ * Validate min/max pair ensuring min <= max
+ */
+function validateMinMaxPair(minValue, maxValue, options = {}) {
+  const { minFieldName = 'Min', maxFieldName = 'Max' } = options;
+  let min = parseFloat(minValue) || 0;
+  let max = parseFloat(maxValue) || 0;
+  let wasAdjusted = false;
+  if (min > max) {
+    showNotification(`⚠️ ${minFieldName} (${min.toFixed(1)}) > ${maxFieldName} (${max.toFixed(1)}) - ajusté`, 'warning');
+    max = min;
+    wasAdjusted = true;
+  }
+  return { min, max, wasAdjusted };
+}
+
+// ============================================================================
+// DATE/TIME UTILITIES
+// ============================================================================
+
+/**
+ * Calculate ISO 8601 week number (Monday = start of week)
+ * @param {Date} date - The date to calculate week number for
+ * @returns {number} Week number (1-53)
+ */
+function getISOWeek(date) {
+  const target = new Date(date.valueOf());
+  const dayNr = (date.getDay() + 6) % 7;  // Monday = 0
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+  return 1 + Math.ceil((firstThursday - target) / 604800000);
+}
+
 // ============================================================================
 // SYSTEM STATE HELPERS
 // ============================================================================
@@ -105,6 +142,55 @@ function parseNumericValue(value, defaultValue = 0) {
 function canStartOperation() {
   return AppState.system.canStart && 
          AppState.system.currentState !== SystemState.CALIBRATING;
+}
+
+/**
+ * Uniformly set button enabled/disabled state with visual feedback
+ */
+function setButtonState(button, enabled) {
+  if (!button) return;
+  button.disabled = !enabled;
+  button.style.opacity = enabled ? '1' : '0.5';
+  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+}
+
+// ============================================================================
+// INPUT SETUP HELPERS
+// ============================================================================
+
+/**
+ * Setup standard edit-tracking listeners for an input element
+ * Manages AppState.editing.input to prevent server overwrite during user editing
+ */
+function setupEditableInput(elementId, editingKey, onChangeCallback) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  element.addEventListener('mousedown', function() {
+    AppState.editing.input = editingKey;
+    this.focus();
+  });
+  element.addEventListener('focus', function() {
+    AppState.editing.input = editingKey;
+  });
+  element.addEventListener('blur', function() {
+    AppState.editing.input = null;
+  });
+  element.addEventListener('change', function() {
+    if (onChangeCallback) onChangeCallback(this.value, this);
+    AppState.editing.input = null;
+  });
+}
+
+/**
+ * Setup preset buttons for a given data attribute
+ */
+function setupPresetButtons(dataAttribute, onClickCallback) {
+  document.querySelectorAll(`[${dataAttribute}]`).forEach(btn => {
+    btn.addEventListener('click', function() {
+      const value = parseFloat(this.getAttribute(dataAttribute));
+      if (onClickCallback && !isNaN(value)) onClickCallback(value, this);
+    });
+  });
 }
 
 // ============================================================================
