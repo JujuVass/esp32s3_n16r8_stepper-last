@@ -94,6 +94,20 @@ function parseNumericValue(value, defaultValue = 0) {
 }
 
 // ============================================================================
+// SYSTEM STATE HELPERS
+// ============================================================================
+
+/**
+ * Check if system can start a new operation
+ * Centralized validation logic to avoid code duplication
+ * @returns {boolean} True if system is ready to start (calibrated and not calibrating)
+ */
+function canStartOperation() {
+  return AppState.system.canStart && 
+         AppState.system.currentState !== SystemState.CALIBRATING;
+}
+
+// ============================================================================
 // COMMAND SENDING UTILITIES
 // ============================================================================
 function sendCommand(command, value = null) {
