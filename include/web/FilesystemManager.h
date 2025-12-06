@@ -334,8 +334,37 @@ public:
   }
   
   /**
+   * Create parent directories for a path (like mkdir -p)
+   * @param path Full file path (e.g., "/js/core/app.js")
+   */
+  void createParentDirs(const String& path) {
+    int lastSlash = path.lastIndexOf('/');
+    if (lastSlash <= 0) return;  // No parent dir or root
+    
+    String dirPath = path.substring(0, lastSlash);
+    
+    // Check each level and create if needed
+    String currentPath = "";
+    int start = 1;  // Skip leading /
+    
+    while (start < dirPath.length()) {
+      int nextSlash = dirPath.indexOf('/', start);
+      if (nextSlash == -1) nextSlash = dirPath.length();
+      
+      currentPath = dirPath.substring(0, nextSlash);
+      
+      if (!LittleFS.exists(currentPath)) {
+        LittleFS.mkdir(currentPath);
+      }
+      
+      start = nextSlash + 1;
+    }
+  }
+  
+  /**
    * Upload file (multipart form data)
    * Called by server as upload handler
+   * Automatically creates parent directories
    */
   void uploadFile() {
     HTTPUpload& upload = server.upload();
@@ -343,6 +372,10 @@ public:
     
     if (upload.status == UPLOAD_FILE_START) {
       String filename = normalizePath(upload.filename);
+      
+      // Create parent directories if needed
+      createParentDirs(filename);
+      
       uploadFile = LittleFS.open(filename, "w");
       if (!uploadFile) {
         // Error will be caught on WRITE attempt
