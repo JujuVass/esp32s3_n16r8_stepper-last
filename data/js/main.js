@@ -3177,43 +3177,48 @@
       }
       
       // WiFi
+      // WiFi - delegate to pure function
       if (system.wifiRssi !== undefined) {
         const rssi = system.wifiRssi;
-        let quality = 'Inconnu';
-        let qualityColor = '#666';
-        if (rssi >= -50) {
-          quality = 'Excellent';
-          qualityColor = '#4CAF50';
-        } else if (rssi >= -60) {
-          quality = 'Très bon';
-          qualityColor = '#8BC34A';
-        } else if (rssi >= -70) {
-          quality = 'Bon';
-          qualityColor = '#FFC107';
-        } else if (rssi >= -80) {
-          quality = 'Faible';
-          qualityColor = '#FF9800';
-        } else {
-          quality = 'Très faible';
-          qualityColor = '#f44336';
-        }
         document.getElementById('sysWifi').textContent = rssi + ' dBm';
+        
+        // Use pure function if available (from formatting.js)
+        let quality, qualityColor;
+        if (typeof getWifiQualityPure === 'function') {
+          const wifiInfo = getWifiQualityPure(rssi);
+          quality = wifiInfo.quality;
+          qualityColor = wifiInfo.color;
+        } else {
+          // Fallback
+          if (rssi >= -50) { quality = 'Excellent'; qualityColor = '#4CAF50'; }
+          else if (rssi >= -60) { quality = 'Très bon'; qualityColor = '#8BC34A'; }
+          else if (rssi >= -70) { quality = 'Bon'; qualityColor = '#FFC107'; }
+          else if (rssi >= -80) { quality = 'Faible'; qualityColor = '#FF9800'; }
+          else { quality = 'Très faible'; qualityColor = '#f44336'; }
+        }
+        
         const qualityEl = document.getElementById('sysWifiQuality');
         qualityEl.textContent = quality;
         qualityEl.style.color = qualityColor;
       }
       
-      // Uptime
+      // Uptime - delegate to pure function
       if (system.uptimeSeconds !== undefined) {
-        const uptimeSec = system.uptimeSeconds;
-        const hours = Math.floor(uptimeSec / 3600);
-        const minutes = Math.floor((uptimeSec % 3600) / 60);
-        const seconds = uptimeSec % 60;
-        const uptimeStr = hours > 0 
-          ? `${hours}h ${minutes}m ${seconds}s`
-          : minutes > 0
-            ? `${minutes}m ${seconds}s`
-            : `${seconds}s`;
+        let uptimeStr;
+        if (typeof formatUptimePure === 'function') {
+          uptimeStr = formatUptimePure(system.uptimeSeconds);
+        } else {
+          // Fallback
+          const uptimeSec = system.uptimeSeconds;
+          const hours = Math.floor(uptimeSec / 3600);
+          const minutes = Math.floor((uptimeSec % 3600) / 60);
+          const seconds = uptimeSec % 60;
+          uptimeStr = hours > 0 
+            ? `${hours}h ${minutes}m ${seconds}s`
+            : minutes > 0
+              ? `${minutes}m ${seconds}s`
+              : `${seconds}s`;
+        }
         document.getElementById('sysUptime').textContent = uptimeStr;
       }
     }
@@ -5768,35 +5773,55 @@
       
       // 🚀 SAFETY: Check if frequency would exceed speed limit
       const MAX_SPEED_MM_S = maxSpeedLevel * 20.0; // 300 mm/s by default
-      const theoreticalSpeed = 2 * Math.PI * frequency * amplitude;
       
-      if (amplitude > 0 && theoreticalSpeed > MAX_SPEED_MM_S) {
-        // Calculate max allowed frequency for this amplitude
-        const maxAllowedFreq = MAX_SPEED_MM_S / (2.0 * Math.PI * amplitude);
+      // Use pure function if available (from oscillation.js)
+      if (typeof calculateOscillationPeakSpeedPure === 'function') {
+        const theoreticalSpeed = calculateOscillationPeakSpeedPure(frequency, amplitude);
         
-        // Show notification
-        showNotification(
-          `⚠️ Fréquence limitée: ${frequency.toFixed(2)} Hz → ${maxAllowedFreq.toFixed(2)} Hz (vitesse max: ${MAX_SPEED_MM_S.toFixed(0)} mm/s)`,
-          'error',
-          4000
-        );
-        
-        // Don't modify the input field - backend will handle limiting
-        // User sees their requested value, but backend uses effective frequency
+        if (amplitude > 0 && theoreticalSpeed > MAX_SPEED_MM_S) {
+          const maxAllowedFreq = MAX_SPEED_MM_S / (2.0 * Math.PI * amplitude);
+          showNotification(
+            `⚠️ Fréquence limitée: ${frequency.toFixed(2)} Hz → ${maxAllowedFreq.toFixed(2)} Hz (vitesse max: ${MAX_SPEED_MM_S.toFixed(0)} mm/s)`,
+            'error',
+            4000
+          );
+        }
       }
       
-      const config = {
-        centerPositionMM: parseFloat(document.getElementById('oscCenter').value) || 0,
-        amplitudeMM: amplitude,
-        waveform: parseInt(document.getElementById('oscWaveform').value) || 0,
-        frequencyHz: frequency,
+      // Collect form values and delegate to pure function
+      const formValues = {
+        centerPos: document.getElementById('oscCenter').value,
+        amplitude: document.getElementById('oscAmplitude').value,
+        waveform: document.getElementById('oscWaveform').value,
+        frequency: document.getElementById('oscFrequency').value,
+        cycleCount: document.getElementById('oscCycleCount').value,
         enableRampIn: document.getElementById('oscRampInEnable').checked,
-        rampInDurationMs: parseFloat(document.getElementById('oscRampInDuration').value) || 2000,
+        rampInDuration: document.getElementById('oscRampInDuration').value,
         enableRampOut: document.getElementById('oscRampOutEnable').checked,
-        rampOutDurationMs: parseFloat(document.getElementById('oscRampOutDuration').value) || 2000,
-        cycleCount: parseInt(document.getElementById('oscCycleCount').value) || 0,
+        rampOutDuration: document.getElementById('oscRampOutDuration').value,
         returnToCenter: document.getElementById('oscReturnCenter').checked
       };
+      
+      // Delegate to pure function if available
+      let config;
+      if (typeof buildOscillationConfigPure === 'function') {
+        config = buildOscillationConfigPure(formValues);
+      } else {
+        // Fallback
+        config = {
+          centerPositionMM: parseFloat(formValues.centerPos) || 0,
+          amplitudeMM: parseFloat(formValues.amplitude) || 0,
+          waveform: parseInt(formValues.waveform) || 0,
+          frequencyHz: parseFloat(formValues.frequency) || 0.5,
+          cycleCount: parseInt(formValues.cycleCount) || 0,
+          enableRampIn: formValues.enableRampIn,
+          rampInDurationMs: parseFloat(formValues.rampInDuration) || 2000,
+          enableRampOut: formValues.enableRampOut,
+          rampOutDurationMs: parseFloat(formValues.rampOutDuration) || 2000,
+          returnToCenter: formValues.returnToCenter
+        };
+      }
+      
       sendCommand(WS_CMD.SET_OSCILLATION, config);
     }
     
@@ -6092,37 +6117,47 @@
     // Send chaos configuration
     // Send chaos configuration
     function sendChaosConfig() {
-      const centerPos = parseFloat(document.getElementById('chaosCenterPos').value);
-      const amplitude = parseFloat(document.getElementById('chaosAmplitude').value);
-      const maxSpeed = parseFloat(document.getElementById('chaosMaxSpeed').value);
-      const craziness = parseFloat(document.getElementById('chaosCraziness').value);
-      const duration = parseInt(document.getElementById('chaosDuration').value);
-      const seed = parseInt(document.getElementById('chaosSeed').value);
+      // Collect form values
+      const formValues = {
+        centerPos: document.getElementById('chaosCenterPos').value,
+        amplitude: document.getElementById('chaosAmplitude').value,
+        maxSpeed: document.getElementById('chaosMaxSpeed').value,
+        craziness: document.getElementById('chaosCraziness').value,
+        duration: document.getElementById('chaosDuration').value,
+        seed: document.getElementById('chaosSeed').value,
+        patternsEnabled: [
+          document.getElementById('patternZigzag').checked,
+          document.getElementById('patternSweep').checked,
+          document.getElementById('patternPulse').checked,
+          document.getElementById('patternDrift').checked,
+          document.getElementById('patternBurst').checked,
+          document.getElementById('patternWave').checked,
+          document.getElementById('patternPendulum').checked,
+          document.getElementById('patternSpiral').checked,
+          document.getElementById('patternCalm').checked,
+          document.getElementById('patternBruteForce').checked,
+          document.getElementById('patternLiberator').checked
+        ]
+      };
       
-      // Collect pattern selections
-      const patternsEnabled = [
-        document.getElementById('patternZigzag').checked,
-        document.getElementById('patternSweep').checked,
-        document.getElementById('patternPulse').checked,
-        document.getElementById('patternDrift').checked,
-        document.getElementById('patternBurst').checked,
-        document.getElementById('patternWave').checked,
-        document.getElementById('patternPendulum').checked,
-        document.getElementById('patternSpiral').checked,
-        document.getElementById('patternCalm').checked,
-        document.getElementById('patternBruteForce').checked,
-        document.getElementById('patternLiberator').checked
-      ];
+      // Delegate to pure function if available (from chaos.js)
+      let config;
+      if (typeof buildChaosConfigPure === 'function') {
+        config = buildChaosConfigPure(formValues);
+      } else {
+        // Fallback
+        config = {
+          centerPositionMM: parseFloat(formValues.centerPos) || 0,
+          amplitudeMM: parseFloat(formValues.amplitude) || 0,
+          maxSpeedLevel: parseFloat(formValues.maxSpeed) || 10,
+          crazinessPercent: parseInt(formValues.craziness) || 50,
+          durationSeconds: parseInt(formValues.duration) || 30,
+          seed: parseInt(formValues.seed) || 0,
+          patternsEnabled: formValues.patternsEnabled
+        };
+      }
       
-      sendCommand(WS_CMD.SET_CHAOS_CONFIG, {
-        centerPositionMM: centerPos,
-        amplitudeMM: amplitude,
-        maxSpeedLevel: maxSpeed,
-        crazinessPercent: craziness,
-        durationSeconds: duration,
-        seed: seed,
-        patternsEnabled: patternsEnabled
-      });
+      sendCommand(WS_CMD.SET_CHAOS_CONFIG, config);
     }
     
     // Validate chaos limits - delegates to pure function from context.js

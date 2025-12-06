@@ -344,6 +344,23 @@ void setupAPIRoutes() {
     }
   });
 
+  server.on("/js/formatting.js", HTTP_GET, []() {
+    if (LittleFS.exists("/js/formatting.js")) {
+      File file = LittleFS.open("/js/formatting.js", "r");
+      if (file) {
+        server.sendHeader("Cache-Control", "public, max-age=86400");
+        server.streamFile(file, "application/javascript");
+        file.close();
+        engine->debug("✅ Served /js/formatting.js from LittleFS");
+      } else {
+        server.send(500, "text/plain", "❌ Error opening /js/formatting.js");
+      }
+    } else {
+      server.send(404, "text/plain", "❌ File not found: /js/formatting.js");
+      engine->error("❌ /js/formatting.js not found in LittleFS");
+    }
+  });
+
   server.on("/js/main.js", HTTP_GET, []() {
     if (LittleFS.exists("/js/main.js")) {
       File file = LittleFS.open("/js/main.js", "r");
