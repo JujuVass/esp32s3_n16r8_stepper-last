@@ -4,17 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stepper Controller</title>
-  <!-- BUILD VERSION: v2.6 - sequencer.js buildSequenceLineFromPresetPure() extraction -->
+  <!-- BUILD VERSION: v2.7 - Reorganization with subdirectories (core/, modules/, data/) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
   <link rel="stylesheet" href="/css/styles.css">
   
   <!-- Preload JS modules for faster loading -->
-  <link rel="preload" href="/js/milestones.js" as="script">
-  <link rel="preload" href="/js/app.js" as="script">
-  <link rel="preload" href="/js/utils.js" as="script">
-  <link rel="preload" href="/js/websocket.js" as="script">
-  <link rel="preload" href="/js/stats.js" as="script">
-  <link rel="preload" href="/js/context.js" as="script">
+  <link rel="preload" href="/js/data/milestones.js" as="script">
+  <link rel="preload" href="/js/core/app.js" as="script">
+  <link rel="preload" href="/js/core/utils.js" as="script">
+  <link rel="preload" href="/js/core/websocket.js" as="script">
+  <link rel="preload" href="/js/modules/stats.js" as="script">
   <link rel="preload" href="/js/main.js" as="script">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1692,18 +1691,21 @@
   </div>
 
   <!-- External JavaScript Modules -->
-  <script src="/js/milestones.js"></script>  <!-- Must load BEFORE app.js -->
-  <script src="/js/app.js"></script>
-  <script src="/js/utils.js"></script>
-  <script src="/js/websocket.js"></script>   <!-- WebSocket connection & handlers -->
-  <script src="/js/stats.js"></script>       <!-- Statistics & charts -->
-  <script src="/js/context.js"></script>     <!-- Dependency injection container -->
-  <script src="/js/chaos.js"></script>       <!-- Chaos mode pure functions -->
-  <script src="/js/oscillation.js"></script> <!-- Oscillation mode pure functions -->
-  <script src="/js/sequencer.js"></script>   <!-- Sequencer pure functions -->
-  <script src="/js/presets.js"></script>     <!-- Preset name/tooltip pure functions -->
-  <script src="/js/formatting.js"></script>  <!-- Formatting pure functions -->
-  <script src="/js/validation.js"></script>  <!-- Validation logic & field mapping -->
+  <!-- Core modules (state, utilities, websocket) -->
+  <script src="/js/data/milestones.js"></script>    <!-- Must load BEFORE app.js -->
+  <script src="/js/core/app.js"></script>           <!-- AppState, WS_CMD, SystemState, Context -->
+  <script src="/js/core/utils.js"></script>         <!-- Utilities & Formatting functions -->
+  <script src="/js/core/websocket.js"></script>     <!-- WebSocket connection & handlers -->
+  
+  <!-- Domain modules (pure functions) -->
+  <script src="/js/modules/stats.js"></script>       <!-- Statistics & charts -->
+  <script src="/js/modules/chaos.js"></script>       <!-- Chaos mode pure functions -->
+  <script src="/js/modules/oscillation.js"></script> <!-- Oscillation mode pure functions -->
+  <script src="/js/modules/sequencer.js"></script>   <!-- Sequencer pure functions -->
+  <script src="/js/modules/presets.js"></script>     <!-- Preset name/tooltip pure functions -->
+  <script src="/js/modules/validation.js"></script>  <!-- Validation logic & field mapping -->
+  
+  <!-- Main application (UI, event listeners, DOM manipulation) -->
   <script src="/js/main.js"></script> 
   
 </body>
