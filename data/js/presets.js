@@ -213,4 +213,76 @@ const DECEL_CURVE_MODES = {
   SINE_INV: 3
 };
 
+// ============================================================================
+// CONFIG PREVIEW HTML (PURE)
+// ============================================================================
+
+/**
+ * Generate HTML for current config preview in playlist modal
+ * @param {string} mode - 'simple', 'oscillation', or 'chaos'
+ * @param {Object} config - Mode-specific configuration
+ * @returns {string} HTML string for config preview
+ */
+function generateConfigPreviewHTMLPure(mode, config) {
+  if (mode === 'simple') {
+    return `
+      • Départ: ${config.startPositionMM || 0} mm<br>
+      • Distance: ${config.distanceMM || 50} mm<br>
+      • Vitesse aller: ${config.speedLevelForward || 5}<br>
+      • Vitesse retour: ${config.speedLevelBackward || 5}
+    `;
+  } else if (mode === 'oscillation') {
+    const waveNames = ['Sine', 'Triangle', 'Square'];
+    return `
+      • Centre: ${config.centerPositionMM || 100} mm<br>
+      • Amplitude: ±${config.amplitudeMM || 20} mm<br>
+      • Forme: ${waveNames[config.waveform] || 'Sine'}<br>
+      • Fréquence: ${config.frequencyHz || 1} Hz<br>
+      • Cycles: ${config.cycleCount === 0 ? '∞ (infini)' : config.cycleCount}
+    `;
+  } else if (mode === 'chaos') {
+    const enabledCount = config.patternsEnabled 
+      ? config.patternsEnabled.filter(p => p).length 
+      : 11;
+    return `
+      • Centre: ${config.centerPositionMM || 100} mm<br>
+      • Amplitude: ±${config.amplitudeMM || 40} mm<br>
+      • Vitesse max: ${config.maxSpeedLevel || 15}<br>
+      • Craziness: ${config.crazinessPercent || 50}%<br>
+      • Durée: ${config.durationSeconds === 0 ? '∞ (infini)' : (config.durationSeconds || 30) + 's'}<br>
+      • Patterns actifs: ${enabledCount}/11
+    `;
+  }
+  return '';
+}
+
+/**
+ * Get modal title for mode
+ * @param {string} mode - 'simple', 'oscillation', or 'chaos'
+ * @returns {string} Title string
+ */
+function getPlaylistModalTitlePure(mode) {
+  const titles = {
+    'simple': 'Mode Simple',
+    'oscillation': 'Mode Oscillation',
+    'chaos': 'Mode Chaos'
+  };
+  return titles[mode] || mode;
+}
+
+// ============================================================================
+// EXPORTS (Browser globals)
+// ============================================================================
+window.generatePresetNamePure = generatePresetNamePure;
+window.generatePresetTooltipPure = generatePresetTooltipPure;
+window.generateSimplePresetTooltipPure = generateSimplePresetTooltipPure;
+window.generateOscillationPresetTooltipPure = generateOscillationPresetTooltipPure;
+window.generateChaosPresetTooltipPure = generateChaosPresetTooltipPure;
+window.calculateSlowdownFactorPure = calculateSlowdownFactorPure;
+window.formatDecelInfoPure = formatDecelInfoPure;
+window.formatCyclePauseInfoPresetPure = formatCyclePauseInfoPresetPure;
+window.DECEL_CURVE_MODES = DECEL_CURVE_MODES;
+window.generateConfigPreviewHTMLPure = generateConfigPreviewHTMLPure;
+window.getPlaylistModalTitlePure = getPlaylistModalTitlePure;
+
 console.log('✅ presets.js loaded - preset name/tooltip pure functions available');

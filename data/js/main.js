@@ -3107,47 +3107,23 @@
       
       modal.dataset.mode = mode;
       
-      if (mode === 'simple') {
-        titleEl.textContent = 'Mode Simple';
-      } else if (mode === 'oscillation') {
-        titleEl.textContent = 'Mode Oscillation';
-      } else if (mode === 'chaos') {
-        titleEl.textContent = 'Mode Chaos';
+      // Set title - delegate to pure function if available
+      if (typeof getPlaylistModalTitlePure === 'function') {
+        titleEl.textContent = getPlaylistModalTitlePure(mode);
+      } else {
+        // Fallback
+        const titles = { 'simple': 'Mode Simple', 'oscillation': 'Mode Oscillation', 'chaos': 'Mode Chaos' };
+        titleEl.textContent = titles[mode] || mode;
       }
       
-      // Display current config
+      // Display current config - delegate to pure function if available
       const config = getCurrentModeConfig(mode);
-      let configHTML = '';
-      
-      if (mode === 'simple') {
-        configHTML = `
-          • Départ: ${config.startPositionMM} mm<br>
-          • Distance: ${config.distanceMM} mm<br>
-          • Vitesse aller: ${config.speedLevelForward}<br>
-          • Vitesse retour: ${config.speedLevelBackward}
-        `;
-      } else if (mode === 'oscillation') {
-        const waveNames = ['Sine', 'Triangle', 'Square'];
-        configHTML = `
-          • Centre: ${config.centerPositionMM} mm<br>
-          • Amplitude: ±${config.amplitudeMM} mm<br>
-          • Forme: ${waveNames[config.waveform]}<br>
-          • Fréquence: ${config.frequencyHz} Hz<br>
-          • Cycles: ${config.cycleCount === 0 ? '∞ (infini)' : config.cycleCount}
-        `;
-      } else if (mode === 'chaos') {
-        const enabledCount = config.patternsEnabled.filter(p => p).length;
-        configHTML = `
-          • Centre: ${config.centerPositionMM} mm<br>
-          • Amplitude: ±${config.amplitudeMM} mm<br>
-          • Vitesse max: ${config.maxSpeedLevel}<br>
-          • Craziness: ${config.crazinessPercent}%<br>
-          • Durée: ${config.durationSeconds === 0 ? '∞ (infini)' : config.durationSeconds + 's'}<br>
-          • Patterns actifs: ${enabledCount}/11
-        `;
+      if (typeof generateConfigPreviewHTMLPure === 'function') {
+        configEl.innerHTML = generateConfigPreviewHTMLPure(mode, config);
+      } else {
+        // Fallback - simplified
+        configEl.innerHTML = `Mode: ${mode}`;
       }
-      
-      configEl.innerHTML = configHTML;
       
       // Refresh presets list
       refreshPlaylistPresets(mode);

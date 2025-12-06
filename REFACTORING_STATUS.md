@@ -1,11 +1,12 @@
 # État du Refactoring Frontend - ESP32 Stepper Controller
 
 **Date:** 6 décembre 2025  
-**Objectif:** Découpler et modulariser le JavaScript frontend (7300+ lignes)
+**Version actuelle:** v2.4  
+**Objectif:** Découpler et modulariser le JavaScript frontend (initialement 7300+ lignes)
 
 ---
 
-## 📊 État Actuel
+## 📊 État Actuel (v2.4)
 
 ### Structure des fichiers JS (`data/js/`)
 
@@ -16,12 +17,23 @@
 | `milestones.js` | ~100 | Données achievements/milestones | ✅ Stable |
 | `websocket.js` | 223 | Connexion WS, handlers | ✅ Stable |
 | `stats.js` | 290 | Statistiques, graphiques Chart.js | ✅ Stable |
-| `context.js` | ~160 | Container DI, fonctions génériques | ✅ Nettoyé |
-| `chaos.js` | ~120 | Fonctions pures mode Chaos | ✅ Fonctionnel |
-| `oscillation.js` | ~180 | Fonctions pures mode Oscillation | ✅ Fonctionnel |
-| `sequencer.js` | ~330 | Fonctions pures séquenceur + tooltips | ✅ Fonctionnel |
-| `presets.js` | ~220 | **NOUVEAU** - Preset name/tooltip + decel curves | ✅ Fonctionnel |
-| `main.js` | ~6950 | Logique principale (wrappers DOM) | 🔄 En cours |
+| `context.js` | ~160 | Container DI, fonctions génériques | ✅ Stable |
+| `chaos.js` | ~120 | Module mode Chaos | ✅ Fonctionnel |
+| `oscillation.js` | ~180 | Module mode Oscillation | ✅ Fonctionnel |
+| `sequencer.js` | **757** | Module séquenceur + templates | ✅ Étendu v2.4 |
+| `presets.js` | ~220 | Module presets (name/tooltip/decel) | ✅ Fonctionnel |
+| `formatting.js` | ~240 | Module formatage (wifi/uptime/state) | ✅ Fonctionnel |
+| `validation.js` | **397** | **NOUVEAU v2.4** - Validation & field mapping | ✅ Fonctionnel |
+| `main.js` | **6852** | Logique principale (wrappers DOM) | 🔄 En cours |
+
+### Progression main.js
+```
+Initial:  ~7300 lignes
+v2.3:      7177 lignes (-123)
+v2.4:      6852 lignes (-325)  ← Actuel
+─────────────────────────────
+Total:    -448 lignes extraites
+```
 
 ### Ordre de chargement dans `index.html`
 ```html
@@ -30,11 +42,13 @@
 <script src="/js/utils.js"></script>
 <script src="/js/websocket.js"></script>
 <script src="/js/stats.js"></script>
-<script src="/js/context.js"></script>     <!-- DI Container -->
-<script src="/js/chaos.js"></script>       <!-- Chaos pure functions -->
-<script src="/js/oscillation.js"></script> <!-- Oscillation pure functions -->
-<script src="/js/sequencer.js"></script>   <!-- Sequencer pure functions -->
-<script src="/js/presets.js"></script>     <!-- Preset name/tooltip pure functions -->
+<script src="/js/context.js"></script>
+<script src="/js/chaos.js"></script>
+<script src="/js/oscillation.js"></script>
+<script src="/js/sequencer.js"></script>
+<script src="/js/presets.js"></script>
+<script src="/js/formatting.js"></script>
+<script src="/js/validation.js"></script>  <!-- NOUVEAU v2.4 -->
 <script src="/js/main.js"></script>
 ```
 
@@ -122,57 +136,108 @@ function generateSequenceLineTooltip(line, movementType) {
 }
 ```
 
-### 7. Routes serveur (APIRoutes.cpp)
+### 7. Création validation.js (Module Validation - v2.4) ✅ NOUVEAU
+Module dédié à la validation des champs et mapping erreurs :
+
+```javascript
+// Données
+ERROR_FIELD_MAPPING = { 'Position de départ': 'editStartPos', ... }
+ALL_EDIT_FIELDS = ['editStartPos', 'editDistance', ...]
+VALIDATION_LIMITS = { common: {...}, vaet: {...}, oscillation: {...}, chaos: {...} }
+
+// Fonctions
+getErrorFieldIdsPure(errorMessages)       // Extraction IDs depuis erreurs
+getAllInvalidFieldsPure(line, type, max, errors)  // Validation complète
+validateVaetFieldsPure(line, effectiveMax)
+validateOscillationFieldsPure(line, effectiveMax)
+validateChaosFieldsPure(line, effectiveMax)
+validateCommonFieldsPure(line, movementType)
+checkEmptyFieldsPure(formValues, movementType)
+```
+
+### 8. Extension sequencer.js (Templates - v2.4)
+Ajout des données de template JSON :
+
+```javascript
+// Données template
+SEQUENCE_TEMPLATE = { version: "2.0", lineCount: 5, lines: [...] }
+SEQUENCE_TEMPLATE_HELP = { "🔧 GUIDE": {...}, "📋 TYPES": {...}, ... }
+
+// Fonction
+getSequenceTemplateDocPure()  // Retourne { TEMPLATE, DOCUMENTATION }
+```
+
+### 9. Routes serveur (APIRoutes.cpp)
 Toutes les routes JS configurées avec cache 24h :
 - `/js/app.js`, `/js/utils.js`, `/js/milestones.js`
 - `/js/websocket.js`, `/js/stats.js`
 - `/js/context.js`, `/js/chaos.js`, `/js/oscillation.js`
-- `/js/sequencer.js`, `/js/main.js`
+- `/js/sequencer.js`, `/js/presets.js`, `/js/formatting.js`
+- `/js/validation.js`, `/js/main.js`
 
 ---
 
-## 🎯 Prochaines Étapes (Phase 3 - Extraction DOM)
+## 🎯 Prochaines Étapes (Phase 3 - Modules Domaine)
 
-### Stratégie : Découpler AVANT d'extraire
-1. ✅ Créer la fonction pure dans le module cible
-2. ✅ Modifier `main.js` pour déléguer à la fonction pure (avec fallback)
-3. Tester que tout fonctionne
-4. Répéter pour d'autres fonctions
+### Stratégie : Un module = Un domaine fonctionnel
+Les modules contiennent **TOUTES** les fonctions de leur domaine (pas que les "pures").
+Le suffixe "Pure" était juste pour faciliter l'extraction initiale.
 
-### Module Sequencer - État actuel ✅
-Fonctions migrées vers `sequencer.js` :
-- [x] `validateSequencerLinePure()` - Validation des lignes
+### Module Validation (validation.js) - v2.4 ✅
+- [x] `ERROR_FIELD_MAPPING` - Mapping erreur→champ DOM
+- [x] `ALL_EDIT_FIELDS` - Liste champs éditables
+- [x] `VALIDATION_LIMITS` - Limites par type
+- [x] `getErrorFieldIdsPure()` - IDs depuis messages
+- [x] `getAllInvalidFieldsPure()` - Validation complète ligne
+- [x] `validateVaetFieldsPure()` - Validation VA-ET-VIENT
+- [x] `validateOscillationFieldsPure()` - Validation OSCILLATION
+- [x] `validateChaosFieldsPure()` - Validation CHAOS
+- [x] `checkEmptyFieldsPure()` - Détection champs vides
+
+### Module Sequencer (sequencer.js) - v2.4 ✅
+- [x] `SEQUENCER_LIMITS`, `MOVEMENT_TYPE`, `DECEL_MODES`
+- [x] `validateSequencerLinePure()` - Validation ligne
 - [x] `buildSequenceLineDefaultsPure()` - Valeurs par défaut
-- [x] `generateSequenceLineTooltipPure()` - Génération tooltip ligne
-- [x] `generateVaetTooltipPure()` - Tooltip mode VAET
-- [x] `generateCalibrationTooltipPure()` - Tooltip mode Calibration
+- [x] `generateSequenceLineTooltipPure()` - Tooltip ligne
+- [x] `generateVaetTooltipPure()` - Tooltip VAET
+- [x] `generateCalibrationTooltipPure()` - Tooltip Calibration
+- [x] `getMovementTypeDisplayPure()` - Affichage type
+- [x] `getDecelSummaryPure()` - Résumé décélération
+- [x] `getLineSpeedsDisplayPure()` - Affichage vitesses
+- [x] `getLineCyclesPausePure()` - Affichage cycles/pause
+- [x] `SEQUENCE_TEMPLATE` - Template JSON 5 exemples
+- [x] `SEQUENCE_TEMPLATE_HELP` - Documentation template
+- [x] `getSequenceTemplateDocPure()` - Accès template complet
 
-### Module Oscillation - État actuel ✅
-Fonctions migrées vers `oscillation.js` :
+### Module Oscillation (oscillation.js) ✅
+- [x] `OSCILLATION_LIMITS`, `WAVEFORM_TYPE`
 - [x] `validateOscillationLimitsPure()` - Validation limites
 - [x] `buildOscillationConfigPure()` - Construction config
 - [x] `calculateOscillationPeakSpeedPure()` - Calcul vitesse de pointe
 - [x] `generateOscillationTooltipPure()` - Génération tooltip
 - [x] `formatCyclePauseInfoPure()` - Formatage info pause
 
-### Module Chaos - État actuel ✅
-Fonctions migrées vers `chaos.js` :
+### Module Chaos (chaos.js) ✅
+- [x] `CHAOS_LIMITS`, `CHAOS_PATTERNS`
 - [x] `validateChaosLimitsPure()` - Validation limites
 - [x] `buildChaosConfigPure()` - Construction config
 - [x] `countEnabledPatternsPure()` - Comptage patterns actifs
 - [x] `generateChaosTooltipPure()` - Génération tooltip
 
-### Module UI - À créer (`ui-helpers.js`) - Phase 3
-Fonctions utilitaires UI à extraire :
-- [ ] `formatPositionPure(positionMM, currentStep)`
-- [ ] `getStateDisplayPure(stateCode, errorMessage)`
-- [ ] `formatSpeedPure(speedLevel, maxSpeed)`
-- [ ] `updateUIElementPure()` - Helpers DOM génériques
+### Module Formatting (formatting.js) ✅
+- [x] `getWifiQualityPure()` - Qualité WiFi (RSSI)
+- [x] `formatUptimePure()` - Formatage uptime
+- [x] `getStateDisplayPure()` - Affichage état système
 
-### Module Forms - À créer (`form-handlers.js`) - Phase 3
-Gestion des formulaires :
-- [ ] `collectFormValuesPure()` - Extraction valeurs formulaire
-- [ ] `validateFormPure()` - Validation générique
+### Module Presets (presets.js) ✅
+- [x] `generatePresetNamePure()` - Nom automatique preset
+- [x] `generatePresetTooltipPure()` - Tooltip preset
+- [x] `calculateSlowdownFactorPure()` - Facteur ralentissement
+
+### Prochains candidats à extraire
+- [ ] **Playlist management** → `playlist.js` (gestion playlist UI)
+- [ ] **Modal management** → `modals.js` (ouverture/fermeture modales)
+- [ ] **Form helpers** → fonctions collectFormValues, populateForm, etc.
 
 ---
 
@@ -217,11 +282,24 @@ validateChaosLimitsPure(100, 200, 1000)  // {valid: false, error: "..."}
 
 ## 📁 Fichiers Clés
 
-- `data/index.html` - HTML pur (1703 lignes)
+- `data/index.html` - HTML pur (~1710 lignes)
 - `data/js/context.js` - Container DI + utilitaires (~160 lignes)
-- `data/js/chaos.js` - Module Chaos pure functions (~120 lignes)
-- `data/js/oscillation.js` - Module Oscillation pure functions (~180 lignes)
-- `data/js/sequencer.js` - Module Séquenceur pure functions (~330 lignes)
-- `data/js/main.js` - Logique principale (~7020 lignes) - À réduire
+- `data/js/chaos.js` - Module Chaos (~120 lignes)
+- `data/js/oscillation.js` - Module Oscillation (~180 lignes)
+- `data/js/sequencer.js` - Module Séquenceur (**757 lignes** v2.4)
+- `data/js/presets.js` - Module Presets (~220 lignes)
+- `data/js/formatting.js` - Module Formatage (~240 lignes)
+- `data/js/validation.js` - **NOUVEAU** Module Validation (**397 lignes** v2.4)
+- `data/js/main.js` - Logique principale (**6852 lignes** v2.4)
 - `src/web/APIRoutes.cpp` - Routes serveur HTTP
 - `upload_html.py` - Script d'upload vers ESP32
+
+---
+
+## 📜 Historique des versions
+
+| Version | Lignes main.js | Changements |
+|---------|---------------|-------------|
+| Initial | ~7300 | Extraction depuis index.html |
+| v2.3 | 7177 | sequencer.js display helpers |
+| v2.4 | **6852** | validation.js + template extraction (-325 lignes) |
