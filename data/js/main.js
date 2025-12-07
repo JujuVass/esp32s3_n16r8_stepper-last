@@ -319,7 +319,7 @@
               // Show celebration notification
               let message = `🎉 Jalon atteint: ${milestoneInfo.current.emoji} (${newThreshold}m)`;
               if (milestoneInfo.next) {
-                message += `\n⏭️ Prochain: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progressPercent}%`;
+                message += `\n⏭️ Prochain: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progress.toFixed(0)}%`;
               }
               showNotification(message, 'milestone');
             }
@@ -334,7 +334,7 @@
           // No milestone reached yet - mark as initialized anyway
           AppState.milestone.initialized = true;
           if (milestoneInfo.next) {
-            const tooltip = `⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)\n📊 Progression: ${milestoneInfo.progressPercent}%`;
+            const tooltip = `⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
             DOM.milestoneIcon.textContent = '🐜';
             DOM.milestoneIcon.title = tooltip;
           } else {
