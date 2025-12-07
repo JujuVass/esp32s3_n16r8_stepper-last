@@ -99,6 +99,175 @@
     // Message routing: handleWebSocketMessage() dispatches to appropriate handlers
     
     // ============================================================================
+    // UI UPDATE - HELPER FUNCTIONS
+    // ============================================================================
+    
+    /**
+     * Update milestone display from total traveled distance
+     * @param {number} totalTraveledMM - Total traveled distance in mm
+     */
+    function updateMilestones(totalTraveledMM) {
+      DOM.totalTraveled.textContent = (totalTraveledMM / 1000.0).toFixed(3) + " m";
+      
+      const milestoneInfo = getMilestoneInfo(totalTraveledMM / 1000.0); // Convert mm to m
+      
+      if (milestoneInfo.current) {
+        // Build tooltip with progress info
+        let tooltip = `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)`;
+        if (milestoneInfo.current.location !== "-") {
+          tooltip += ` - ${milestoneInfo.current.location}`;
+        }
+        
+        if (milestoneInfo.next) {
+          tooltip += `\n\n⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)`;
+          tooltip += `\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
+        } else {
+          tooltip += `\n\n🎉 Dernier jalon atteint!`;
+        }
+        
+        DOM.milestoneIcon.textContent = milestoneInfo.current.emoji;
+        DOM.milestoneIcon.title = tooltip;
+        
+        // Milestone tracking logic
+        const newThreshold = milestoneInfo.current.threshold;
+        const totalTraveledM = totalTraveledMM / 1000.0;
+        
+        // Handle distance reset (user cleared stats) - reset tracking if distance dropped significantly
+        if (totalTraveledM < AppState.milestone.lastThreshold * 0.9) {
+          AppState.milestone.lastThreshold = 0;
+          AppState.milestone.initialized = false;
+        }
+        
+        // Check for milestone change
+        if (newThreshold > AppState.milestone.lastThreshold) {
+          if (!AppState.milestone.initialized) {
+            // First load - sync without notification
+            AppState.milestone.initialized = true;
+            AppState.milestone.lastThreshold = newThreshold;
+          } else {
+            // New milestone achieved during session!
+            AppState.milestone.lastThreshold = newThreshold;
+            
+            // Trigger icon animation
+            DOM.milestoneIcon.classList.remove('milestone-achievement');
+            void DOM.milestoneIcon.offsetWidth;
+            DOM.milestoneIcon.classList.add('milestone-achievement');
+            
+            // Show celebration notification
+            let message = `🎉 Jalon atteint: ${milestoneInfo.current.emoji} (${newThreshold}m)`;
+            if (milestoneInfo.next) {
+              message += `\n⏭️ Prochain: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progress.toFixed(0)}%`;
+            }
+            showNotification(message, 'milestone');
+          }
+        } else if (!AppState.milestone.initialized) {
+          // First load, same milestone - just mark initialized
+          AppState.milestone.initialized = true;
+          AppState.milestone.lastThreshold = newThreshold;
+        }
+        
+        AppState.milestone.current = milestoneInfo.current;
+      } else {
+        // No milestone reached yet - mark as initialized anyway
+        AppState.milestone.initialized = true;
+        if (milestoneInfo.next) {
+          const tooltip = `⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
+          DOM.milestoneIcon.textContent = '🐜';
+          DOM.milestoneIcon.title = tooltip;
+        } else {
+          DOM.milestoneIcon.textContent = '';
+          DOM.milestoneIcon.title = '';
+        }
+      }
+    }
+    
+    /**
+     * Update deceleration zone UI from server data
+     * @param {Object} decelZone - Deceleration zone data from backend
+     */
+    function updateDecelZoneUI(decelZone) {
+      if (!decelZone || AppState.editing.input === 'decelZone') return;
+      
+      const section = document.getElementById('decelSection');
+      const headerText = document.getElementById('decelHeaderText');
+      
+      // Defense: Only update full decelZone fields if enabled (Phase 1 optimization)
+      // When disabled, backend sends only {enabled: false} to save bandwidth
+      if (decelZone.enabled && decelZone.zoneMM !== undefined) {
+        // Update section collapsed state and header text based on enabled
+        if (section && headerText) {
+          section.classList.remove('collapsed');
+          headerText.textContent = '🎯 Décélération - activée';
+        }
+        
+        // Safe access to optional fields
+        if (decelZone.enableStart !== undefined) {
+          const startCheckbox = document.getElementById('decelZoneStart');
+          if (startCheckbox) startCheckbox.checked = decelZone.enableStart;
+        }
+        if (decelZone.enableEnd !== undefined) {
+          const endCheckbox = document.getElementById('decelZoneEnd');
+          if (endCheckbox) endCheckbox.checked = decelZone.enableEnd;
+        }
+        
+        // Check if zone value was adapted by ESP32 (only if we just sent a request)
+        const decelZoneInput = document.getElementById('decelZoneMM');
+        const requestedZone = AppState.lastDecelZoneRequest;
+        const receivedZone = decelZone.zoneMM;
+        
+        if (requestedZone !== undefined && Math.abs(requestedZone - receivedZone) > 0.1) {
+          // Value was adapted - show notification once
+          showNotification(`⚠️ Zone ajustée: ${requestedZone.toFixed(0)}mm → ${receivedZone.toFixed(0)}mm (limite du mouvement)`, 'warning', 4000);
+          // Clear the request flag to avoid showing notification again
+          AppState.lastDecelZoneRequest = undefined;
+        }
+        
+        if (decelZoneInput) {
+          decelZoneInput.value = receivedZone;
+        }
+        
+        // Effect percent (safe access)
+        if (decelZone.effectPercent !== undefined) {
+          const effectPercentInput = document.getElementById('decelEffectPercent');
+          const effectValueSpan = document.getElementById('effectValue');
+          if (effectPercentInput) {
+            effectPercentInput.value = decelZone.effectPercent;
+          }
+          if (effectValueSpan) {
+            effectValueSpan.textContent = decelZone.effectPercent.toFixed(0) + '%';
+          }
+        }
+        
+        // Update select dropdown for mode
+        if (decelZone.mode !== undefined) {
+          const decelModeSelect = document.getElementById('decelModeSelect');
+          if (decelModeSelect) {
+            decelModeSelect.value = decelZone.mode.toString();
+          }
+        }
+        
+        // Update zone preset active state
+        document.querySelectorAll('[data-decel-zone]').forEach(btn => {
+          const btnValue = parseInt(btn.getAttribute('data-decel-zone'));
+          if (btnValue === decelZone.zoneMM) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+        
+        // Redraw preview if enabled
+        drawDecelPreview();
+      } else {
+        // Disabled state
+        if (section && headerText) {
+          section.classList.add('collapsed');
+          headerText.textContent = '🎯 Décélération - désactivée';
+        }
+      }
+    }
+    
+    // ============================================================================
     // UI UPDATE
     // ============================================================================
     
@@ -283,81 +452,9 @@
         }
       }
       
+      // Update milestones (delegated to helper function)
       if (data.totalTraveled !== undefined) {
-        DOM.totalTraveled.textContent = (data.totalTraveled / 1000.0).toFixed(3) + " m";
-
-        
-        // Update milestone icon
-        const milestoneInfo = getMilestoneInfo(data.totalTraveled / 1000.0); // Convert mm to m
-        
-        if (milestoneInfo.current) {
-          // Build tooltip with progress info
-          let tooltip = `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)`;
-          if (milestoneInfo.current.location !== "-") {
-            tooltip += ` - ${milestoneInfo.current.location}`;
-          }
-          
-          if (milestoneInfo.next) {
-            tooltip += `\n\n⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)`;
-            tooltip += `\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
-          } else {
-            tooltip += `\n\n🎉 Dernier jalon atteint!`;
-          }
-          
-          DOM.milestoneIcon.textContent = milestoneInfo.current.emoji;
-          DOM.milestoneIcon.title = tooltip;
-          
-          // Milestone tracking logic
-          const newThreshold = milestoneInfo.current.threshold;
-          const totalTraveledM = data.totalTraveled / 1000.0;
-          
-          // Handle distance reset (user cleared stats) - reset tracking if distance dropped significantly
-          if (totalTraveledM < AppState.milestone.lastThreshold * 0.9) {
-            AppState.milestone.lastThreshold = 0;
-            AppState.milestone.initialized = false;
-          }
-          
-          // Check for milestone change
-          if (newThreshold > AppState.milestone.lastThreshold) {
-            if (!AppState.milestone.initialized) {
-              // First load - sync without notification
-              AppState.milestone.initialized = true;
-              AppState.milestone.lastThreshold = newThreshold;
-            } else {
-              // New milestone achieved during session!
-              AppState.milestone.lastThreshold = newThreshold;
-              
-              // Trigger icon animation
-              DOM.milestoneIcon.classList.remove('milestone-achievement');
-              void DOM.milestoneIcon.offsetWidth;
-              DOM.milestoneIcon.classList.add('milestone-achievement');
-              
-              // Show celebration notification
-              let message = `🎉 Jalon atteint: ${milestoneInfo.current.emoji} (${newThreshold}m)`;
-              if (milestoneInfo.next) {
-                message += `\n⏭️ Prochain: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progress.toFixed(0)}%`;
-              }
-              showNotification(message, 'milestone');
-            }
-          } else if (!AppState.milestone.initialized) {
-            // First load, same milestone - just mark initialized
-            AppState.milestone.initialized = true;
-            AppState.milestone.lastThreshold = newThreshold;
-          }
-          
-          AppState.milestone.current = milestoneInfo.current;
-        } else {
-          // No milestone reached yet - mark as initialized anyway
-          AppState.milestone.initialized = true;
-          if (milestoneInfo.next) {
-            const tooltip = `⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
-            DOM.milestoneIcon.textContent = '🐜';
-            DOM.milestoneIcon.title = tooltip;
-          } else {
-            DOM.milestoneIcon.textContent = '';
-            DOM.milestoneIcon.title = '';
-          }
-        }
+        updateMilestones(data.totalTraveled);
       }
       
       if (data.totalDistMM > 0 && data.positionMM !== undefined) {
@@ -493,85 +590,9 @@
       if (DOM.pursuitActiveCheckbox) DOM.pursuitActiveCheckbox.disabled = !inputsEnabled;
       setButtonState(DOM.btnActivatePursuit, inputsEnabled);
       
-      // Update deceleration zone configuration from server
-      if (data.decelZone && AppState.editing.input !== 'decelZone') {
-        const section = document.getElementById('decelSection');
-        const headerText = document.getElementById('decelHeaderText');
-        
-        // Defense: Only update full decelZone fields if enabled (Phase 1 optimization)
-        // When disabled, backend sends only {enabled: false} to save bandwidth
-        if (data.decelZone.enabled && data.decelZone.zoneMM !== undefined) {
-          // Update section collapsed state and header text based on enabled
-          if (section && headerText) {
-            section.classList.remove('collapsed');
-            headerText.textContent = '🎯 Décélération - activée';
-          }
-          
-          // Safe access to optional fields
-          if (data.decelZone.enableStart !== undefined) {
-            const startCheckbox = document.getElementById('decelZoneStart');
-            if (startCheckbox) startCheckbox.checked = data.decelZone.enableStart;
-          }
-          if (data.decelZone.enableEnd !== undefined) {
-            const endCheckbox = document.getElementById('decelZoneEnd');
-            if (endCheckbox) endCheckbox.checked = data.decelZone.enableEnd;
-          }
-          
-          // Check if zone value was adapted by ESP32 (only if we just sent a request)
-          const decelZoneInput = document.getElementById('decelZoneMM');
-          const requestedZone = AppState.lastDecelZoneRequest;
-          const receivedZone = data.decelZone.zoneMM;
-          
-          if (requestedZone !== undefined && Math.abs(requestedZone - receivedZone) > 0.1) {
-            // Value was adapted - show notification once
-            showNotification(`⚠️ Zone ajustée: ${requestedZone.toFixed(0)}mm → ${receivedZone.toFixed(0)}mm (limite du mouvement)`, 'warning', 4000);
-            // Clear the request flag to avoid showing notification again
-            AppState.lastDecelZoneRequest = undefined;
-          }
-          
-          if (decelZoneInput) {
-            decelZoneInput.value = receivedZone;
-          }
-          
-          // Effect percent (safe access)
-          if (data.decelZone.effectPercent !== undefined) {
-            const effectPercentInput = document.getElementById('decelEffectPercent');
-            const effectValueSpan = document.getElementById('effectValue');
-            if (effectPercentInput) {
-              effectPercentInput.value = data.decelZone.effectPercent;
-            }
-            if (effectValueSpan) {
-              effectValueSpan.textContent = data.decelZone.effectPercent.toFixed(0) + '%';
-            }
-          }
-          
-          // Update select dropdown for mode
-          if (data.decelZone.mode !== undefined) {
-            const decelModeSelect = document.getElementById('decelModeSelect');
-            if (decelModeSelect) {
-              decelModeSelect.value = data.decelZone.mode.toString();
-            }
-          }
-          
-          // Update zone preset active state
-          document.querySelectorAll('[data-decel-zone]').forEach(btn => {
-            const btnValue = parseInt(btn.getAttribute('data-decel-zone'));
-            if (btnValue === data.decelZone.zoneMM) {
-              btn.classList.add('active');
-            } else {
-              btn.classList.remove('active');
-            }
-          });
-          
-          // Redraw preview if enabled
-          drawDecelPreview();
-        } else {
-          // Disabled state
-          if (section && headerText) {
-            section.classList.add('collapsed');
-            headerText.textContent = '🎯 Décélération - désactivée';
-          }
-        }
+      // Update deceleration zone configuration from server (delegated to helper function)
+      if (data.decelZone) {
+        updateDecelZoneUI(data.decelZone);
       }
       
       // Show pending changes indicator
@@ -591,7 +612,6 @@
       // Update oscillation UI (delegated to OscillationController.js)
       updateOscillationUI(data);
       
-      // ===== UPDATE CYCLE PAUSE DISPLAY (MODE SIMPLE) =====
       // Update Simple mode UI (delegated to SimpleController.js)
       updateSimpleUI(data);
       
