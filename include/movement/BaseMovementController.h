@@ -13,10 +13,10 @@
 #define BASE_MOVEMENT_CONTROLLER_H
 
 #include <Arduino.h>
-#include "Types.h"
-#include "Config.h"
-#include "GlobalState.h"  // Access to global motion, pendingMotion, etc.
-#include "UtilityEngine.h" // Access to engine singleton
+#include "core/Types.h"
+#include "core/Config.h"
+#include "core/GlobalState.h"
+#include "core/UtilityEngine.h"
 
 // ============================================================================
 // BASE MOVEMENT CONTROLLER CLASS

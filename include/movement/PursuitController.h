@@ -29,10 +29,10 @@
 #define PURSUIT_CONTROLLER_H
 
 #include <Arduino.h>
-#include "Types.h"
-#include "Config.h"
-#include "UtilityEngine.h"
-#include "GlobalState.h"
+#include "core/Types.h"
+#include "core/Config.h"
+#include "core/UtilityEngine.h"
+#include "core/GlobalState.h"
 
 // ============================================================================
 // PURSUIT STATE - Defined in PursuitController.cpp (Phase 4D migration)

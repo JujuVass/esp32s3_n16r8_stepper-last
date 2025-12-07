@@ -14,7 +14,7 @@
 #include "movement/OscillationController.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
-#include "sequencer/SequenceExecutor.h"
+#include "movement/SequenceExecutor.h"
 
 // ============================================================================
 // OSCILLATION STATE - Owned by this module (Phase 4D migration)

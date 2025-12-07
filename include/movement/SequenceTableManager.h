@@ -22,9 +22,9 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include "Types.h"
-#include "Config.h"
-#include "UtilityEngine.h"
+#include "core/Types.h"
+#include "core/Config.h"
+#include "core/UtilityEngine.h"
 
 // ============================================================================
 // CONSTANTS
@@ -34,7 +34,7 @@
 #define MAX_SEQUENCE_LINES 20
 #endif
 
-#include "GlobalState.h"
+#include "core/GlobalState.h"
 
 // ============================================================================
 // SEQUENCE TABLE MANAGER CLASS

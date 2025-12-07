@@ -28,20 +28,20 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WebSocketsServer.h>
-#include "Types.h"
-#include "Config.h"
-#include "UtilityEngine.h"
+#include "core/Types.h"
+#include "core/Config.h"
+#include "core/UtilityEngine.h"
 #include "core/Validators.h"
-#include "GlobalState.h"
+#include "core/GlobalState.h"
 
-// Module singletons - use directly instead of extern wrappers
-#include "sequencer/SequenceExecutor.h"
-#include "sequencer/SequenceTableManager.h"
+// Module singletons
+#include "movement/SequenceExecutor.h"
+#include "movement/SequenceTableManager.h"
 #include "movement/OscillationController.h"
 #include "movement/PursuitController.h"
 #include "movement/ChaosController.h"
 #include "movement/BaseMovementController.h"
-#include "controllers/CalibrationManager.h"
+#include "movement/CalibrationManager.h"
 
 // ============================================================================
 // COMMAND DISPATCHER CLASS

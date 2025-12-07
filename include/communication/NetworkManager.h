@@ -17,7 +17,7 @@
 #include <DNSServer.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
-#include "Config.h"
+#include "core/Config.h"
 #include "communication/WiFiConfigManager.h"
 
 // Forward declarations

@@ -4,9 +4,9 @@
 // Implementation of calibration logic
 // ============================================================================
 
-#include "controllers/CalibrationManager.h"
-#include "GlobalState.h"  // Phase 4D: Use centralized extern declarations
-#include "UtilityEngine.h"
+#include "movement/CalibrationManager.h"
+#include "core/GlobalState.h"
+#include "core/UtilityEngine.h"
 
 // NOTE: currentStep, config now via GlobalState.h (Phase 4D cleanup)
 extern UtilityEngine* engine;

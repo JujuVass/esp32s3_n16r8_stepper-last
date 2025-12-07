@@ -11,13 +11,13 @@
  */
 
 #include "communication/StatusBroadcaster.h"
-#include "communication/NetworkManager.h"   // For degraded mode status
-#include "movement/ChaosController.h"       // Phase 4D: Access chaos, chaosState
-#include "movement/OscillationController.h" // Phase 4D: Access oscillation, oscillationState, oscPauseState, actualOscillationSpeedMMS
-#include "movement/PursuitController.h"     // Phase 4D: Access pursuit
-#include "movement/BaseMovementController.h" // For speed conversion + decelZone
-#include "sequencer/SequenceExecutor.h"     // Phase 4D: Access currentMovement
-#include "UtilityEngine.h"
+#include "communication/NetworkManager.h"
+#include "movement/ChaosController.h"
+#include "movement/OscillationController.h"
+#include "movement/PursuitController.h"
+#include "movement/BaseMovementController.h"
+#include "movement/SequenceExecutor.h"
+#include "core/UtilityEngine.h"
 #include <WiFi.h>
 
 // ============================================================================

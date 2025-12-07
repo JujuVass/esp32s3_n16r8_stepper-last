@@ -10,15 +10,15 @@
  * @version 1.0
  */
 
-#include "sequencer/SequenceExecutor.h"
-#include "sequencer/SequenceTableManager.h"  // Phase 4D: Access sequenceTable[], sequenceLineCount
-#include "GlobalState.h"                     // For ::sendStatus() global function
-#include "UtilityEngine.h"
+#include "movement/SequenceExecutor.h"
+#include "movement/SequenceTableManager.h"
+#include "core/GlobalState.h"
+#include "core/UtilityEngine.h"
 #include "hardware/MotorDriver.h"
-#include "controllers/CalibrationManager.h"
+#include "movement/CalibrationManager.h"
 #include "movement/ChaosController.h"
 #include "movement/OscillationController.h"
-#include "movement/BaseMovementController.h" // For calculateStepDelay(), validateDecelZone()
+#include "movement/BaseMovementController.h"
 
 // ============================================================================
 // SEQUENCER STATE - Owned by this module (Phase 4D migration)

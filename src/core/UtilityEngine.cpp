@@ -2,10 +2,10 @@
 // UTILITY ENGINE IMPLEMENTATION
 // ============================================================================
 
-#include "UtilityEngine.h"
-#include "Types.h"  // For SystemState enum
-#include <ArduinoJson.h>  // For JSON serialization/deserialization
-#include <EEPROM.h>  // For logging preferences persistence
+#include "core/UtilityEngine.h"
+#include "core/Types.h"
+#include <ArduinoJson.h>
+#include <EEPROM.h>
 #include <math.h>
 
 // EEPROM addresses for logging preferences

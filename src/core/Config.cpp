@@ -5,7 +5,7 @@
 // This file must be compiled once to avoid multiple definition errors
 // ============================================================================
 
-#include "Config.h"
+#include "core/Config.h"
 
 // ============================================================================
 // WIFI CREDENTIALS

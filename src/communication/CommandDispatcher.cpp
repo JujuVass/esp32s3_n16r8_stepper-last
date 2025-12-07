@@ -11,13 +11,13 @@
  */
 
 #include "communication/CommandDispatcher.h"
-#include "UtilityEngine.h"
-#include "controllers/CalibrationManager.h"
+#include "core/UtilityEngine.h"
+#include "movement/CalibrationManager.h"
 #include "hardware/MotorDriver.h"
-#include "sequencer/SequenceTableManager.h"
+#include "movement/SequenceTableManager.h"
 #include "movement/OscillationController.h"
 #include "movement/PursuitController.h"
-#include "movement/ChaosController.h"       // Phase 4A: Direct access to Chaos singleton
+#include "movement/ChaosController.h"
 
 // ============================================================================
 // SINGLETON INSTANCE

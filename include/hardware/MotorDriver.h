@@ -9,7 +9,7 @@
 #define MOTOR_DRIVER_H
 
 #include <Arduino.h>
-#include "Config.h"
+#include "core/Config.h"
 
 /**
  * HSS86 Motor Driver Abstraction

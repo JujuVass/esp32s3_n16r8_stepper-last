@@ -8,9 +8,9 @@
 
 #include "communication/NetworkManager.h"
 #include "communication/WiFiConfigManager.h"
-#include "UtilityEngine.h"
+#include "core/UtilityEngine.h"
 #include "hardware/MotorDriver.h"
-#include "sequencer/SequenceExecutor.h"
+#include "movement/SequenceExecutor.h"
 
 // ============================================================================
 // SINGLETON INSTANCE

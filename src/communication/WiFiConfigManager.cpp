@@ -5,7 +5,7 @@
  */
 
 #include "communication/WiFiConfigManager.h"
-#include "UtilityEngine.h"
+#include "core/UtilityEngine.h"
 #include <esp_wifi.h>
 
 // Forward declaration

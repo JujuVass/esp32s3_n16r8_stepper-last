@@ -18,10 +18,10 @@
 #include <Arduino.h>
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
-#include "Types.h"
-#include "Config.h"
-#include "UtilityEngine.h"
-#include "GlobalState.h"
+#include "core/Types.h"
+#include "core/Config.h"
+#include "core/UtilityEngine.h"
+#include "core/GlobalState.h"
 
 // ============================================================================
 // STATUS BROADCASTER CLASS

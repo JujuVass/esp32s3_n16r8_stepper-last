@@ -9,7 +9,7 @@
 #define CONTACT_SENSORS_H
 
 #include <Arduino.h>
-#include "Config.h"
+#include "core/Config.h"
 
 /**
  * Contact Sensors Abstraction

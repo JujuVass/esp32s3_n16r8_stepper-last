@@ -3,15 +3,15 @@
 // ============================================================================
 
 #include "movement/BaseMovementController.h"
-#include "GlobalState.h"
-#include "UtilityEngine.h"
+#include "core/GlobalState.h"
+#include "core/UtilityEngine.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
 #include "movement/PursuitController.h"
-#include "movement/ChaosController.h"       // Phase 4D: Access chaosState
-#include "movement/OscillationController.h" // Phase 4D: Access oscillationState, oscPauseState
-#include "sequencer/SequenceExecutor.h"
-#include "controllers/CalibrationManager.h"
+#include "movement/ChaosController.h"
+#include "movement/OscillationController.h"
+#include "movement/SequenceExecutor.h"
+#include "movement/CalibrationManager.h"
 
 // ============================================================================
 // DECEL ZONE STATE - Owned by BaseMovementController (integrated)

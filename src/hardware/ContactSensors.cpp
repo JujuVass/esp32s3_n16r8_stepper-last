@@ -4,8 +4,8 @@
 
 #include "hardware/ContactSensors.h"
 #include "hardware/MotorDriver.h"
-#include "GlobalState.h"
-#include "UtilityEngine.h"
+#include "core/GlobalState.h"
+#include "core/UtilityEngine.h"
 
 // ============================================================================
 // SINGLETON INSTANCE

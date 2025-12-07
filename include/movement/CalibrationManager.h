@@ -9,7 +9,7 @@
 #define CALIBRATION_MANAGER_H
 
 #include <Arduino.h>
-#include "Config.h"
+#include "core/Config.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
 

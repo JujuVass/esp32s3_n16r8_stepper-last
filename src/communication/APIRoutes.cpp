@@ -4,12 +4,12 @@
 // HTTP server routes for ESP32 Stepper Controller
 // ============================================================================
 
-#include "web/APIRoutes.h"
+#include "communication/APIRoutes.h"
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include "UtilityEngine.h"
-#include "sequencer/SequenceTableManager.h"
+#include "core/UtilityEngine.h"
+#include "movement/SequenceTableManager.h"
 #include "communication/WiFiConfigManager.h"
 #include "communication/NetworkManager.h"
 

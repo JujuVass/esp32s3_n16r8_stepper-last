@@ -11,9 +11,9 @@
  */
 
 #include "movement/ChaosController.h"
-#include "UtilityEngine.h"
+#include "core/UtilityEngine.h"
 #include "hardware/MotorDriver.h"
-#include "sequencer/SequenceExecutor.h"
+#include "movement/SequenceExecutor.h"
 
 // ============================================================================
 // CHAOS STATE - Owned by this module (Phase 4D migration)

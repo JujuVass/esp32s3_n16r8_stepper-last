@@ -25,11 +25,11 @@
 #include <Arduino.h>
 #include <WebSocketsServer.h>
 #include <WebServer.h>
-#include "Types.h"
-#include "Config.h"
+#include "core/Types.h"
+#include "core/Config.h"
 #include "ChaosPatterns.h"
-#include "UtilityEngine.h"
-#include "GlobalState.h"
+#include "core/UtilityEngine.h"
+#include "core/GlobalState.h"
 #include "hardware/ContactSensors.h"
 
 // ============================================================================

@@ -21,38 +21,32 @@
 // ============================================================================
 // PROJECT CONFIGURATION HEADERS
 // ============================================================================
-#include "Config.h"               // WiFi, OTA, GPIO, Hardware, Timing constants
-#include "Types.h"                // Data structures and enums
-#include "UtilityEngine.h"        // Unified logging, WebSocket, LittleFS manager
-
-// Web layer (reorganized structure)
-#include "web/FilesystemManager.h"  // Filesystem browser API
-#include "web/APIRoutes.h"          // API routes module (extracted from main)
-
-// Core utilities
+// Core (config, types, utilities)
+#include "core/Config.h"            // WiFi, OTA, GPIO, Hardware, Timing constants
+#include "core/Types.h"             // Data structures and enums
+#include "core/GlobalState.h"       // Global state declarations
+#include "core/UtilityEngine.h"     // Unified logging, WebSocket, LittleFS manager
 #include "core/Validators.h"        // Parameter validation functions
 
-// Hardware abstraction layer (modular architecture)
-#include "hardware/MotorDriver.h"    // Motor control abstraction (Motor.step(), Motor.enable()...)
-#include "hardware/ContactSensors.h" // Contact sensors abstraction (Contacts.isStartContactActive()...)
+// Hardware abstraction layer
+#include "hardware/MotorDriver.h"    // Motor control (Motor.step(), Motor.enable()...)
+#include "hardware/ContactSensors.h" // Contact sensors (Contacts.isStartContactActive()...)
 
-// Controllers (modular architecture)
-#include "controllers/CalibrationManager.h" // Calibration controller (Calibration.startCalibration()...)
-
-// Communication layer (modular architecture)
+// Communication layer
 #include "communication/CommandDispatcher.h" // WebSocket command routing
 #include "communication/StatusBroadcaster.h" // Status broadcasting (Status.send()...)
 #include "communication/NetworkManager.h"    // WiFi, OTA, mDNS, NTP (Network.begin()...)
+#include "communication/APIRoutes.h"         // HTTP API routes
+#include "communication/FilesystemManager.h" // Filesystem REST API
 
-// Movement controllers (modular architecture)
-#include "movement/ChaosController.h"       // Chaos mode controller (Chaos.start(), Chaos.process()...)
-#include "movement/OscillationController.h" // Oscillation mode controller (Osc.start(), Osc.process()...)
-#include "movement/PursuitController.h"     // Pursuit mode controller (Pursuit.move(), Pursuit.process()...)
-#include "movement/BaseMovementController.h"   // Base movement + decel zone (BaseMovement.validateDecelZone()...)
-
-// Sequencer (modular architecture)
-#include "sequencer/SequenceTableManager.h" // Sequence table CRUD operations
-#include "sequencer/SequenceExecutor.h"     // Sequence execution engine (SeqExecutor.start()...)
+// Movement controllers
+#include "movement/ChaosController.h"        // Chaos mode (Chaos.start(), Chaos.process()...)
+#include "movement/OscillationController.h"  // Oscillation mode (Osc.start(), Osc.process()...)
+#include "movement/PursuitController.h"      // Pursuit mode (Pursuit.move(), Pursuit.process()...)
+#include "movement/BaseMovementController.h" // Base movement + decel zone
+#include "movement/CalibrationManager.h"     // Calibration (Calibration.startCalibration()...)
+#include "movement/SequenceTableManager.h"   // Sequence table CRUD operations
+#include "movement/SequenceExecutor.h"       // Sequence execution (SeqExecutor.start()...)
 
 // ============================================================================
 // LOGGING SYSTEM - Managed by UtilityEngine

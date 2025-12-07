@@ -8,7 +8,7 @@
  * @version 1.0
  */
 
-#include "sequencer/SequenceTableManager.h"
+#include "movement/SequenceTableManager.h"
 #include <WebSocketsServer.h>
 
 // ============================================================================
