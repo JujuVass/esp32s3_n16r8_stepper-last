@@ -11,6 +11,7 @@
  */
 
 #include "communication/StatusBroadcaster.h"
+#include "communication/NetworkManager.h"   // For degraded mode status
 #include "movement/ChaosController.h"       // Phase 4D: Access chaos, chaosState
 #include "movement/OscillationController.h" // Phase 4D: Access oscillation, oscillationState, oscPauseState, actualOscillationSpeedMMS
 #include "movement/PursuitController.h"     // Phase 4D: Access pursuit
@@ -318,4 +319,5 @@ void StatusBroadcaster::addSystemStats(JsonDocument& doc) {
     systemObj["hostname"] = String(otaHostname);
     systemObj["ssid"] = WiFi.SSID();
     systemObj["apClients"] = WiFi.softAPgetStationNum();
+    systemObj["degradedMode"] = Network.isDegradedMode();
 }

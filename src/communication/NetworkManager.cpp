@@ -172,12 +172,21 @@ bool NetworkManager::begin() {
     bool connected = connectWiFi();
     
     if (connected) {
+        // Full mode: STA + AP + all services
+        _degradedMode = false;
         setupMDNS();
         setupNTP();
         setupOTA(
             []() { stopMovement(); },
             []() { if (seqState.isRunning) SeqExecutor.stop(); }
         );
+        engine->info("✅ Network: FULL MODE (STA + AP + OTA + mDNS)");
+    } else {
+        // Degraded mode: AP only - service minimum
+        _degradedMode = true;
+        engine->warn("⚠️ Network: DEGRADED MODE (AP only at 192.168.4.1)");
+        engine->warn("⚠️ Connect to WiFi '" + String(otaHostname) + "-AP' for access");
+        engine->warn("⚠️ OTA and mDNS disabled in degraded mode");
     }
     
     return connected;

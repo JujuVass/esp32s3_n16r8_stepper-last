@@ -721,7 +721,10 @@ function updateSystemStats(system) {
   
   // Network info (IP addresses, hostname)
   if (system.ipSta !== undefined) {
-    document.getElementById('sysIpSta').textContent = system.ipSta;
+    const ipStaEl = document.getElementById('sysIpSta');
+    ipStaEl.textContent = system.ipSta;
+    // Gray out if degraded mode (0.0.0.0)
+    ipStaEl.style.color = (system.ipSta === '0.0.0.0') ? '#999' : '#333';
   }
   if (system.ipAp !== undefined) {
     document.getElementById('sysIpAp').textContent = system.ipAp;
@@ -730,6 +733,13 @@ function updateSystemStats(system) {
     const hostnameEl = document.getElementById('sysHostname');
     hostnameEl.textContent = system.hostname + '.local';
     hostnameEl.title = 'http://' + system.hostname + '.local';
+    // Disable mDNS link in degraded mode
+    if (system.degradedMode) {
+      hostnameEl.style.color = '#999';
+      hostnameEl.title = 'mDNS indisponible en mode dégradé';
+    } else {
+      hostnameEl.style.color = '#2196F3';
+    }
   }
   if (system.ssid !== undefined) {
     document.getElementById('sysSsid').textContent = system.ssid || '(non connecté)';
@@ -738,6 +748,21 @@ function updateSystemStats(system) {
     const apClientsEl = document.getElementById('sysApClients');
     apClientsEl.textContent = system.apClients;
     apClientsEl.style.color = system.apClients > 0 ? '#4CAF50' : '#999';
+  }
+  
+  // Degraded mode indicator
+  if (system.degradedMode !== undefined) {
+    const badge = document.getElementById('sysDegradedBadge');
+    const section = document.getElementById('networkInfoSection');
+    if (system.degradedMode) {
+      badge.style.display = '';
+      section.style.borderLeftColor = '#FF9800';
+      section.style.background = '#fff3e0';
+    } else {
+      badge.style.display = 'none';
+      section.style.borderLeftColor = '#2196F3';
+      section.style.background = '#e3f2fd';
+    }
   }
 }
 

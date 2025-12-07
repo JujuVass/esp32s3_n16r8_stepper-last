@@ -58,19 +58,29 @@ public:
     bool begin();
     
     /**
-     * Check if WiFi is connected
+     * Check if WiFi STA is connected
      */
     bool isConnected() const { return WiFi.status() == WL_CONNECTED; }
     
     /**
-     * Get IP address as string
+     * Check if running in degraded mode (AP only, STA failed)
+     */
+    bool isDegradedMode() const { return _degradedMode; }
+    
+    /**
+     * Get STA IP address as string
      */
     String getIPAddress() const { return WiFi.localIP().toString(); }
     
     /**
+     * Get AP IP address as string
+     */
+    String getAPIPAddress() const { return WiFi.softAPIP().toString(); }
+    
+    /**
      * Handle OTA in loop - MUST be called in every loop iteration
      */
-    void handleOTA() { ArduinoOTA.handle(); }
+    void handleOTA() { if (_otaConfigured) ArduinoOTA.handle(); }
 
 private:
     NetworkManager() = default;
@@ -81,6 +91,7 @@ private:
     std::function<void()> _onStopSequencer = nullptr;
     bool _wifiConnected = false;
     bool _otaConfigured = false;
+    bool _degradedMode = false;  // True if STA failed, running AP only
 };
 
 // Global access macro
