@@ -1,0 +1,394 @@
+/**
+ * ============================================================================
+ * UIController.js - UI Control Module
+ * ============================================================================
+ * Handles:
+ * - Tab management (mode switching between Simple, Pursuit, Oscillation, Chaos, Sequencer)
+ * - Modal dialogs (mode change confirmation, stop confirmation, sequencer limit)
+ * 
+ * Dependencies:
+ * - app.js (AppState, SystemState, WS_CMD)
+ * - utils.js (sendCommand, showNotification)
+ * - PursuitController.js (isPursuitActive, disablePursuitMode, setGaugeTarget)
+ * - OscillationController.js (sendOscillationConfig, validateOscillationLimits, updateOscillationPresets)
+ * - ChaosController.js (validateChaosLimits, updateChaosPresets)
+ * 
+ * Created: December 2025 (extracted from main.js)
+ * ============================================================================
+ */
+
+// ============================================================================
+// TAB MANAGEMENT & MODE SWITCHING
+// ============================================================================
+
+/**
+ * Switch to a different mode tab
+ * @param {string} tabName - Target tab name (simple, pursuit, oscillation, chaos, tableau)
+ */
+function switchTab(tabName) {
+  // Save statistics before mode change
+  sendCommand(WS_CMD.SAVE_STATS, {});
+  
+  // SAFETY: Stop any running movement before switching tabs
+  // This prevents confusion when switching modes while paused
+  const isRunningOrPaused = (AppState.system.currentState === SystemState.RUNNING || 
+                              AppState.system.currentState === SystemState.PAUSED);
+  
+  if (isRunningOrPaused) {
+    console.log('Stopping movement before tab switch');
+    sendCommand(WS_CMD.STOP);
+    // Note: UI will update via WebSocket status message
+  }
+  
+  // PRE-CHECK: If switching to sequencer with limit active, show modal and abort
+  if (tabName === 'tableau') {
+    const currentLimit = AppState.pursuit.maxDistLimitPercent || 100;
+    
+    if (currentLimit < 100) {
+      const limitedCourse = AppState.pursuit.effectiveMaxDistMM || 0;
+      const totalCourse = AppState.pursuit.totalDistanceMM || 0;
+      
+      // Update modal content with current values
+      document.getElementById('seqModalCurrentLimit').textContent = 
+        currentLimit.toFixed(0) + '% (' + limitedCourse.toFixed(1) + ' mm)';
+      document.getElementById('seqModalAfterLimit').textContent = 
+        '100% (' + totalCourse.toFixed(1) + ' mm)';
+      
+      // Show modal and ABORT tab switch
+      document.getElementById('sequencerLimitModal').classList.add('active');
+      return; // Don't switch tab yet!
+    }
+  }
+  
+  // Hide all tab contents
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  // Remove active class from all tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  
+  // Show selected tab content
+  const tabMap = {
+    'simple': 'tabSimple',
+    'pursuit': 'tabPursuit',
+    'oscillation': 'tabOscillation',
+    'chaos': 'tabChaos',
+    'tableau': 'tabTableau'
+  };
+  
+  document.getElementById(tabMap[tabName]).classList.add('active');
+  
+  // Add active class to selected tab
+  document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
+  
+  AppState.system.currentMode = tabName;
+  console.log('Switched to mode: ' + tabName);
+  
+  // Handle mode-specific initialization
+  if (tabName === 'pursuit') {
+    // Switching TO pursuit mode
+    setGaugeTarget(0);  // Start at 0mm
+  } else if (tabName === 'simple') {
+    // Switching TO simple mode - disable pursuit if active
+    if (isPursuitActive()) {
+      disablePursuitMode();
+    }
+  } else if (tabName === 'oscillation') {
+    // Switching TO oscillation mode - always update center with effective max
+    const totalMM = AppState.pursuit.totalDistanceMM || 0;
+    const effectiveMax = (AppState.pursuit.maxDistLimitPercent && AppState.pursuit.maxDistLimitPercent < 100)
+      ? (totalMM * AppState.pursuit.maxDistLimitPercent / 100)
+      : totalMM;
+    
+    const oscCenterField = document.getElementById('oscCenter');
+    if (oscCenterField && effectiveMax > 0) {
+      // Always set to effective center
+      oscCenterField.value = (effectiveMax / 2).toFixed(1);
+      // Also send to backend (use sendOscillationConfig function)
+      sendOscillationConfig();
+    }
+    
+    validateOscillationLimits();
+    updateOscillationPresets();  // Update preset buttons state
+  } else if (tabName === 'chaos') {
+    // Switching TO chaos mode - always update center with effective max
+    const totalMM = AppState.pursuit.totalDistanceMM || 0;
+    const effectiveMax = (AppState.pursuit.maxDistLimitPercent && AppState.pursuit.maxDistLimitPercent < 100)
+      ? (totalMM * AppState.pursuit.maxDistLimitPercent / 100)
+      : totalMM;
+    
+    const chaosCenterField = document.getElementById('chaosCenterPos');
+    if (chaosCenterField && effectiveMax > 0) {
+      // Always set to effective center
+      chaosCenterField.value = (effectiveMax / 2).toFixed(1);
+    }
+    
+    validateChaosLimits();
+    updateChaosPresets();  // Update preset buttons state
+  }
+  // Note: tableau (sequencer) pre-check is done at the start of switchTab()
+}
+
+/**
+ * Check if system is currently running any operation
+ * @returns {boolean} True if system is running or paused
+ */
+function isSystemRunning() {
+  // State 3 = RUNNING, 4 = PAUSED (for simple mode)
+  // Also check if pursuit mode is active (isPursuitActive from PursuitController.js)
+  return AppState.system.currentState === SystemState.RUNNING || 
+         AppState.system.currentState === SystemState.PAUSED || 
+         isPursuitActive();
+}
+
+// ============================================================================
+// MODE CHANGE MODAL FUNCTIONS
+// ============================================================================
+
+/**
+ * Cancel mode change and close modal
+ */
+function cancelModeChange() {
+  document.getElementById('modeChangeModal').classList.remove('active');
+  AppState.system.pendingModeSwitch = null;
+  
+  // Reset checkbox
+  document.getElementById('bypassCalibrationCheckbox').checked = false;
+  
+  // Restore previous tab selection
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  document.querySelector('[data-tab="' + AppState.system.currentMode + '"]').classList.add('active');
+}
+
+/**
+ * Confirm mode change and proceed with calibration/return
+ */
+function confirmModeChange() {
+  const bypassCalibration = document.getElementById('bypassCalibrationCheckbox').checked;
+  document.getElementById('modeChangeModal').classList.remove('active');
+  
+  // If pursuit is active, disable it first
+  if (isPursuitActive()) {
+    console.log('Mode change: Disabling pursuit mode first');
+    disablePursuitMode();
+  }
+  
+  // Stop movement (for simple mode)
+  sendCommand(WS_CMD.STOP, {});
+  
+  // Wait a bit for stop to complete, then either quick return or full calibration
+  setTimeout(function() {
+    if (bypassCalibration) {
+      // Quick return to start only
+      console.log('Mode change: Quick return to start (bypass full calibration)');
+      sendCommand(WS_CMD.RETURN_TO_START, {});
+    } else {
+      // Full calibration
+      console.log('Mode change: Full calibration');
+      sendCommand(WS_CMD.CALIBRATE, {});
+    }
+    
+    // Reset checkbox for next time
+    document.getElementById('bypassCalibrationCheckbox').checked = false;
+    
+    // Actually switch the tab after starting calibration/return
+    if (AppState.system.pendingModeSwitch) {
+      switchTab(AppState.system.pendingModeSwitch);
+      AppState.system.pendingModeSwitch = null;
+    }
+  }, 500);
+}
+
+// ============================================================================
+// STOP CONFIRMATION MODAL FUNCTIONS
+// ============================================================================
+
+/**
+ * Show stop confirmation modal
+ */
+function showStopModal() {
+  document.getElementById('stopModal').classList.add('active');
+}
+
+/**
+ * Cancel stop and close modal
+ */
+function cancelStopModal() {
+  document.getElementById('stopModal').classList.remove('active');
+  // Reset checkbox for next time (keep checked by default)
+  document.getElementById('returnToStartCheckbox').checked = true;
+}
+
+/**
+ * Confirm stop with mode-specific handling
+ */
+function confirmStopModal() {
+  const shouldReturnToStart = document.getElementById('returnToStartCheckbox').checked;
+  document.getElementById('stopModal').classList.remove('active');
+  
+  // CRITICAL FIX: Detect current mode and send mode-specific stop command
+  const currentMode = AppState.system.currentMode;
+  
+  if (currentMode === 'tableau') {  // 'tableau' is the sequencer tab name
+    // SEQUENCER MODE FIX: Send stopSequence command
+    console.log('Stop confirmed (Sequencer mode): Stopping sequence');
+    sendCommand(WS_CMD.STOP_SEQUENCE, {});
+    
+    // Return to start if requested (same as other modes)
+    if (shouldReturnToStart) {
+      setTimeout(function() {
+        console.log('Stop confirmed: Returning to start position');
+        sendCommand(WS_CMD.RETURN_TO_START, {});
+      }, 500);
+    }
+  } else if (currentMode === 'chaos') {
+    // Chaos mode: send stopChaos command
+    console.log('Stop confirmed (Chaos mode): Stopping chaos movement');
+    sendCommand(WS_CMD.STOP_CHAOS, {});
+    
+    // Return to start if requested
+    if (shouldReturnToStart) {
+      setTimeout(function() {
+        console.log('Stop confirmed: Returning to start position');
+        sendCommand(WS_CMD.RETURN_TO_START, {});
+      }, 500);
+    }
+  } else if (currentMode === 'oscillation') {
+    // Oscillation mode: send stopOscillation command
+    console.log('Stop confirmed (Oscillation mode): Stopping oscillation');
+    sendCommand(WS_CMD.STOP_OSCILLATION, {});
+    
+    // Return to start if requested
+    if (shouldReturnToStart) {
+      setTimeout(function() {
+        console.log('Stop confirmed: Returning to start position');
+        sendCommand(WS_CMD.RETURN_TO_START, {});
+      }, 500);
+    }
+  } else {
+    // Simple mode or others: send generic stop
+    console.log('Stop confirmed: Stopping movement');
+    sendCommand(WS_CMD.STOP, {});
+    
+    // Return to start if requested
+    if (shouldReturnToStart) {
+      setTimeout(function() {
+        console.log('Stop confirmed: Returning to start position');
+        sendCommand(WS_CMD.RETURN_TO_START, {});
+      }, 500);
+    }
+  }
+  
+  if (!shouldReturnToStart) {
+    console.log('Stop confirmed: Staying at current position');
+  }
+  
+  // Reset checkbox for next time (keep checked by default)
+  document.getElementById('returnToStartCheckbox').checked = true;
+}
+
+// ============================================================================
+// SEQUENCER LIMIT MODAL FUNCTIONS
+// ============================================================================
+
+/**
+ * Cancel sequencer limit change and return to previous tab
+ */
+function cancelSequencerLimitChange() {
+  document.getElementById('sequencerLimitModal').classList.remove('active');
+  
+  // Return to previous tab
+  const prevTab = AppState.system.currentMode || 'simple';
+  setTimeout(function() {
+    // Restore previous tab selection
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    document.querySelector('[data-tab="' + prevTab + '"]').classList.add('active');
+    
+    // Restore previous tab content
+    document.querySelectorAll('.mode-content').forEach(content => {
+      content.classList.remove('active');
+    });
+    document.getElementById(prevTab + '-content').classList.add('active');
+  }, 10);
+}
+
+/**
+ * Confirm sequencer limit change and switch to sequencer tab
+ */
+function confirmSequencerLimitChange() {
+  document.getElementById('sequencerLimitModal').classList.remove('active');
+  
+  // Reset limit to 100%
+  sendCommand(WS_CMD.SET_MAX_DISTANCE_LIMIT, { limitPercent: 100 });
+  
+  // Show confirmation notification
+  setTimeout(function() {
+    showNotification('✅ Limite réinitialisée à 100% (mode séquenceur)', 3000);
+  }, 100);
+  
+  // Now actually switch to sequencer tab
+  // We need to temporarily bypass the check by setting limit to 100 in AppState
+  AppState.pursuit.maxDistLimitPercent = 100;
+  switchTab('tableau');
+}
+
+// ============================================================================
+// TAB CLICK HANDLERS INITIALIZATION
+// ============================================================================
+
+/**
+ * Initialize tab click event listeners
+ * Called once on page load
+ */
+function initUIListeners() {
+  console.log('🖥️ Initializing UI listeners...');
+  
+  // Tab click handlers
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const targetMode = this.getAttribute('data-tab');
+      
+      // Don't do anything if clicking on already active tab
+      if (targetMode === AppState.system.currentMode) {
+        return;
+      }
+      
+      // Check if system is running
+      if (isSystemRunning()) {
+        // Update modal message based on current mode
+        const modalMessage = document.getElementById('modalMessage');
+        if (isPursuitActive()) {
+          modalMessage.innerHTML = 
+            'Le mode poursuite est actuellement actif. Le changement de mode va :<br>' +
+            '• Désactiver le mode poursuite<br>' +
+            '• Retourner au point de départ pour vérifier le contact<br>' +
+            '• Lancer une calibration si nécessaire<br><br>' +
+            '<strong>Voulez-vous continuer ?</strong>';
+        } else {
+          modalMessage.innerHTML = 
+            'Une opération est en cours. Le changement de mode va arrêter le mouvement et lancer une recalibration.<br><br>' +
+            '<strong>Voulez-vous continuer ?</strong>';
+        }
+        
+        // Show confirmation modal
+        AppState.system.pendingModeSwitch = targetMode;
+        document.getElementById('modeChangeModal').classList.add('active');
+      } else {
+        // Safe to switch immediately
+        switchTab(targetMode);
+      }
+    });
+  });
+  
+  console.log('✅ UI listeners initialized');
+}
+
+// Log initialization
+console.log('✅ UIController.js loaded - UI control ready');

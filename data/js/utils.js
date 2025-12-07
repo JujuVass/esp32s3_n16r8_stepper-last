@@ -327,3 +327,77 @@ function sendCommand(cmd, params = {}) {
     console.warn('Cannot send command:', cmd, '- WebSocket not connected (retrying...)');
   }
 }
+
+// ============================================================================
+// NUMERIC INPUT CONSTRAINTS
+// ============================================================================
+
+/**
+ * Enforce numeric constraints on an input element
+ * - Filters invalid characters (only digits, decimal, minus allowed)
+ * - Ensures single decimal point and minus only at start
+ * - Enforces min/max on blur
+ * - Triggers validateEditForm() if available
+ * @param {HTMLInputElement} input - The input element to constrain
+ */
+function enforceNumericConstraints(input) {
+  // Filter invalid characters after input AND trigger validation
+  input.addEventListener('input', function(e) {
+    const oldValue = this.value;
+    // Allow: digits, decimal point, minus sign
+    // Remove all non-numeric characters except . and -
+    let newValue = this.value.replace(/[^\d.-]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = newValue.split('.');
+    if (parts.length > 2) {
+      newValue = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Ensure minus only at start
+    if (newValue.indexOf('-') > 0) {
+      newValue = newValue.replace(/-/g, '');
+    }
+    
+    // Update value if changed
+    if (newValue !== oldValue) {
+      this.value = newValue;
+    }
+    
+    // Trigger real-time validation (red border + error messages)
+    // Use setTimeout to ensure value is updated before validation
+    setTimeout(function() {
+      if (typeof validateEditForm === 'function') {
+        validateEditForm();
+      }
+    }, 10);
+  });
+  
+  // Enforce min/max on blur
+  input.addEventListener('blur', function() {
+    const min = parseFloat(this.getAttribute('min'));
+    const max = parseFloat(this.getAttribute('max'));
+    const val = parseFloat(this.value);
+    
+    if (!isNaN(min) && val < min) {
+      this.value = min;
+      if (typeof validateEditForm === 'function') validateEditForm();
+    }
+    if (!isNaN(max) && val > max) {
+      this.value = max;
+      if (typeof validateEditForm === 'function') validateEditForm();
+    }
+  });
+}
+
+/**
+ * Apply numeric constraints to a list of input IDs
+ * @param {string[]} inputIds - Array of input element IDs
+ */
+function applyNumericConstraints(inputIds) {
+  inputIds.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) enforceNumericConstraints(input);
+  });
+}
+

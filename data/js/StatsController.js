@@ -572,6 +572,90 @@ function handleStatsFileImport(e) {
 }
 
 // ============================================================================
+// MILESTONE UI UPDATE
+// ============================================================================
+
+/**
+ * Update milestone display from total traveled distance
+ * Extracted from main.js for better organization
+ * @param {number} totalTraveledMM - Total traveled distance in mm
+ */
+function updateMilestones(totalTraveledMM) {
+  DOM.totalTraveled.textContent = (totalTraveledMM / 1000.0).toFixed(3) + " m";
+  
+  const milestoneInfo = getMilestoneInfo(totalTraveledMM / 1000.0); // Convert mm to m
+  
+  if (milestoneInfo.current) {
+    // Build tooltip with progress info
+    let tooltip = `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)`;
+    if (milestoneInfo.current.location !== "-") {
+      tooltip += ` - ${milestoneInfo.current.location}`;
+    }
+    
+    if (milestoneInfo.next) {
+      tooltip += `\n\n⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)`;
+      tooltip += `\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
+    } else {
+      tooltip += `\n\n🎉 Dernier jalon atteint!`;
+    }
+    
+    DOM.milestoneIcon.textContent = milestoneInfo.current.emoji;
+    DOM.milestoneIcon.title = tooltip;
+    
+    // Milestone tracking logic
+    const newThreshold = milestoneInfo.current.threshold;
+    const totalTraveledM = totalTraveledMM / 1000.0;
+    
+    // Handle distance reset (user cleared stats) - reset tracking if distance dropped significantly
+    if (totalTraveledM < AppState.milestone.lastThreshold * 0.9) {
+      AppState.milestone.lastThreshold = 0;
+      AppState.milestone.initialized = false;
+    }
+    
+    // Check for milestone change
+    if (newThreshold > AppState.milestone.lastThreshold) {
+      if (!AppState.milestone.initialized) {
+        // First load - sync without notification
+        AppState.milestone.initialized = true;
+        AppState.milestone.lastThreshold = newThreshold;
+      } else {
+        // New milestone achieved during session!
+        AppState.milestone.lastThreshold = newThreshold;
+        
+        // Trigger icon animation
+        DOM.milestoneIcon.classList.remove('milestone-achievement');
+        void DOM.milestoneIcon.offsetWidth;
+        DOM.milestoneIcon.classList.add('milestone-achievement');
+        
+        // Show celebration notification
+        let message = `🎉 Jalon atteint: ${milestoneInfo.current.emoji} (${newThreshold}m)`;
+        if (milestoneInfo.next) {
+          message += `\n⏭️ Prochain: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progress.toFixed(0)}%`;
+        }
+        showNotification(message, 'milestone');
+      }
+    } else if (!AppState.milestone.initialized) {
+      // First load, same milestone - just mark initialized
+      AppState.milestone.initialized = true;
+      AppState.milestone.lastThreshold = newThreshold;
+    }
+    
+    AppState.milestone.current = milestoneInfo.current;
+  } else {
+    // No milestone reached yet - mark as initialized anyway
+    AppState.milestone.initialized = true;
+    if (milestoneInfo.next) {
+      const tooltip = `⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
+      DOM.milestoneIcon.textContent = '🐜';
+      DOM.milestoneIcon.title = tooltip;
+    } else {
+      DOM.milestoneIcon.textContent = '';
+      DOM.milestoneIcon.title = '';
+    }
+  }
+}
+
+// ============================================================================
 // INITIALIZE STATS LISTENERS
 // ============================================================================
 

@@ -491,6 +491,106 @@ function saveLoggingPreferences() {
 }
 
 // ============================================================================
+// SYSTEM STATS UPDATE (ESP32 Hardware Stats)
+// ============================================================================
+
+/**
+ * Update system hardware statistics display (CPU, RAM, WiFi, etc.)
+ * Extracted from main.js - displays ESP32 system info, not app statistics
+ * @param {Object} system - System stats object from backend status message
+ */
+function updateSystemStats(system) {
+  // Defense: Check system object exists before accessing fields
+  if (!system) {
+    console.warn('updateSystemStats: system object is undefined');
+    return;
+  }
+  
+  // CPU frequency
+  if (system.cpuFreqMHz !== undefined) {
+    document.getElementById('sysCpuFreq').textContent = system.cpuFreqMHz + ' MHz';
+  }
+  
+  // Temperature
+  if (system.temperatureC !== undefined) {
+    const temp = parseFloat(system.temperatureC);
+    const tempEl = document.getElementById('sysTemp');
+    tempEl.textContent = temp.toFixed(1) + ' °C';
+    // Color coding based on temperature
+    if (temp > 80) {
+      tempEl.style.color = '#f44336'; // Red - hot
+    } else if (temp > 70) {
+      tempEl.style.color = '#FF9800'; // Orange - warm
+    } else {
+      tempEl.style.color = '#333'; // Normal
+    }
+  }
+  
+  // RAM
+  if (system.heapFree !== undefined && system.heapTotal !== undefined && system.heapUsedPercent !== undefined) {
+    const ramFreeMB = (system.heapFree / 1024).toFixed(1);
+    const ramTotalMB = (system.heapTotal / 1024).toFixed(1);
+    const ramUsedPercent = parseFloat(system.heapUsedPercent);
+    document.getElementById('sysRam').textContent = ramFreeMB + ' KB libre / ' + ramTotalMB + ' KB';
+    document.getElementById('sysRamPercent').textContent = ramUsedPercent.toFixed(1) + '% utilisé';
+  }
+  
+  // PSRAM
+  if (system.psramFree !== undefined && system.psramTotal !== undefined && system.psramUsedPercent !== undefined) {
+    const psramFreeMB = (system.psramFree / 1024 / 1024).toFixed(1);
+    const psramTotalMB = (system.psramTotal / 1024 / 1024).toFixed(1);
+    const psramUsedPercent = parseFloat(system.psramUsedPercent);
+    document.getElementById('sysPsram').textContent = psramFreeMB + ' MB libre / ' + psramTotalMB + ' MB';
+    document.getElementById('sysPsramPercent').textContent = psramUsedPercent.toFixed(1) + '% utilisé';
+  }
+  
+  // WiFi - delegate to pure function
+  if (system.wifiRssi !== undefined) {
+    const rssi = system.wifiRssi;
+    document.getElementById('sysWifi').textContent = rssi + ' dBm';
+    
+    // Use pure function if available (from formatting.js)
+    let quality, qualityColor;
+    if (typeof getWifiQualityPure === 'function') {
+      const wifiInfo = getWifiQualityPure(rssi);
+      quality = wifiInfo.quality;
+      qualityColor = wifiInfo.color;
+    } else {
+      // Fallback
+      if (rssi >= -50) { quality = 'Excellent'; qualityColor = '#4CAF50'; }
+      else if (rssi >= -60) { quality = 'Très bon'; qualityColor = '#8BC34A'; }
+      else if (rssi >= -70) { quality = 'Bon'; qualityColor = '#FFC107'; }
+      else if (rssi >= -80) { quality = 'Faible'; qualityColor = '#FF9800'; }
+      else { quality = 'Très faible'; qualityColor = '#f44336'; }
+    }
+    
+    const qualityEl = document.getElementById('sysWifiQuality');
+    qualityEl.textContent = quality;
+    qualityEl.style.color = qualityColor;
+  }
+  
+  // Uptime - delegate to pure function
+  if (system.uptimeSeconds !== undefined) {
+    let uptimeStr;
+    if (typeof formatUptimePure === 'function') {
+      uptimeStr = formatUptimePure(system.uptimeSeconds);
+    } else {
+      // Fallback
+      const uptimeSec = system.uptimeSeconds;
+      const hours = Math.floor(uptimeSec / 3600);
+      const minutes = Math.floor((uptimeSec % 3600) / 60);
+      const seconds = uptimeSec % 60;
+      uptimeStr = hours > 0 
+        ? `${hours}h ${minutes}m ${seconds}s`
+        : minutes > 0
+          ? `${minutes}m ${seconds}s`
+          : `${seconds}s`;
+    }
+    document.getElementById('sysUptime').textContent = uptimeStr;
+  }
+}
+
+// ============================================================================
 // INITIALIZE TOOLS LISTENERS
 // ============================================================================
 
