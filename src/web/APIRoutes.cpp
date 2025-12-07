@@ -1012,7 +1012,15 @@ void setupAPIRoutes() {
   });
   
   // POST /api/wifi/connect - Test and save WiFi credentials
+  // IMPORTANT: Only allowed in AP-only mode (degraded mode) to avoid connection issues
   server.on("/api/wifi/connect", HTTP_POST, []() {
+    // Block if already connected in STA mode - must use AP only
+    if (WiFi.status() == WL_CONNECTED) {
+      server.send(403, "application/json", 
+        "{\"success\":false,\"error\":\"WiFi config disabled when connected. Use AP mode (192.168.4.1) to change settings.\",\"hint\":\"Reboot with wrong credentials or use 'Forget WiFi' first.\"}");
+      return;
+    }
+    
     if (!server.hasArg("plain")) {
       server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing body\"}");
       return;
@@ -1046,21 +1054,28 @@ void setupAPIRoutes() {
       
       JsonDocument respDoc;
       respDoc["success"] = true;
-      respDoc["message"] = "WiFi connected and saved!";
+      respDoc["message"] = "WiFi configured successfully!";
       respDoc["ip"] = WiFi.localIP().toString();
       respDoc["ssid"] = ssid;
+      respDoc["rebootRequired"] = true;
+      respDoc["hostname"] = String(otaHostname) + ".local";
       
       String response;
       serializeJson(respDoc, response);
       server.send(200, "application/json", response);
       
-      // Schedule reboot to apply AP+STA mode properly
-      engine->info("🔄 Rebooting in 2s to apply new WiFi config...");
-      delay(2000);
-      ESP.restart();
+      // Don't auto-reboot - let the UI handle it with user confirmation
     } else {
       server.send(200, "application/json", "{\"success\":false,\"error\":\"Connection failed. Check password.\"}");
     }
+  });
+  
+  // POST /api/wifi/reboot - Explicit reboot after config
+  server.on("/api/wifi/reboot", HTTP_POST, []() {
+    engine->info("🔄 WiFi config reboot requested");
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"Rebooting...\"}");
+    delay(500);
+    ESP.restart();
   });
   
   // POST /api/wifi/forget - Clear WiFi configuration

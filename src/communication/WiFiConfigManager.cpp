@@ -161,18 +161,46 @@ int WiFiConfigManager::scanNetworks(WiFiNetworkInfo* networks, int maxNetworks) 
         return 0;
     }
     
-    int count = min(numNetworks, maxNetworks);
+    // First pass: collect all networks with deduplication (mesh support)
+    // For duplicate SSIDs, keep only the one with strongest signal
+    int uniqueCount = 0;
     
-    for (int i = 0; i < count; i++) {
-        networks[i].ssid = WiFi.SSID(i);
-        networks[i].rssi = WiFi.RSSI(i);
-        networks[i].encryptionType = WiFi.encryptionType(i);
-        networks[i].channel = WiFi.channel(i);
+    for (int i = 0; i < numNetworks && uniqueCount < maxNetworks; i++) {
+        String currentSSID = WiFi.SSID(i);
+        int32_t currentRSSI = WiFi.RSSI(i);
+        
+        // Skip empty SSIDs
+        if (currentSSID.length() == 0) continue;
+        
+        // Check if this SSID already exists in our list
+        bool isDuplicate = false;
+        for (int j = 0; j < uniqueCount; j++) {
+            if (networks[j].ssid == currentSSID) {
+                // Duplicate found - keep the one with better signal
+                isDuplicate = true;
+                if (currentRSSI > networks[j].rssi) {
+                    // This one is stronger, replace
+                    networks[j].rssi = currentRSSI;
+                    networks[j].encryptionType = WiFi.encryptionType(i);
+                    networks[j].channel = WiFi.channel(i);
+                }
+                break;
+            }
+        }
+        
+        // Not a duplicate, add to list
+        if (!isDuplicate) {
+            networks[uniqueCount].ssid = currentSSID;
+            networks[uniqueCount].rssi = currentRSSI;
+            networks[uniqueCount].encryptionType = WiFi.encryptionType(i);
+            networks[uniqueCount].channel = WiFi.channel(i);
+            uniqueCount++;
+        }
     }
     
     // Sort by signal strength (strongest first)
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = i + 1; j < count; j++) {
+    for (int i = 0; i < uniqueCount - 1; i++) {
+        for (int j = i + 1; j < uniqueCount; j++) {
             if (networks[j].rssi > networks[i].rssi) {
                 WiFiNetworkInfo temp = networks[i];
                 networks[i] = networks[j];
@@ -185,10 +213,10 @@ int WiFiConfigManager::scanNetworks(WiFiNetworkInfo* networks, int maxNetworks) 
     WiFi.scanDelete();
     
     if (engine) {
-        engine->info("📡 Found " + String(count) + " WiFi networks");
+        engine->info("📡 Found " + String(uniqueCount) + " unique WiFi networks (from " + String(numNetworks) + " total)");
     }
     
-    return count;
+    return uniqueCount;
 }
 
 // ============================================================================

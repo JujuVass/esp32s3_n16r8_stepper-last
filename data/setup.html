@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Configuration WiFi - ESP32 Stepper</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -37,18 +33,28 @@
       text-align: center;
     }
     
-    .header h1 {
-      font-size: 1.5rem;
-      margin-bottom: 8px;
-    }
+    .header h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .header p { opacity: 0.9; font-size: 0.9rem; }
     
-    .header p {
-      opacity: 0.9;
+    .content { padding: 24px; }
+    
+    /* Mode indicator */
+    .mode-indicator {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      text-align: center;
       font-size: 0.9rem;
     }
-    
-    .content {
-      padding: 24px;
+    .mode-indicator.ap-mode {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 2px solid #4CAF50;
+    }
+    .mode-indicator.sta-mode {
+      background: #fff3e0;
+      color: #e65100;
+      border: 2px solid #ff9800;
     }
     
     .section-title {
@@ -57,11 +63,7 @@
       justify-content: space-between;
       margin-bottom: 16px;
     }
-    
-    .section-title h2 {
-      font-size: 1rem;
-      color: #333;
-    }
+    .section-title h2 { font-size: 1rem; color: #333; }
     
     .btn-scan {
       background: #2196F3;
@@ -76,24 +78,11 @@
       gap: 6px;
       transition: background 0.2s;
     }
+    .btn-scan:hover { background: #1976D2; }
+    .btn-scan:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-scan.scanning { animation: pulse 1s infinite; }
     
-    .btn-scan:hover {
-      background: #1976D2;
-    }
-    
-    .btn-scan:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    
-    .btn-scan.scanning {
-      animation: pulse 1s infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     
     .networks-list {
       border: 1px solid #e0e0e0;
@@ -111,19 +100,9 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    
-    .network-item:last-child {
-      border-bottom: none;
-    }
-    
-    .network-item:hover {
-      background: #f5f5f5;
-    }
-    
-    .network-item.selected {
-      background: #e3f2fd;
-      border-left: 3px solid #2196F3;
-    }
+    .network-item:last-child { border-bottom: none; }
+    .network-item:hover { background: #f5f5f5; }
+    .network-item.selected { background: #e3f2fd; border-left: 3px solid #2196F3; }
     
     .signal-bars {
       display: flex;
@@ -132,50 +111,24 @@
       margin-right: 12px;
       height: 16px;
     }
-    
     .signal-bar {
       width: 4px;
       background: #ccc;
       border-radius: 1px;
     }
-    
-    .signal-bar.active {
-      background: #4CAF50;
-    }
-    
+    .signal-bar.active { background: #4CAF50; }
     .signal-bar:nth-child(1) { height: 4px; }
     .signal-bar:nth-child(2) { height: 8px; }
     .signal-bar:nth-child(3) { height: 12px; }
     .signal-bar:nth-child(4) { height: 16px; }
     
-    .network-info {
-      flex: 1;
-    }
+    .network-info { flex: 1; }
+    .network-name { font-weight: 500; color: #333; margin-bottom: 2px; }
+    .network-details { font-size: 0.75rem; color: #888; }
+    .network-lock { font-size: 1.1rem; margin-left: 8px; }
     
-    .network-name {
-      font-weight: 500;
-      color: #333;
-      margin-bottom: 2px;
-    }
-    
-    .network-details {
-      font-size: 0.75rem;
-      color: #888;
-    }
-    
-    .network-lock {
-      font-size: 1.1rem;
-      margin-left: 8px;
-    }
-    
-    .password-section {
-      display: none;
-      margin-bottom: 20px;
-    }
-    
-    .password-section.visible {
-      display: block;
-    }
+    .password-section { display: none; margin-bottom: 20px; }
+    .password-section.visible { display: block; }
     
     .selected-network {
       background: #e8f5e9;
@@ -186,16 +139,9 @@
       align-items: center;
       justify-content: space-between;
     }
+    .selected-network-name { font-weight: 500; color: #2e7d32; }
     
-    .selected-network-name {
-      font-weight: 500;
-      color: #2e7d32;
-    }
-    
-    .input-group {
-      position: relative;
-    }
-    
+    .input-group { position: relative; }
     .input-group input {
       width: 100%;
       padding: 14px 48px 14px 16px;
@@ -204,11 +150,7 @@
       font-size: 1rem;
       transition: border-color 0.2s;
     }
-    
-    .input-group input:focus {
-      outline: none;
-      border-color: #2196F3;
-    }
+    .input-group input:focus { outline: none; border-color: #2196F3; }
     
     .toggle-password {
       position: absolute;
@@ -221,15 +163,11 @@
       font-size: 1.2rem;
       opacity: 0.6;
     }
+    .toggle-password:hover { opacity: 1; }
     
-    .toggle-password:hover {
-      opacity: 1;
-    }
-    
-    .btn-connect {
+    .btn-connect, .btn-reboot {
       width: 100%;
       padding: 16px;
-      background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
       color: white;
       border: none;
       border-radius: 10px;
@@ -238,17 +176,27 @@
       cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    
+    .btn-connect {
+      background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+    }
     .btn-connect:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
     }
-    
-    .btn-connect:disabled {
+    .btn-connect:disabled, .btn-reboot:disabled {
       background: #ccc;
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
+    }
+    
+    .btn-reboot {
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      margin-top: 12px;
+    }
+    .btn-reboot:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
     }
     
     .status-message {
@@ -258,38 +206,18 @@
       text-align: center;
       display: none;
     }
-    
-    .status-message.visible {
-      display: block;
-    }
-    
-    .status-message.success {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-    
-    .status-message.error {
-      background: #ffebee;
-      color: #c62828;
-    }
-    
-    .status-message.info {
-      background: #e3f2fd;
-      color: #1565c0;
-    }
+    .status-message.visible { display: block; }
+    .status-message.success { background: #e8f5e9; color: #2e7d32; }
+    .status-message.error { background: #ffebee; color: #c62828; }
+    .status-message.info { background: #e3f2fd; color: #1565c0; }
+    .status-message.warning { background: #fff3e0; color: #e65100; }
     
     .footer {
       background: #f5f5f5;
       padding: 16px 24px;
       text-align: center;
     }
-    
-    .footer p {
-      font-size: 0.85rem;
-      color: #666;
-      margin-bottom: 8px;
-    }
-    
+    .footer p { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
     .footer .ip {
       font-family: monospace;
       background: #fff;
@@ -307,15 +235,8 @@
       align-items: center;
       justify-content: space-between;
     }
-    
-    .current-config-info {
-      font-size: 0.9rem;
-    }
-    
-    .current-config-ssid {
-      font-weight: 600;
-      color: #e65100;
-    }
+    .current-config-info { font-size: 0.9rem; }
+    .current-config-ssid { font-weight: 600; color: #e65100; }
     
     .btn-forget {
       background: #ff5722;
@@ -326,21 +247,14 @@
       cursor: pointer;
       font-size: 0.8rem;
     }
-    
-    .btn-forget:hover {
-      background: #e64a19;
-    }
+    .btn-forget:hover { background: #e64a19; }
     
     .empty-state {
       text-align: center;
       padding: 40px 20px;
       color: #888;
     }
-    
-    .empty-state .icon {
-      font-size: 3rem;
-      margin-bottom: 12px;
-    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
     
     .spinner {
       display: inline-block;
@@ -351,11 +265,8 @@
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
     
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
     .back-link {
       display: block;
       text-align: center;
@@ -364,10 +275,63 @@
       text-decoration: none;
       font-size: 0.9rem;
     }
-
-    .back-link:hover {
-      text-decoration: underline;
+    .back-link:hover { text-decoration: underline; }
+    
+    /* Success screen */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
     }
+    .success-screen.visible { display: block; }
+    .success-screen .icon { font-size: 4rem; margin-bottom: 16px; }
+    .success-screen h2 { color: #2e7d32; margin-bottom: 12px; }
+    .success-screen .ssid { 
+      font-weight: 600; 
+      color: #1976D2;
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+    }
+    .success-screen .instructions {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 10px;
+      margin: 16px 0;
+      text-align: left;
+    }
+    .success-screen .instructions li {
+      margin: 8px 0;
+      color: #555;
+    }
+    .success-screen .hostname {
+      font-family: monospace;
+      background: #e3f2fd;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      color: #1565c0;
+      display: inline-block;
+      margin: 12px 0;
+    }
+    .countdown {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #2196F3;
+      margin: 16px 0;
+    }
+    
+    /* Blocked screen (STA mode) */
+    .blocked-screen {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .blocked-screen.visible { display: block; }
+    .blocked-screen .icon { font-size: 4rem; margin-bottom: 16px; }
+    .blocked-screen h2 { color: #e65100; margin-bottom: 12px; }
+    .blocked-screen p { color: #666; margin-bottom: 16px; line-height: 1.5; }
+    
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -378,70 +342,158 @@
     </div>
     
     <div class="content">
-      <!-- Current configuration (if exists) -->
-      <div id="currentConfig" class="current-config" style="display: none;">
-        <div class="current-config-info">
-          📶 Connecté à: <span id="currentSsid" class="current-config-ssid"></span>
-        </div>
-        <button class="btn-forget" onclick="forgetWifi()">🗑️ Oublier</button>
+      <!-- Mode indicator -->
+      <div id="modeIndicator" class="mode-indicator ap-mode">
+        ✅ Mode Configuration (AP) - Modifications autorisées
       </div>
       
-      <!-- Scan section -->
-      <div class="section-title">
-        <h2>📶 Réseaux WiFi disponibles</h2>
-        <button id="btnScan" class="btn-scan" onclick="scanNetworks()">
-          <span id="scanIcon">🔄</span> Scanner
+      <!-- Blocked screen when in STA mode -->
+      <div id="blockedScreen" class="blocked-screen">
+        <div class="icon">🔒</div>
+        <h2>Configuration bloquée</h2>
+        <p>La modification du WiFi n'est pas possible lorsque l'ESP32 est déjà connecté à un réseau.</p>
+        <p>Pour changer de réseau WiFi :</p>
+        <ol style="text-align: left; margin: 16px 0; padding-left: 24px; color: #555;">
+          <li>Cliquez sur "Oublier ce réseau" ci-dessous</li>
+          <li>L'ESP32 redémarrera en mode AP</li>
+          <li>Connectez-vous au réseau <strong>esp32-stepper-AP</strong></li>
+          <li>Accédez à <strong>http://192.168.4.1</strong></li>
+        </ol>
+        <button id="btnForgetBlocked" class="btn-forget" style="padding: 12px 24px; font-size: 1rem;" onclick="forgetWifi()">
+          🗑️ Oublier ce réseau
         </button>
+        <a href="/" class="back-link">← Retour à l'interface principale</a>
       </div>
       
-      <!-- Networks list -->
-      <div id="networksList" class="networks-list">
-        <div class="empty-state">
-          <div class="icon">📡</div>
-          <p>Cliquez sur "Scanner" pour rechercher les réseaux WiFi</p>
-        </div>
-      </div>
-      
-      <!-- Password section -->
-      <div id="passwordSection" class="password-section">
-        <div class="selected-network">
-          <span>✅ Réseau sélectionné:</span>
-          <span id="selectedNetworkName" class="selected-network-name"></span>
+      <!-- Main config screen -->
+      <div id="configScreen">
+        <!-- Current configuration (if exists) -->
+        <div id="currentConfig" class="current-config" style="display: none;">
+          <div class="current-config-info">
+            📶 Config actuelle: <span id="currentSsid" class="current-config-ssid"></span>
+          </div>
+          <button class="btn-forget" onclick="forgetWifi()">🗑️ Oublier</button>
         </div>
         
-        <div class="input-group">
-          <input type="password" id="passwordInput" placeholder="Mot de passe WiFi" autocomplete="off">
-          <button class="toggle-password" onclick="togglePassword()">👁️</button>
+        <!-- Scan section -->
+        <div class="section-title">
+          <h2>📶 Réseaux WiFi</h2>
+          <button id="btnScan" class="btn-scan" onclick="scanNetworks()">
+            <span id="scanIcon">🔄</span> Scanner
+          </button>
         </div>
+        
+        <!-- Networks list -->
+        <div id="networksList" class="networks-list">
+          <div class="empty-state">
+            <div class="icon">📡</div>
+            <p>Cliquez sur "Scanner" pour rechercher les réseaux WiFi</p>
+          </div>
+        </div>
+        
+        <!-- Password section -->
+        <div id="passwordSection" class="password-section">
+          <div class="selected-network">
+            <span>✅ Réseau:</span>
+            <span id="selectedNetworkName" class="selected-network-name"></span>
+          </div>
+          
+          <div class="input-group">
+            <input type="password" id="passwordInput" placeholder="Mot de passe WiFi" autocomplete="off">
+            <button class="toggle-password" onclick="togglePassword()">👁️</button>
+          </div>
+        </div>
+        
+        <!-- Connect button -->
+        <button id="btnConnect" class="btn-connect" onclick="connectWifi()" disabled>
+          📡 Se connecter
+        </button>
+        
+        <!-- Status message -->
+        <div id="statusMessage" class="status-message"></div>
+        
+        <!-- Back link -->
+        <a id="backLink" href="/" class="back-link" style="display: none;">← Retour à l'interface</a>
       </div>
       
-      <!-- Connect button -->
-      <button id="btnConnect" class="btn-connect" onclick="connectWifi()" disabled>
-        📡 Se connecter
-      </button>
-      
-      <!-- Status message -->
-      <div id="statusMessage" class="status-message"></div>
-
-      <!-- Back link (only if already configured) -->
-      <a id="backLink" href="/" class="back-link" style="display: none;">← Retour à l'interface principale</a>
+      <!-- Success screen -->
+      <div id="successScreen" class="success-screen">
+        <div class="icon">✅</div>
+        <h2>WiFi configuré avec succès!</h2>
+        <div class="ssid" id="successSsid"></div>
+        
+        <div class="instructions">
+          <strong>Prochaines étapes :</strong>
+          <ol>
+            <li>Cliquez sur "Redémarrer" ci-dessous</li>
+            <li>Reconnectez-vous à votre WiFi <span id="homeWifiName"></span></li>
+            <li>Accédez à l'interface via :</li>
+          </ol>
+        </div>
+        
+        <div class="hostname" id="dnsHostname">esp32-stepper.local</div>
+        <p style="font-size: 0.85rem; color: #888; margin-top: 8px;">ou via l'IP qui sera affichée dans les logs</p>
+        
+        <button id="btnReboot" class="btn-reboot" onclick="rebootEsp()">
+          🔄 Redémarrer l'ESP32
+        </button>
+        
+        <div id="rebootCountdown" style="display: none; margin-top: 20px;">
+          <p>Redémarrage en cours...</p>
+          <div class="countdown" id="countdownValue">10</div>
+          <p style="font-size: 0.9rem; color: #666;">Reconnectez-vous à votre WiFi puis accédez à l'interface</p>
+        </div>
+      </div>
     </div>
     
     <div class="footer">
-      <p>💡 Connectez-vous au réseau WiFi de l'ESP32</p>
-      <p>puis accédez à <span class="ip">http://192.168.4.1</span></p>
+      <p>💡 Mode AP: Connectez-vous à <strong>esp32-stepper-AP</strong></p>
+      <p>Adresse: <span class="ip">http://192.168.4.1</span></p>
     </div>
   </div>
 
   <script>
     let selectedNetwork = null;
     let isSecure = true;
+    let isStaConnected = false;
 
-    // Check current config on load
-    window.onload = function() {
-      checkCurrentConfig();
-      scanNetworks();
+    // Check mode on load
+    window.onload = async function() {
+      await checkMode();
+      if (!isStaConnected) {
+        await checkCurrentConfig();
+        scanNetworks();
+      }
     };
+
+    async function checkMode() {
+      try {
+        const response = await fetch('/api/wifi/config');
+        const data = await response.json();
+        
+        isStaConnected = data.connected;
+        
+        const modeIndicator = document.getElementById('modeIndicator');
+        const blockedScreen = document.getElementById('blockedScreen');
+        const configScreen = document.getElementById('configScreen');
+        
+        if (isStaConnected) {
+          // STA mode - block configuration
+          modeIndicator.className = 'mode-indicator sta-mode';
+          modeIndicator.innerHTML = '⚠️ Mode Connecté (STA) - Configuration bloquée';
+          blockedScreen.classList.add('visible');
+          configScreen.classList.add('hidden');
+        } else {
+          // AP mode - allow configuration
+          modeIndicator.className = 'mode-indicator ap-mode';
+          modeIndicator.innerHTML = '✅ Mode Configuration (AP) - Modifications autorisées';
+          blockedScreen.classList.remove('visible');
+          configScreen.classList.remove('hidden');
+        }
+      } catch (error) {
+        console.error('Error checking mode:', error);
+      }
+    }
 
     async function checkCurrentConfig() {
       try {
@@ -494,9 +546,7 @@
       
       return `
         <div class="network-item" onclick="selectNetwork('${escapeHtml(network.ssid)}', ${network.secure})">
-          <div class="signal-bars">
-            ${signalBars}
-          </div>
+          <div class="signal-bars">${signalBars}</div>
           <div class="network-info">
             <div class="network-name">${escapeHtml(network.ssid)}</div>
             <div class="network-details">${network.encryption} • Ch.${network.channel} • ${network.rssi} dBm</div>
@@ -523,7 +573,6 @@
       selectedNetwork = ssid;
       isSecure = secure;
       
-      // Update UI
       document.querySelectorAll('.network-item').forEach(item => {
         item.classList.remove('selected');
         if (item.querySelector('.network-name').textContent === ssid) {
@@ -539,6 +588,7 @@
       
       if (secure) {
         passwordSection.classList.add('visible');
+        passwordInput.value = '';
         passwordInput.focus();
         btnConnect.disabled = true;
         passwordInput.oninput = () => {
@@ -560,35 +610,36 @@
       
       const btn = document.getElementById('btnConnect');
       const password = document.getElementById('passwordInput').value;
-      const statusEl = document.getElementById('statusMessage');
       
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Connexion...';
+      btn.innerHTML = '<span class="spinner"></span> Test de connexion...';
       
-      showStatus('info', '🔌 Connexion en cours...');
+      showStatus('info', '🔌 Test de connexion en cours (15s max)...');
       
       try {
         const response = await fetch('/api/wifi/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ssid: selectedNetwork,
-            password: password
-          })
+          body: JSON.stringify({ ssid: selectedNetwork, password: password })
         });
         
         const data = await response.json();
         
         if (data.success) {
-          showStatus('success', '✅ ' + data.message + ' IP: ' + data.ip);
-          btn.innerHTML = '✅ Connecté!';
+          // Show success screen
+          document.getElementById('configScreen').classList.add('hidden');
+          document.getElementById('modeIndicator').classList.add('hidden');
           
-          // Redirect after 3 seconds
-          setTimeout(() => {
-            showStatus('info', '🔄 Redémarrage de l\'ESP32...');
-          }, 1000);
+          document.getElementById('successScreen').classList.add('visible');
+          document.getElementById('successSsid').textContent = data.ssid;
+          document.getElementById('homeWifiName').textContent = data.ssid;
+          document.getElementById('dnsHostname').textContent = data.hostname || 'esp32-stepper.local';
+          
         } else {
           showStatus('error', '❌ ' + (data.error || 'Connexion échouée'));
+          if (data.hint) {
+            showStatus('warning', '💡 ' + data.hint);
+          }
           btn.disabled = false;
           btn.innerHTML = '📡 Se connecter';
         }
@@ -600,19 +651,45 @@
       }
     }
 
+    async function rebootEsp() {
+      const btn = document.getElementById('btnReboot');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Redémarrage...';
+      
+      document.getElementById('rebootCountdown').style.display = 'block';
+      
+      try {
+        await fetch('/api/wifi/reboot', { method: 'POST' });
+      } catch (e) {
+        // Expected - connection will be lost
+      }
+      
+      // Countdown
+      let countdown = 10;
+      const countdownEl = document.getElementById('countdownValue');
+      const interval = setInterval(() => {
+        countdown--;
+        countdownEl.textContent = countdown;
+        if (countdown <= 0) {
+          clearInterval(interval);
+          countdownEl.textContent = '🔄';
+        }
+      }, 1000);
+    }
+
     async function forgetWifi() {
-      if (!confirm('Oublier cette configuration WiFi ?\n\nL\'ESP32 redémarrera en mode configuration.')) {
+      if (!confirm('Oublier cette configuration WiFi ?\n\nL\'ESP32 redémarrera en mode configuration (AP).')) {
         return;
       }
       
       try {
+        showStatus('info', '🗑️ Suppression de la configuration...');
         const response = await fetch('/api/wifi/forget', { method: 'POST' });
         const data = await response.json();
         
-        showStatus('info', '🔄 ' + data.message);
+        showStatus('info', '🔄 Redémarrage en cours...');
       } catch (error) {
-        showStatus('error', '❌ Erreur');
-        console.error('Forget error:', error);
+        // Expected - connection will be lost during reboot
       }
     }
 
