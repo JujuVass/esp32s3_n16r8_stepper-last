@@ -25,7 +25,8 @@ const MOVEMENT_TYPE = {
   CALIBRATION: 4
 };
 
-const WAVEFORM_NAMES = ['SIN', 'TRI', 'SQR'];
+// Short names for sequence table display (SIN/TRI/SQR)
+const WAVEFORM_SHORT = ['SIN', 'TRI', 'SQR'];
 const DECEL_MODE_LABELS = ['Lin', 'Sin', 'Tri⁻¹', 'Sin⁻¹'];
 
 // ============================================================================
@@ -51,7 +52,7 @@ function getTypeDisplay(movementType, line) {
   } else if (movementType === MOVEMENT_TYPE.OSCILLATION) {
     typeIcon = '〰️';
     typeName = 'Oscillation';
-    const waveformName = WAVEFORM_NAMES[line.oscWaveform] || '?';
+    const waveformName = WAVEFORM_SHORT[line.oscWaveform] || '?';
     typeInfo = `<div style="font-size: 10px; line-height: 1.2;">
       <div>C:${line.oscCenterPositionMM ? line.oscCenterPositionMM.toFixed(0) : '100'}mm</div>
       <div>A:±${line.oscAmplitudeMM ? line.oscAmplitudeMM.toFixed(0) : '50'}mm</div>

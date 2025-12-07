@@ -390,5 +390,139 @@ function initUIListeners() {
   console.log('✅ UI listeners initialized');
 }
 
+// ============================================================================
+// UNIFIED MODAL SYSTEM - Alert & Confirm replacements
+// ============================================================================
+
+/**
+ * State for the unified modal system
+ */
+const ModalState = {
+  resolveCallback: null,
+  rejectCallback: null
+};
+
+/**
+ * Show a stylized alert modal (replaces native alert())
+ * @param {string} message - Message to display
+ * @param {Object} options - Optional configuration
+ * @param {string} options.title - Modal title (default: based on type)
+ * @param {string} options.type - 'info', 'success', 'warning', 'error' (default: 'info')
+ * @param {string} options.buttonText - OK button text (default: 'OK')
+ * @returns {Promise<void>} Resolves when user closes modal
+ */
+function showAlert(message, options = {}) {
+  return new Promise((resolve) => {
+    const {
+      title = null,
+      type = 'info',
+      buttonText = 'OK'
+    } = options;
+    
+    // Determine icon and colors based on type
+    const typeConfig = {
+      info: { icon: 'ℹ️', color: '#2196F3', bgColor: '#E3F2FD' },
+      success: { icon: '✅', color: '#4CAF50', bgColor: '#E8F5E9' },
+      warning: { icon: '⚠️', color: '#FF9800', bgColor: '#FFF3E0' },
+      error: { icon: '❌', color: '#F44336', bgColor: '#FFEBEE' }
+    };
+    const config = typeConfig[type] || typeConfig.info;
+    
+    // Auto-generate title if not provided
+    const modalTitle = title || {
+      info: 'Information',
+      success: 'Succès',
+      warning: 'Attention',
+      error: 'Erreur'
+    }[type] || 'Information';
+    
+    // Update modal content
+    const modal = document.getElementById('unifiedAlertModal');
+    document.getElementById('unifiedAlertIcon').textContent = config.icon;
+    document.getElementById('unifiedAlertTitle').textContent = modalTitle;
+    document.getElementById('unifiedAlertTitle').style.color = config.color;
+    document.getElementById('unifiedAlertMessage').innerHTML = message.replace(/\n/g, '<br>');
+    document.getElementById('unifiedAlertOkBtn').textContent = buttonText;
+    
+    // Set callback
+    ModalState.resolveCallback = resolve;
+    
+    // Show modal
+    modal.classList.add('active');
+  });
+}
+
+/**
+ * Close alert modal and resolve promise
+ */
+function closeAlertModal() {
+  document.getElementById('unifiedAlertModal').classList.remove('active');
+  if (ModalState.resolveCallback) {
+    ModalState.resolveCallback();
+    ModalState.resolveCallback = null;
+  }
+}
+
+/**
+ * Show a stylized confirm modal (replaces native confirm())
+ * @param {string} message - Message to display
+ * @param {Object} options - Optional configuration
+ * @param {string} options.title - Modal title (default: 'Confirmation')
+ * @param {string} options.type - 'info', 'warning', 'danger' (default: 'warning')
+ * @param {string} options.confirmText - Confirm button text (default: 'Confirmer')
+ * @param {string} options.cancelText - Cancel button text (default: 'Annuler')
+ * @param {boolean} options.dangerous - If true, confirm button is red (default: false)
+ * @returns {Promise<boolean>} Resolves to true if confirmed, false if cancelled
+ */
+function showConfirm(message, options = {}) {
+  return new Promise((resolve) => {
+    const {
+      title = 'Confirmation',
+      type = 'warning',
+      confirmText = 'Confirmer',
+      cancelText = 'Annuler',
+      dangerous = false
+    } = options;
+    
+    // Determine icon and colors based on type
+    const typeConfig = {
+      info: { icon: 'ℹ️', color: '#2196F3' },
+      warning: { icon: '⚠️', color: '#FF9800' },
+      danger: { icon: '🗑️', color: '#F44336' }
+    };
+    const config = typeConfig[type] || typeConfig.warning;
+    
+    // Update modal content
+    const modal = document.getElementById('unifiedConfirmModal');
+    document.getElementById('unifiedConfirmIcon').textContent = config.icon;
+    document.getElementById('unifiedConfirmTitle').textContent = title;
+    document.getElementById('unifiedConfirmTitle').style.color = config.color;
+    document.getElementById('unifiedConfirmMessage').innerHTML = message.replace(/\n/g, '<br>');
+    document.getElementById('unifiedConfirmCancelBtn').textContent = cancelText;
+    
+    const confirmBtn = document.getElementById('unifiedConfirmOkBtn');
+    confirmBtn.textContent = confirmText;
+    confirmBtn.className = dangerous ? 'button btn-danger' : 'button btn-success';
+    
+    // Set callback
+    ModalState.resolveCallback = resolve;
+    
+    // Show modal
+    modal.classList.add('active');
+  });
+}
+
+/**
+ * Close confirm modal with result
+ * @param {boolean} confirmed - Whether user confirmed
+ */
+function closeConfirmModal(confirmed) {
+  document.getElementById('unifiedConfirmModal').classList.remove('active');
+  if (ModalState.resolveCallback) {
+    ModalState.resolveCallback(confirmed);
+    ModalState.resolveCallback = null;
+  }
+}
+
 // Log initialization
 console.log('✅ UIController.js loaded - UI control ready');

@@ -157,7 +157,7 @@ function enablePursuitMode() {
   if (AppState.system.currentState === SystemState.CALIBRATING) {
     DOM.pursuitActiveCheckbox.checked = false;
     AppState.pursuit.active = false;
-    alert('Veuillez attendre la fin de la calibration');
+    showAlert('Veuillez attendre la fin de la calibration', { type: 'warning', title: 'Calibration en cours' });
     return;
   }
   

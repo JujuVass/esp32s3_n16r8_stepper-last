@@ -7,8 +7,11 @@
  * - Speed controls (unified and separate)
  * - Cycle pause configuration
  * - Preset buttons
+ * - Deceleration zone control
  * 
- * Dependencies: DOM, AppState, WS_CMD, sendCommand, showNotification, showStopModal, currentPositionMM
+ * Dependencies: 
+ * - DOM, AppState, WS_CMD, sendCommand, showNotification, showStopModal, currentPositionMM
+ * - SimpleUtils.js (calculateSlowdownFactorPure, drawDecelPreviewPure, getCyclePauseSection)
  */
 
 // ============================================================================
@@ -477,14 +480,10 @@ function initSimpleListeners() {
 
 /**
  * JavaScript implementation of C++ calculateSlowdownFactor()
- * Delegates to pure function from presets.js if available
+ * Delegates to pure function from SimpleUtils.js
  */
 function calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode) {
-  if (typeof calculateSlowdownFactorPure === 'function') {
-    return calculateSlowdownFactorPure(zoneProgress, maxSlowdown, mode);
-  }
-  // Fallback - linear only
-  return 1.0 + (1.0 - zoneProgress) * (maxSlowdown - 1.0);
+  return calculateSlowdownFactorPure(zoneProgress, maxSlowdown, mode);
 }
 
 /**
@@ -620,121 +619,14 @@ function updateDecelZoneUI(decelZone) {
 
 /**
  * Draw deceleration curve preview on canvas
+ * Delegates to pure function from SimpleUtils.js
  */
 function drawDecelPreview() {
   const canvas = document.getElementById('decelPreview');
   if (!canvas) return;
   
-  const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
-  const padding = 20;
-  const plotWidth = width - 2 * padding;
-  const plotHeight = height - 2 * padding;
-  
-  // Clear canvas
-  ctx.clearRect(0, 0, width, height);
-  
-  // Get current config
-  const section = document.getElementById('decelSection');
-  const enabled = !section.classList.contains('collapsed');
-  const enableStart = document.getElementById('decelZoneStart').checked;
-  const enableEnd = document.getElementById('decelZoneEnd').checked;
-  const zoneMM = parseFloat(document.getElementById('decelZoneMM').value) || 50;
-  const effectPercent = parseFloat(document.getElementById('decelEffectPercent').value) || 75;
-  const mode = parseInt(document.getElementById('decelModeSelect')?.value || 1);
-  
-  if (!enabled) {
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#999';
-    ctx.textAlign = 'center';
-    ctx.fillText('Décélération désactivée', width / 2, height / 2);
-    return;
-  }
-  
-  // Assume a movement amplitude of 150mm for preview
-  const movementAmplitude = 150;
-  const maxSlowdown = 1.0 + (effectPercent / 100.0) * 9.0;  // 1× to 10×
-  
-  // Draw axes
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padding, padding);
-  ctx.lineTo(padding, height - padding);
-  ctx.lineTo(width - padding, height - padding);
-  ctx.stroke();
-  
-  // Draw curve
-  ctx.strokeStyle = '#4CAF50';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  
-  for (let x = 0; x <= plotWidth; x++) {
-    const positionMM = (x / plotWidth) * movementAmplitude;
-    let speedFactor = 1.0;  // Normal speed
-    
-    // Check START zone
-    if (enableStart && positionMM <= zoneMM) {
-      const zoneProgress = positionMM / zoneMM;
-      speedFactor = calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode);
-    }
-    // Check END zone
-    if (enableEnd && positionMM >= (movementAmplitude - zoneMM)) {
-      const distanceFromEnd = movementAmplitude - positionMM;
-      const zoneProgress = distanceFromEnd / zoneMM;
-      speedFactor = calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode);
-    }
-    
-    // Convert speed factor to Y coordinate (inverted: slower = higher on graph)
-    const normalizedSpeed = 1.0 / speedFactor;  // 1.0 = normal, 0.1 = 10× slower
-    const y = height - padding - (normalizedSpeed * plotHeight);
-    
-    if (x === 0) {
-      ctx.moveTo(padding + x, y);
-    } else {
-      ctx.lineTo(padding + x, y);
-    }
-  }
-  
-  ctx.stroke();
-  
-  // Draw zone boundaries
-  if (enableStart || enableEnd) {
-    ctx.setLineDash([5, 3]);
-    ctx.strokeStyle = '#FF9800';
-    ctx.lineWidth = 1;
-    
-    if (enableStart) {
-      const startX = padding + (zoneMM / movementAmplitude) * plotWidth;
-      ctx.beginPath();
-      ctx.moveTo(startX, padding);
-      ctx.lineTo(startX, height - padding);
-      ctx.stroke();
-    }
-    
-    if (enableEnd) {
-      const endX = padding + ((movementAmplitude - zoneMM) / movementAmplitude) * plotWidth;
-      ctx.beginPath();
-      ctx.moveTo(endX, padding);
-      ctx.lineTo(endX, height - padding);
-      ctx.stroke();
-    }
-    
-    ctx.setLineDash([]);
-  }
-  
-  // Draw labels
-  ctx.font = '10px Arial';
-  ctx.fillStyle = '#666';
-  ctx.textAlign = 'center';
-  ctx.fillText('Départ', padding, height - 5);
-  ctx.fillText('Arrivée', width - padding, height - 5);
-  
-  // Draw speed indicators
-  ctx.textAlign = 'left';
-  ctx.fillText('Rapide', padding + 5, padding + 10);
-  ctx.fillText('Lent', padding + 5, height - padding - 5);
+  const config = getDecelConfigFromDOM();
+  drawDecelPreviewPure(canvas, config);
 }
 
 /**
@@ -789,23 +681,8 @@ function initDecelZoneListeners() {
 
 // ============================================================================
 // CYCLE PAUSE - FACTORY FUNCTION (used by Simple and Oscillation modes)
+// Note: getCyclePauseSection() and getCyclePauseOscSection() are in SimpleUtils.js
 // ============================================================================
-
-/**
- * Helper: Get Cycle Pause section element for Simple mode
- */
-function getCyclePauseSection() {
-  const header = document.getElementById('cyclePauseHeaderText');
-  return header ? header.closest('.section-collapsible') : null;
-}
-
-/**
- * Helper: Get Cycle Pause section element for Oscillation mode
- */
-function getCyclePauseOscSection() {
-  const header = document.getElementById('cyclePauseOscHeaderText');
-  return header ? header.closest('.section-collapsible') : null;
-}
 
 /**
  * Factory function to create Cycle Pause handlers for a mode (Simple or Oscillation)

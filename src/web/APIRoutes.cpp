@@ -906,9 +906,9 @@ void setupAPIRoutes() {
     // Send success response before disconnecting
     server.send(200, "application/json", "{\"success\":true,\"message\":\"Reconnecting WiFi...\"}");
     
-    // Disconnect and reconnect WiFi
-    WiFi.disconnect();
-    delay(100);
+    // Properly reconnect WiFi (use begin with saved credentials)
+    WiFi.disconnect(false, false); // Don't erase credentials
+    delay(500);
     WiFi.reconnect();
     
     engine->info("📶 WiFi reconnection initiated");

@@ -139,15 +139,21 @@ function addSequenceLine() {
   
   const errors = validateSequencerLine(newLine, newLine.movementType);
   if (errors.length > 0) {
-    alert('❌ Impossible d\'ajouter la ligne :\n\n' + errors.join('\n'));
+    showAlert('Impossible d\'ajouter la ligne :\n\n' + errors.join('\n'), { type: 'error', title: 'Validation' });
     return;
   }
   
   sendCommand(WS_CMD.ADD_SEQUENCE_LINE, newLine);
 }
 
-function deleteSequenceLine(lineId) {
-  if (confirm('Supprimer cette ligne?')) {
+async function deleteSequenceLine(lineId) {
+  const confirmed = await showConfirm('Supprimer cette ligne ?', {
+    title: 'Supprimer Ligne',
+    type: 'danger',
+    confirmText: '🗑️ Supprimer',
+    dangerous: true
+  });
+  if (confirmed) {
     sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId });
   }
 }
@@ -164,8 +170,14 @@ function toggleSequenceLine(lineId, enabled) {
   sendCommand(WS_CMD.TOGGLE_SEQUENCE_LINE, { lineId: lineId, enabled: enabled });
 }
 
-function clearSequence() {
-  if (confirm('Effacer toutes les lignes du tableau?')) {
+async function clearSequence() {
+  const confirmed = await showConfirm('Effacer toutes les lignes du tableau ?', {
+    title: 'Effacer Séquence',
+    type: 'danger',
+    confirmText: '🗑️ Tout effacer',
+    dangerous: true
+  });
+  if (confirmed) {
     sendCommand(WS_CMD.CLEAR_SEQUENCE, {});
   }
 }
@@ -206,21 +218,21 @@ function importSequence() {
         .then(data => {
           if (data.success) {
             console.log('✅ Import successful:', data.message);
-            alert('✅ Séquence importée avec succès!');
+            showAlert('Séquence importée avec succès !', { type: 'success' });
             sendCommand(WS_CMD.GET_SEQUENCE_TABLE, {});
           } else {
             console.error('❌ Import failed:', data.error);
-            alert('❌ Erreur import: ' + (data.error || 'Unknown error'));
+            showAlert('Erreur import: ' + (data.error || 'Unknown error'), { type: 'error' });
           }
         })
         .catch(error => {
           console.error('❌ HTTP request failed:', error);
-          alert('❌ Erreur réseau: ' + error.message);
+          showAlert('Erreur réseau: ' + error.message, { type: 'error' });
         });
         
       } catch (error) {
         console.error('❌ JSON parse error:', error);
-        alert('Erreur JSON: ' + error.message);
+        showAlert('Erreur JSON: ' + error.message, { type: 'error' });
       }
     };
     reader.readAsText(file);
@@ -751,11 +763,18 @@ function batchEnableLines(enabled) {
   clearSelection();
 }
 
-function batchDeleteLines() {
+async function batchDeleteLines() {
   if (selectedLineIds.size === 0) return;
   
   const count = selectedLineIds.size;
-  if (!confirm(`⚠️ Supprimer ${count} ligne(s) sélectionnée(s) ?\n\nCette action est irréversible.`)) return;
+  const confirmed = await showConfirm(`Supprimer ${count} ligne(s) sélectionnée(s) ?\n\nCette action est irréversible.`, {
+    title: 'Supprimer Sélection',
+    type: 'danger',
+    confirmText: `🗑️ Supprimer ${count} ligne(s)`,
+    dangerous: true
+  });
+  
+  if (!confirmed) return;
   
   console.log(`📦 Batch delete ${count} lines`);
   
@@ -810,17 +829,24 @@ function initializeTrashZones() {
       
       const count = linesToDelete.length;
       const message = count === 1 ? 
-        `⚠️ Supprimer la ligne sélectionnée ?` :
-        `⚠️ Supprimer ${count} lignes sélectionnées ?`;
+        `Supprimer la ligne sélectionnée ?` :
+        `Supprimer ${count} lignes sélectionnées ?`;
       
-      if (!confirm(message)) return;
-      
-      console.log(`🗑️ Trash zone drop: deleting ${count} line(s)`);
-      const sortedIds = linesToDelete.sort((a, b) => b - a);
-      sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
-      
-      showNotification(`✅ ${count} ligne(s) supprimée(s)`, 'success', 2000);
-      clearSelection();
+      showConfirm(message, {
+        title: 'Supprimer',
+        type: 'danger',
+        confirmText: '🗑️ Supprimer',
+        dangerous: true
+      }).then(confirmed => {
+        if (!confirmed) return;
+        
+        console.log(`🗑️ Trash zone drop: deleting ${count} line(s)`);
+        const sortedIds = linesToDelete.sort((a, b) => b - a);
+        sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
+        
+        showNotification(`✅ ${count} ligne(s) supprimée(s)`, 'success', 2000);
+        clearSelection();
+      });
       return false;
     };
   }
@@ -844,17 +870,24 @@ function initializeTrashZones() {
       
       const count = linesToDelete.length;
       const message = count === 1 ? 
-        `⚠️ Supprimer la ligne sélectionnée ?` :
-        `⚠️ Supprimer ${count} lignes sélectionnées ?`;
+        `Supprimer la ligne sélectionnée ?` :
+        `Supprimer ${count} lignes sélectionnées ?`;
       
-      if (!confirm(message)) return;
-      
-      console.log(`🗑️ Permanent trash zone drop: deleting ${count} line(s)`);
-      const sortedIds = linesToDelete.sort((a, b) => b - a);
-      sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
-      
-      showNotification(`✅ ${count} ligne(s) supprimée(s)`, 'success', 2000);
-      clearSelection();
+      showConfirm(message, {
+        title: 'Supprimer',
+        type: 'danger',
+        confirmText: '🗑️ Supprimer',
+        dangerous: true
+      }).then(confirmed => {
+        if (!confirmed) return;
+        
+        console.log(`🗑️ Permanent trash zone drop: deleting ${count} line(s)`);
+        const sortedIds = linesToDelete.sort((a, b) => b - a);
+        sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
+        
+        showNotification(`✅ ${count} ligne(s) supprimée(s)`, 'success', 2000);
+        clearSelection();
+      });
       return false;
     };
   }

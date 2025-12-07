@@ -27,8 +27,14 @@ function calibrateMotor() {
 /**
  * Reset total distance counter
  */
-function resetTotalDistance() {
-  if (confirm('Réinitialiser le compteur de distance parcourue ?')) {
+async function resetTotalDistance() {
+  const confirmed = await showConfirm('Réinitialiser le compteur de distance parcourue ?', {
+    title: 'RAZ Compteur',
+    type: 'warning',
+    confirmText: 'Réinitialiser',
+    dangerous: true
+  });
+  if (confirmed) {
     sendCommand(WS_CMD.RESET_TOTAL_DISTANCE);
   }
 }
@@ -121,17 +127,24 @@ function handleDebugLevelChange(isChecked) {
 /**
  * Clear all log files
  */
-function clearAllLogFiles() {
-  if (confirm('Supprimer TOUS les fichiers de logs?\n\nCette action est irréversible.')) {
+async function clearAllLogFiles() {
+  const confirmed = await showConfirm('Supprimer TOUS les fichiers de logs ?\n\nCette action est irréversible.', {
+    title: 'Suppression Logs',
+    type: 'danger',
+    confirmText: '🗑️ Supprimer',
+    dangerous: true
+  });
+  
+  if (confirmed) {
     fetch('/logs/clear', { method: 'POST' })
       .then(response => response.json())
       .then(data => {
-        alert(data.message || 'Logs supprimés avec succès!');
+        showAlert(data.message || 'Logs supprimés avec succès !', { type: 'success', title: 'Succès' });
         loadLogFilesList();  // Refresh list
       })
       .catch(error => {
         console.error('Erreur suppression logs:', error);
-        alert('Erreur: ' + error);
+        showAlert('Erreur: ' + error, { type: 'error' });
       });
   }
 }
@@ -250,8 +263,14 @@ function closeSystemPanel() {
 /**
  * Refresh WiFi connection
  */
-function refreshWifi() {
-  if (confirm('📶 Reconnecter le WiFi?\n\nCela peut interrompre brièvement la connexion (~2-3 secondes).\n\nVoulez-vous continuer?')) {
+async function refreshWifi() {
+  const confirmed = await showConfirm('📶 Reconnecter le WiFi ?\n\nCela peut interrompre brièvement la connexion (~2-3 secondes).', {
+    title: 'Reconnexion WiFi',
+    type: 'info',
+    confirmText: 'Reconnecter'
+  });
+  
+  if (confirmed) {
     const btn = document.getElementById('btnRefreshWifi');
     const originalText = btn.innerHTML;
     
@@ -266,32 +285,84 @@ function refreshWifi() {
     fetch('/api/system/wifi/reconnect', { method: 'POST' })
       .then(response => response.json())
       .then(data => {
-        console.log('📶 WiFi reconnect command sent:', data);
+        console.log('📶 WiFi reconnect command acknowledged:', data);
       })
       .catch(error => {
         // Expected error: network will be interrupted during WiFi reconnect
         console.log('📶 WiFi reconnect in progress (network interruption expected)');
       });
     
-    // Wait for WiFi to reconnect (3 seconds)
-    setTimeout(function() {
-      btn.disabled = false;
-      btn.innerHTML = '✅';
-      btn.style.opacity = '1';
+    // Close existing WebSocket to force clean reconnection
+    if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+      console.log('📶 Closing existing WebSocket for clean reconnect...');
+      AppState.ws.close();
+    }
+    
+    // Wait for WiFi to reconnect, then verify connection
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const checkConnection = function() {
+      attempts++;
+      console.log(`📶 Checking connection (attempt ${attempts}/${maxAttempts})...`);
       
-      // Reset button after 2 seconds
-      setTimeout(function() {
-        btn.innerHTML = originalText;
-      }, 2000);
-    }, 3000);
+      fetch('/api/status', { method: 'GET' })
+        .then(response => {
+          if (response.ok) {
+            console.log('✅ WiFi reconnected successfully!');
+            btn.disabled = false;
+            btn.innerHTML = '✅';
+            btn.style.opacity = '1';
+            
+            // Reconnect WebSocket
+            if (typeof connectWebSocket === 'function') {
+              console.log('📶 Reconnecting WebSocket...');
+              connectWebSocket();
+            }
+            
+            // Reset button after 2 seconds
+            setTimeout(function() {
+              btn.innerHTML = originalText;
+            }, 2000);
+          } else {
+            throw new Error('Status check failed');
+          }
+        })
+        .catch(error => {
+          if (attempts < maxAttempts) {
+            setTimeout(checkConnection, 500);
+          } else {
+            console.error('❌ WiFi reconnect verification failed');
+            btn.disabled = false;
+            btn.innerHTML = '❌';
+            btn.style.opacity = '1';
+            showAlert('La reconnexion WiFi a échoué.\nVérifiez votre connexion réseau.', { type: 'error' });
+            
+            // Reset button after 3 seconds
+            setTimeout(function() {
+              btn.innerHTML = originalText;
+            }, 3000);
+          }
+        });
+    };
+    
+    // Start checking after 2 seconds (give WiFi time to disconnect/reconnect)
+    setTimeout(checkConnection, 2000);
   }
 }
 
 /**
  * Reboot ESP32
  */
-function rebootESP32() {
-  if (confirm('⚠️ Redémarrer l\'ESP32?\n\nLa connexion sera interrompue pendant ~10-15 secondes.\n\nVoulez-vous continuer?')) {
+async function rebootESP32() {
+  const confirmed = await showConfirm('Redémarrer l\'ESP32 ?\n\nLa connexion sera interrompue pendant ~10-15 secondes.', {
+    title: '⚠️ Redémarrage ESP32',
+    type: 'warning',
+    confirmText: '🔄 Redémarrer',
+    dangerous: true
+  });
+  
+  if (confirmed) {
     // Show reboot overlay
     document.getElementById('rebootOverlay').style.display = 'flex';
     
@@ -381,7 +452,7 @@ function reconnectAfterReboot() {
                   setTimeout(tryReconnect, 1000);
                 } else {
                   document.getElementById('rebootOverlay').style.display = 'none';
-                  alert('❌ HTTP OK mais WebSocket ne répond pas.\n\nRecherger la page manuellement (F5).');
+                  showAlert('HTTP OK mais WebSocket ne répond pas.\n\nRecharger la page manuellement (F5).', { type: 'error' });
                 }
               }
             }, 1500);
@@ -392,7 +463,7 @@ function reconnectAfterReboot() {
               setTimeout(tryReconnect, 1000);
             } else {
               document.getElementById('rebootOverlay').style.display = 'none';
-              alert('❌ Impossible de reconnecter le WebSocket.\n\nVeuillez recharger la page manuellement (F5).');
+              showAlert('Impossible de reconnecter le WebSocket.\n\nVeuillez recharger la page manuellement (F5).', { type: 'error' });
             }
           }
         }
@@ -403,7 +474,7 @@ function reconnectAfterReboot() {
           setTimeout(tryReconnect, 1000);
         } else {
           document.getElementById('rebootOverlay').style.display = 'none';
-          alert('❌ Impossible de se reconnecter à l\'ESP32.\n\nVeuillez recharger la page manuellement (F5).');
+          showAlert('Impossible de se reconnecter à l\'ESP32.\n\nVeuillez recharger la page manuellement (F5).', { type: 'error' });
         }
       });
   };
@@ -486,7 +557,7 @@ function saveLoggingPreferences() {
     })
     .catch(error => {
       console.error('❌ Error saving logging preferences:', error);
-      alert('❌ Erreur lors de la sauvegarde des préférences de log');
+      showAlert('Erreur lors de la sauvegarde des préférences de log', { type: 'error' });
     });
 }
 

@@ -437,20 +437,27 @@ function closeStatsPanel() {
 /**
  * Clear all statistics
  */
-function clearAllStats() {
-  if (confirm('⚠️ Supprimer TOUTES les statistiques?\n\nCette action est irréversible et ne supprime PAS le compteur de distance (RAZ).')) {
+async function clearAllStats() {
+  const confirmed = await showConfirm('Supprimer TOUTES les statistiques ?\n\nCette action est irréversible.\nLe compteur de distance (RAZ) n\'est PAS supprimé.', {
+    title: 'Effacer Statistiques',
+    type: 'danger',
+    confirmText: '🗑️ Tout effacer',
+    dangerous: true
+  });
+  
+  if (confirmed) {
     fetch('/api/stats/clear', { method: 'POST' })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          alert('✅ Statistiques effacées');
+          showAlert('Statistiques effacées', { type: 'success' });
           loadStatsData();  // Refresh display
         } else {
-          alert('❌ Erreur: ' + (data.error || 'Unknown'));
+          showAlert('Erreur: ' + (data.error || 'Unknown'), { type: 'error' });
         }
       })
       .catch(error => {
-        alert('❌ Erreur réseau: ' + error);
+        showAlert('Erreur réseau: ' + error, { type: 'error' });
       });
   }
 }
@@ -488,7 +495,7 @@ function exportStats() {
     })
     .catch(error => {
       console.error('❌ Export error:', error);
-      alert('❌ Erreur export: ' + error.message);
+      showAlert('Erreur export: ' + error.message, { type: 'error' });
     });
 }
 
@@ -508,7 +515,7 @@ function handleStatsFileImport(e) {
   if (!file) return;
   
   if (!file.name.endsWith('.json')) {
-    alert('❌ Fichier invalide. Utilisez un fichier JSON exporté.');
+    showAlert('Fichier invalide. Utilisez un fichier JSON exporté.', { type: 'error' });
     e.target.value = ''; // Reset file input
     return;
   }
@@ -528,41 +535,48 @@ function handleStatsFileImport(e) {
       const exportDate = importData.exportDate || 'inconnu';
       const totalKm = importData.totalDistanceMM ? (importData.totalDistanceMM / 1000000).toFixed(3) : '?';
       
-      const confirmMsg = `📤 Importer les statistiques?\n\n` +
+      const confirmMsg = `Importer les statistiques ?\n\n` +
                        `📅 Date export: ${exportDate}\n` +
                        `📊 Entrées: ${entryCount}\n` +
                        `📏 Distance totale: ${totalKm} km\n\n` +
-                       `⚠️ Ceci va ÉCRASER les statistiques actuelles!`;
+                       `⚠️ Ceci va ÉCRASER les statistiques actuelles !`;
       
-      if (!confirm(confirmMsg)) {
-        e.target.value = ''; // Reset file input
-        return;
-      }
-      
-      // Send to backend
-      fetch('/api/stats/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(importData)
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert(`✅ Import réussi!\n\n📊 ${data.entriesImported} entrées importées\n📏 Total: ${(data.totalDistanceMM / 1000000).toFixed(3)} km`);
-          loadStatsData();  // Refresh display
-        } else {
-          alert('❌ Erreur import: ' + (data.error || 'Unknown'));
+      showConfirm(confirmMsg, {
+        title: '📤 Import Statistiques',
+        type: 'warning',
+        confirmText: 'Importer',
+        dangerous: true
+      }).then(confirmed => {
+        if (!confirmed) {
+          e.target.value = ''; // Reset file input
+          return;
         }
-        e.target.value = ''; // Reset file input
-      })
-      .catch(error => {
-        alert('❌ Erreur réseau: ' + error.message);
-        console.error('Import error:', error);
-        e.target.value = ''; // Reset file input
+        
+        // Send to backend
+        fetch('/api/stats/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(importData)
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showAlert(`Import réussi !\n\n📊 ${data.entriesImported} entrées importées\n📏 Total: ${(data.totalDistanceMM / 1000000).toFixed(3)} km`, { type: 'success', title: 'Import OK' });
+            loadStatsData();  // Refresh display
+          } else {
+            showAlert('Erreur import: ' + (data.error || 'Unknown'), { type: 'error' });
+          }
+          e.target.value = ''; // Reset file input
+        })
+        .catch(error => {
+          showAlert('Erreur réseau: ' + error.message, { type: 'error' });
+          console.error('Import error:', error);
+          e.target.value = ''; // Reset file input
+        });
       });
       
     } catch (error) {
-      alert('❌ Erreur parsing JSON: ' + error.message);
+      showAlert('Erreur parsing JSON: ' + error.message, { type: 'error' });
       console.error('JSON parse error:', error);
       e.target.value = ''; // Reset file input
     }

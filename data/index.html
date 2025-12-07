@@ -14,7 +14,9 @@
   <link rel="preload" href="/js/websocket.js" as="script">
   <link rel="preload" href="/js/StatsController.js" as="script">
   <link rel="preload" href="/js/ToolsController.js" as="script">
+  <link rel="preload" href="/js/PlaylistUtils.js" as="script">
   <link rel="preload" href="/js/PlaylistController.js" as="script">
+  <link rel="preload" href="/js/SimpleUtils.js" as="script">
   <link rel="preload" href="/js/SimpleController.js" as="script">
   <link rel="preload" href="/js/PursuitController.js" as="script">
   <link rel="preload" href="/js/OscillationController.js" as="script">
@@ -187,6 +189,39 @@
       <div class="modal-buttons">
         <button class="button btn-danger" onclick="cancelSequencerLimitChange()">Annuler</button>
         <button class="button btn-success" onclick="confirmSequencerLimitChange()">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Alert Modal (replaces native alert()) -->
+  <div class="modal" id="unifiedAlertModal">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-title">
+        <span id="unifiedAlertIcon" style="margin-right: 8px;">ℹ️</span>
+        <span id="unifiedAlertTitle">Information</span>
+      </div>
+      <div class="modal-message" id="unifiedAlertMessage" style="padding: 15px 0; line-height: 1.6;">
+        Message
+      </div>
+      <div class="modal-buttons" style="justify-content: center;">
+        <button class="button btn-primary" id="unifiedAlertOkBtn" onclick="closeAlertModal()" style="min-width: 120px;">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Confirm Modal (replaces native confirm()) -->
+  <div class="modal" id="unifiedConfirmModal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-title">
+        <span id="unifiedConfirmIcon" style="margin-right: 8px;">⚠️</span>
+        <span id="unifiedConfirmTitle">Confirmation</span>
+      </div>
+      <div class="modal-message" id="unifiedConfirmMessage" style="padding: 15px 0; line-height: 1.6;">
+        Message
+      </div>
+      <div class="modal-buttons">
+        <button class="button btn-secondary" id="unifiedConfirmCancelBtn" onclick="closeConfirmModal(false)">Annuler</button>
+        <button class="button btn-success" id="unifiedConfirmOkBtn" onclick="closeConfirmModal(true)">Confirmer</button>
       </div>
     </div>
   </div>
@@ -1707,7 +1742,9 @@
   <script src="/js/websocket.js"></script>   <!-- WebSocket connection & handlers -->
   <script src="/js/StatsController.js"></script>  <!-- Stats panel, display & charts -->
   <script src="/js/ToolsController.js"></script>  <!-- Common tools (calib, logs, sys) -->
+  <script src="/js/PlaylistUtils.js"></script>  <!-- Playlist utility functions (names, tooltips) -->
   <script src="/js/PlaylistController.js"></script>  <!-- Playlist management for all modes -->
+  <script src="/js/SimpleUtils.js"></script>  <!-- Simple mode utilities (decel preview) -->
   <script src="/js/SimpleController.js"></script>  <!-- Simple mode control -->
   <script src="/js/PursuitController.js"></script>  <!-- Pursuit mode gauge control -->
   <script src="/js/OscillationController.js"></script>  <!-- Oscillation mode control -->
