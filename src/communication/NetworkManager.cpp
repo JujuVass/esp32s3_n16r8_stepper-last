@@ -3,6 +3,7 @@
  */
 
 #include "communication/NetworkManager.h"
+#include "communication/WiFiConfigManager.h"
 #include "UtilityEngine.h"
 #include "hardware/MotorDriver.h"
 #include "sequencer/SequenceExecutor.h"
@@ -24,10 +25,25 @@ bool NetworkManager::connectWiFi() {
     // AP+STA dual mode: WiFi client + Access Point simultaneously
     WiFi.mode(WIFI_AP_STA);
     
-    // Start STA (client) connection
-    WiFi.begin(ssid, password);
+    // Get WiFi credentials - prefer EEPROM config, fallback to Config.h defaults
+    String targetSSID;
+    String targetPassword;
+    String targetHostname = otaHostname;  // Default hostname
     
-    engine->info("Connecting to WiFi: " + String(ssid));
+    if (WiFiConfig.isConfigured() && WiFiConfig.loadConfig(targetSSID, targetPassword)) {
+        // Use EEPROM stored credentials
+        engine->info("📶 Using saved WiFi config: " + targetSSID);
+    } else {
+        // Use hardcoded defaults from Config.h
+        targetSSID = ssid;
+        targetPassword = password;
+        engine->info("📶 Using default WiFi config: " + targetSSID);
+    }
+    
+    // Start STA (client) connection
+    WiFi.begin(targetSSID.c_str(), targetPassword.c_str());
+    
+    engine->info("Connecting to WiFi: " + targetSSID);
     
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED && attempts < 60) {
@@ -52,13 +68,24 @@ bool NetworkManager::connectWiFi() {
     }
     
     // Start AP (Access Point) - always available even if STA fails
-    String apName = String(otaHostname) + "-AP";
+    String apName = String(targetHostname) + "-AP";
     WiFi.softAP(apName.c_str());  // Open network (no password)
     
     engine->info("📡 AP Mode started: " + apName);
     engine->info("🌐 AP IP Address: " + WiFi.softAPIP().toString());
     
     return _wifiConnected;
+}
+
+// ============================================================================
+// GET CONFIGURED SSID
+// ============================================================================
+
+String NetworkManager::getConfiguredSSID() const {
+    if (WiFiConfig.isConfigured()) {
+        return WiFiConfig.getStoredSSID();
+    }
+    return String(ssid);  // Default from Config.h
 }
 
 // ============================================================================

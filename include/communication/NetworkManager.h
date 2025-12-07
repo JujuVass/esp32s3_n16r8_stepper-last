@@ -15,6 +15,7 @@
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include "Config.h"
+#include "communication/WiFiConfigManager.h"
 
 // Forward declarations
 class UtilityEngine;
@@ -31,6 +32,17 @@ public:
      * @return true if connected successfully
      */
     bool connectWiFi();
+    
+    /**
+     * Check if WiFi is configured in EEPROM
+     * @return true if valid config exists
+     */
+    bool isWiFiConfigured() const { return WiFiConfig.isConfigured(); }
+    
+    /**
+     * Get configured SSID (from EEPROM or default)
+     */
+    String getConfiguredSSID() const;
     
     /**
      * Setup mDNS responder

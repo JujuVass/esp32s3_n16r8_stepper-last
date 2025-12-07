@@ -166,7 +166,7 @@ def get_local_files():
     files = {}
     
     # HTML files in data/
-    for html_file in ['index.html', 'filesystem.html']:
+    for html_file in ['index.html', 'filesystem.html', 'setup.html']:
         local_path = os.path.join(DATA_DIR, html_file)
         if os.path.exists(local_path):
             files['/' + html_file] = local_path

@@ -507,10 +507,15 @@
         </div>
       </div>
 
-      <!-- Reboot Button -->
-      <div style="margin-top: 15px;">
-        <button id="btnReboot" class="button btn-danger" style="width: 100%; padding: 12px; font-size: 14px; font-weight: bold;">
-          🔄 Redémarrer l'ESP32
+      <!-- WiFi Setup & Reboot Buttons -->
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <a href="/setup.html" target="_blank" style="flex: 1; text-decoration: none;">
+          <button class="button" style="width: 100%; padding: 12px; font-size: 14px; font-weight: bold; background: #9C27B0; color: white; border: none; border-radius: 6px; cursor: pointer;">
+            📶 Config WiFi
+          </button>
+        </a>
+        <button id="btnReboot" class="button btn-danger" style="flex: 1; padding: 12px; font-size: 14px; font-weight: bold;">
+          🔄 Redémarrer
         </button>
       </div>
     </div>

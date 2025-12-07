@@ -10,6 +10,7 @@
 #include <WiFi.h>
 #include "UtilityEngine.h"
 #include "sequencer/SequenceTableManager.h"
+#include "communication/WiFiConfigManager.h"
 
 // External globals
 extern WebServer server;
@@ -965,6 +966,114 @@ void setupAPIRoutes() {
     engine->saveLoggingPreferences();
     
     server.send(200, "application/json", "{\"success\":true,\"message\":\"Logging preferences saved\"}");
+  });
+
+  // ============================================================================
+  // WIFI CONFIGURATION API
+  // ============================================================================
+  
+  // GET /api/wifi/scan - Scan available WiFi networks
+  server.on("/api/wifi/scan", HTTP_GET, []() {
+    engine->info("📡 WiFi scan requested via API");
+    
+    WiFiNetworkInfo networks[15];
+    int count = WiFiConfig.scanNetworks(networks, 15);
+    
+    JsonDocument doc;
+    JsonArray networksArray = doc["networks"].to<JsonArray>();
+    
+    for (int i = 0; i < count; i++) {
+      JsonObject net = networksArray.add<JsonObject>();
+      net["ssid"] = networks[i].ssid;
+      net["rssi"] = networks[i].rssi;
+      net["encryption"] = WiFiConfigManager::encryptionTypeToString(networks[i].encryptionType);
+      net["channel"] = networks[i].channel;
+      net["secure"] = (networks[i].encryptionType != WIFI_AUTH_OPEN);
+    }
+    
+    doc["count"] = count;
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  
+  // GET /api/wifi/config - Get current WiFi configuration (without password)
+  server.on("/api/wifi/config", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["configured"] = WiFiConfig.isConfigured();
+    doc["ssid"] = WiFiConfig.getStoredSSID();
+    doc["connected"] = (WiFi.status() == WL_CONNECTED);
+    doc["ip"] = WiFi.localIP().toString();
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  
+  // POST /api/wifi/connect - Test and save WiFi credentials
+  server.on("/api/wifi/connect", HTTP_POST, []() {
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing body\"}");
+      return;
+    }
+    
+    String body = server.arg("plain");
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, body);
+    
+    if (err) {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    
+    String ssid = doc["ssid"] | "";
+    String password = doc["password"] | "";
+    
+    if (ssid.length() == 0) {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"SSID required\"}");
+      return;
+    }
+    
+    engine->info("🔌 WiFi connect request for: " + ssid);
+    
+    // Test connection first
+    bool connected = WiFiConfig.testConnection(ssid, password, 15000);
+    
+    if (connected) {
+      // Save to EEPROM
+      WiFiConfig.saveConfig(ssid, password);
+      
+      JsonDocument respDoc;
+      respDoc["success"] = true;
+      respDoc["message"] = "WiFi connected and saved!";
+      respDoc["ip"] = WiFi.localIP().toString();
+      respDoc["ssid"] = ssid;
+      
+      String response;
+      serializeJson(respDoc, response);
+      server.send(200, "application/json", response);
+      
+      // Schedule reboot to apply AP+STA mode properly
+      engine->info("🔄 Rebooting in 2s to apply new WiFi config...");
+      delay(2000);
+      ESP.restart();
+    } else {
+      server.send(200, "application/json", "{\"success\":false,\"error\":\"Connection failed. Check password.\"}");
+    }
+  });
+  
+  // POST /api/wifi/forget - Clear WiFi configuration
+  server.on("/api/wifi/forget", HTTP_POST, []() {
+    engine->info("🗑️ WiFi forget requested via API");
+    
+    WiFiConfig.clearConfig();
+    
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"WiFi configuration cleared. Rebooting...\"}");
+    
+    // Reboot to enter setup mode
+    delay(1000);
+    ESP.restart();
   });
 
   // ===== IMPORT SEQUENCE VIA HTTP POST (Bypass WebSocket size limit) =====
