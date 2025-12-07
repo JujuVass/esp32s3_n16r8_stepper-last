@@ -1129,6 +1129,9 @@
       // Initialize speed limits based on maxSpeedLevel constant
       initSpeedLimits();
       
+      // Initialize stats panel (from StatsController.js)
+      initStatsListeners();
+      
       // Initialize tools (from ToolsController.js)
       initToolsListeners();
       

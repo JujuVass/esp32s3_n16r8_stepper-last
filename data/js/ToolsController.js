@@ -5,12 +5,12 @@
  * - Calibration button
  * - Reset distance button
  * - Logs panel (show/hide, clear, file list, debug level)
- * - Stats panel (show/hide, clear, export, import)
  * - System panel (show/hide, WiFi reconnect, reboot)
  * - Logging preferences (enable/disable, debug level)
  * 
+ * Note: Stats panel moved to StatsController.js (December 2025)
+ * 
  * Dependencies: DOM, AppState, WS_CMD, sendCommand, showNotification, connectWebSocket
- * External: loadStatsData() from stats.js
  */
 
 // ============================================================================
@@ -188,208 +188,6 @@ function loadLogFilesList() {
     .catch(error => {
       DOM.logFilesList.innerHTML = '<div style="color: #f44336; font-size: 11px;">Erreur de chargement</div>';
     });
-}
-
-// ============================================================================
-// STATISTICS PANEL MANAGEMENT
-// ============================================================================
-
-/**
- * Toggle stats panel visibility
- */
-function toggleStatsPanel() {
-  const panel = document.getElementById('statsPanel');
-  const btn = document.getElementById('btnShowStats');
-  const wasVisible = (panel.style.display !== 'none');
-  
-  if (!wasVisible) {
-    // Opening panel
-    panel.style.display = 'block';
-    btn.innerHTML = '📊 Stats';
-    btn.style.background = '#e74c3c';
-    btn.style.color = 'white';
-    
-    // Update state and signal backend
-    AppState.statsPanel.isVisible = true;
-    AppState.statsPanel.lastToggle = Date.now();
-    
-    // Send WebSocket command to backend (enable stats sending)
-    if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-      AppState.ws.send(JSON.stringify({
-        cmd: 'requestStats',
-        enable: true
-      }));
-      console.log('📊 Stats requested from backend');
-    }
-    
-    // Load stats data
-    loadStatsData();
-  } else {
-    closeStatsPanel();
-  }
-}
-
-/**
- * Close stats panel
- */
-function closeStatsPanel() {
-  const panel = document.getElementById('statsPanel');
-  const btn = document.getElementById('btnShowStats');
-  
-  panel.style.display = 'none';
-  btn.innerHTML = '📊 Stats';
-  btn.style.background = '#4CAF50';
-  btn.style.color = 'white';
-  
-  // Update state and signal backend
-  AppState.statsPanel.isVisible = false;
-  AppState.statsPanel.lastToggle = Date.now();
-  
-  // Send WebSocket command to backend (disable stats sending)
-  if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-    AppState.ws.send(JSON.stringify({
-      cmd: 'requestStats',
-      enable: false
-    }));
-    console.log('📊 Stats panel closed');
-  }
-}
-
-/**
- * Clear all statistics
- */
-function clearAllStats() {
-  if (confirm('⚠️ Supprimer TOUTES les statistiques?\n\nCette action est irréversible et ne supprime PAS le compteur de distance (RAZ).')) {
-    fetch('/api/stats/clear', { method: 'POST' })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert('✅ Statistiques effacées');
-          loadStatsData();  // Refresh display
-        } else {
-          alert('❌ Erreur: ' + (data.error || 'Unknown'));
-        }
-      })
-      .catch(error => {
-        alert('❌ Erreur réseau: ' + error);
-      });
-  }
-}
-
-/**
- * Export statistics to JSON file
- */
-function exportStats() {
-  fetch('/api/stats/export')
-    .then(response => {
-      if (!response.ok) throw new Error('Export failed');
-      return response.json();
-    })
-    .then(data => {
-      // Create JSON file and download
-      const jsonStr = JSON.stringify(data, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      // Generate filename with current date
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const filename = 'stepper_stats_' + dateStr + '.json';
-      
-      // Create download link and click it
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      console.log('📊 Stats exported to:', filename);
-    })
-    .catch(error => {
-      console.error('❌ Export error:', error);
-      alert('❌ Erreur export: ' + error.message);
-    });
-}
-
-/**
- * Trigger stats file import dialog
- */
-function triggerStatsImport() {
-  document.getElementById('statsFileInput').click();
-}
-
-/**
- * Handle stats file import
- * @param {Event} e - File input change event
- */
-function handleStatsFileImport(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  
-  if (!file.name.endsWith('.json')) {
-    alert('❌ Fichier invalide. Utilisez un fichier JSON exporté.');
-    e.target.value = ''; // Reset file input
-    return;
-  }
-  
-  const reader = new FileReader();
-  reader.onload = function(event) {
-    try {
-      const importData = JSON.parse(event.target.result);
-      
-      // Validate structure
-      if (!importData.stats || !Array.isArray(importData.stats)) {
-        throw new Error('Format JSON invalide (manque "stats" array)');
-      }
-      
-      // Confirm import (show preview)
-      const entryCount = importData.stats.length;
-      const exportDate = importData.exportDate || 'inconnu';
-      const totalKm = importData.totalDistanceMM ? (importData.totalDistanceMM / 1000000).toFixed(3) : '?';
-      
-      const confirmMsg = `📤 Importer les statistiques?\n\n` +
-                       `📅 Date export: ${exportDate}\n` +
-                       `📊 Entrées: ${entryCount}\n` +
-                       `📏 Distance totale: ${totalKm} km\n\n` +
-                       `⚠️ Ceci va ÉCRASER les statistiques actuelles!`;
-      
-      if (!confirm(confirmMsg)) {
-        e.target.value = ''; // Reset file input
-        return;
-      }
-      
-      // Send to backend
-      fetch('/api/stats/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(importData)
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert(`✅ Import réussi!\n\n📊 ${data.entriesImported} entrées importées\n📏 Total: ${(data.totalDistanceMM / 1000000).toFixed(3)} km`);
-          loadStatsData();  // Refresh display (from stats.js)
-        } else {
-          alert('❌ Erreur import: ' + (data.error || 'Unknown'));
-        }
-        e.target.value = ''; // Reset file input
-      })
-      .catch(error => {
-        alert('❌ Erreur réseau: ' + error.message);
-        console.error('Import error:', error);
-        e.target.value = ''; // Reset file input
-      });
-      
-    } catch (error) {
-      alert('❌ Erreur parsing JSON: ' + error.message);
-      console.error('JSON parse error:', error);
-      e.target.value = ''; // Reset file input
-    }
-  };
-  
-  reader.readAsText(file);
 }
 
 // ============================================================================
@@ -715,14 +513,6 @@ function initToolsListeners() {
     handleDebugLevelChange(this.checked);
   });
   document.getElementById('btnClearAllLogFiles').addEventListener('click', clearAllLogFiles);
-  
-  // ===== STATS PANEL =====
-  document.getElementById('btnShowStats').addEventListener('click', toggleStatsPanel);
-  document.getElementById('btnCloseStats').addEventListener('click', closeStatsPanel);
-  document.getElementById('btnClearStats').addEventListener('click', clearAllStats);
-  document.getElementById('btnExportStats').addEventListener('click', exportStats);
-  document.getElementById('btnImportStats').addEventListener('click', triggerStatsImport);
-  document.getElementById('statsFileInput').addEventListener('change', handleStatsFileImport);
   
   // ===== SYSTEM PANEL =====
   document.getElementById('btnShowSystem').addEventListener('click', toggleSystemPanel);
