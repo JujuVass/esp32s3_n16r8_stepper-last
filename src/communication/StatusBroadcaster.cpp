@@ -46,7 +46,14 @@ void StatusBroadcaster::begin(WebSocketsServer* ws) {
 
 void StatusBroadcaster::send() {
     // Only broadcast if clients are connected (early exit optimization)
-    if (_webSocket == nullptr || _webSocket->connectedClients() == 0) return;
+    if (_webSocket == nullptr) {
+        engine->debug("⚠️ sendStatus: _webSocket is NULL!");
+        return;
+    }
+    if (_webSocket->connectedClients() == 0) {
+        engine->debug("⚠️ sendStatus: No clients connected!");
+        return;
+    }
     
     // ============================================================================
     // COMMON FIELDS (all modes)

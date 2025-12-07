@@ -13,7 +13,23 @@
     //   - renamePlaylistPreset(), loadPresetInMode(), quickAddToSequencer()
     //   - loadPresetIntoSequencerModal(), initPlaylistListeners()
 
-    // Note: MILESTONES array and getMilestoneInfo() loaded from app.js    // ========================================================================
+    // Note: MILESTONES array and getMilestoneInfo() loaded from app.js
+    
+    // ========================================================================
+    // HELPER FUNCTIONS - Browser Compatibility
+    // ========================================================================
+    // Use .closest() instead of :has() CSS selector for broader browser support
+    function getCyclePauseSection() {
+      const header = document.getElementById('cyclePauseHeaderText');
+      return header ? header.closest('.section-collapsible') : null;
+    }
+    
+    function getCyclePauseOscSection() {
+      const header = document.getElementById('cyclePauseOscHeaderText');
+      return header ? header.closest('.section-collapsible') : null;
+    }
+
+    // ========================================================================
     // GLOBAL STATE - Position Tracking
     // ========================================================================
     let currentPositionMM = 0; // Current motor position in millimeters
@@ -694,7 +710,7 @@
         }
         
         // Sync UI to backend state (only if section is expanded)
-        const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+        const section = getCyclePauseSection();
         const headerText = document.getElementById('cyclePauseHeaderText');
         if (section && headerText) {
           const isEnabled = data.motion.cyclePause.enabled;
@@ -749,7 +765,7 @@
         }
         
         // Sync UI to backend state (only if section is expanded)
-        const sectionOsc = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+        const sectionOsc = getCyclePauseOscSection();
         const headerTextOsc = document.getElementById('cyclePauseOscHeaderText');
         if (sectionOsc && headerTextOsc) {
           const isEnabled = data.oscillation.cyclePause.enabled;
@@ -1677,7 +1693,7 @@
     
     // ===== CYCLE PAUSE SECTION (MODE SIMPLE) =====
     function toggleCyclePauseSection() {
-      const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+      const section = getCyclePauseSection();
       const headerText = document.getElementById('cyclePauseHeaderText');
       const isCollapsed = section.classList.contains('collapsed');
       
@@ -1704,7 +1720,7 @@
         document.getElementById('pauseRandomControls').style.display = isFixed ? 'none' : 'block';
         
         // Send updated config
-        const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+        const section = getCyclePauseSection();
         if (!section.classList.contains('collapsed')) {
           sendCyclePauseConfig();
         }
@@ -1758,7 +1774,7 @@
       const input = document.getElementById(id);
       if (input) {
         input.addEventListener('change', function() {
-          const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+          const section = getCyclePauseSection();
           if (!section.classList.contains('collapsed')) {
             sendCyclePauseConfig();
           }
@@ -1768,7 +1784,7 @@
     
     // Send cycle pause config (Mode Simple)
     function sendCyclePauseConfig() {
-      const section = document.querySelector('.section-collapsible:has(#cyclePauseHeaderText)');
+      const section = getCyclePauseSection();
       const enabled = !section.classList.contains('collapsed');
       const isRandom = document.getElementById('pauseModeRandom').checked;
       
@@ -1785,7 +1801,7 @@
     
     // ===== CYCLE PAUSE SECTION (MODE OSCILLATION) =====
     function toggleCyclePauseOscSection() {
-      const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+      const section = getCyclePauseOscSection();
       const headerText = document.getElementById('cyclePauseOscHeaderText');
       const isCollapsed = section.classList.contains('collapsed');
       
@@ -1812,7 +1828,7 @@
         document.getElementById('pauseRandomControlsOsc').style.display = isFixed ? 'none' : 'block';
         
         // Send updated config
-        const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+        const section = getCyclePauseOscSection();
         if (!section.classList.contains('collapsed')) {
           sendCyclePauseConfigOsc();
         }
@@ -1866,7 +1882,7 @@
       const input = document.getElementById(id);
       if (input) {
         input.addEventListener('change', function() {
-          const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+          const section = getCyclePauseOscSection();
           if (!section.classList.contains('collapsed')) {
             sendCyclePauseConfigOsc();
           }
@@ -1876,7 +1892,7 @@
     
     // Send cycle pause config (Mode Oscillation)
     function sendCyclePauseConfigOsc() {
-      const section = document.querySelector('.section-collapsible:has(#cyclePauseOscHeaderText)');
+      const section = getCyclePauseOscSection();
       const enabled = !section.classList.contains('collapsed');
       const isRandom = document.getElementById('pauseModeRandomOsc').checked;
       
