@@ -283,7 +283,7 @@
           
           if (milestoneInfo.next) {
             tooltip += `\n\n⏭️ Prochain: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)`;
-            tooltip += `\n📊 Progression: ${milestoneInfo.progressPercent}%`;
+            tooltip += `\n📊 Progression: ${milestoneInfo.progress.toFixed(0)}%`;
           } else {
             tooltip += `\n\n🎉 Dernier jalon atteint!`;
           }
