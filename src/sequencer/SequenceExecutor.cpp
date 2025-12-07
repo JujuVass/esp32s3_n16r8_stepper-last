@@ -12,6 +12,7 @@
 
 #include "sequencer/SequenceExecutor.h"
 #include "sequencer/SequenceTableManager.h"  // Phase 4D: Access sequenceTable[], sequenceLineCount
+#include "GlobalState.h"                     // For ::sendStatus() global function
 #include "UtilityEngine.h"
 #include "hardware/MotorDriver.h"
 #include "controllers/CalibrationManager.h"
@@ -330,6 +331,10 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
     seqState.currentLineIndex++;
     seqState.currentCycleInLine = 0;
     
+    engine->debug("🔍 checkAndHandleSequenceEnd: lineIndex=" + String(seqState.currentLineIndex) + 
+                  " / lineCount=" + String(sequenceLineCount) + 
+                  " | isLoopMode=" + String(seqState.isLoopMode));
+    
     // Check if sequence is complete
     if (seqState.currentLineIndex >= sequenceLineCount) {
         
@@ -391,7 +396,8 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
             config.currentState = STATE_READY;
             
             engine->info("✓ Système prêt pour le prochain cycle");
-            sendStatus();
+            sendStatus();           // Send sequenceStatus (isRunning=false)
+            ::sendStatus();         // Send global status (canStart=true) to re-enable buttons
             return false;  // Sequence ended
         }
     }
@@ -399,23 +405,34 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
     // Skip disabled lines
     while (seqState.currentLineIndex < sequenceLineCount && 
            !sequenceTable[seqState.currentLineIndex].enabled) {
+        engine->debug("⏭️ Skipping disabled line " + String(seqState.currentLineIndex));
         seqState.currentLineIndex++;
     }
     
+    engine->debug("🔍 After skip: lineIndex=" + String(seqState.currentLineIndex) + 
+                  " / lineCount=" + String(sequenceLineCount));
+    
     // Check again if we've reached the end after skipping
     if (seqState.currentLineIndex >= sequenceLineCount) {
+        engine->info("🎯 End condition met after skip - triggering sequence end");
         if (seqState.isLoopMode) {
             seqState.currentLineIndex = 0;
             seqState.loopCount++;
             engine->info("🔁 Boucle #" + String(seqState.loopCount) + " - Redémarrage...");
         } else {
             seqState.isRunning = false;
+            engine->info("📡 Setting isRunning=false, sending status updates...");
             
             // CRITICAL: Stop motor and reset execution context
             stopMovement();
             config.executionContext = CONTEXT_STANDALONE;
+            config.currentState = STATE_READY;
             
-            sendStatus();
+            engine->info("📡 Sending sequenceStatus (isRunning=false)...");
+            sendStatus();           // Send sequenceStatus (isRunning=false)
+            engine->info("📡 Sending global status (canStart=true)...");
+            ::sendStatus();         // Send global status (canStart=true) to re-enable buttons
+            engine->info("✅ Both status messages sent!");
             return false;  // Sequence ended
         }
     }
@@ -662,6 +679,8 @@ void SequenceExecutor::process() {
         // Check if all cycles for current line are complete
         if (seqState.currentCycleInLine >= effectiveCycleCount) {
             // Line complete - all cycles executed
+            engine->debug("🏁 Line complete: cycle " + String(seqState.currentCycleInLine) + 
+                          " >= " + String(effectiveCycleCount) + " (effectiveCycles)");
             
             // Apply pause after line if configured
             if (currentLine->pauseAfterMs > 0) {

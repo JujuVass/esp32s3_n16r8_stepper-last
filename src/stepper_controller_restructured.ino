@@ -266,6 +266,7 @@ void setup() {
   });
   
   Status.begin(&webSocket);
+  SeqExecutor.begin(&webSocket);  // CRITICAL: SequenceExecutor needs WebSocket for status updates
   engine->info("✅ HTTP (80) + WebSocket (81) servers started");
   
   // ============================================================================
