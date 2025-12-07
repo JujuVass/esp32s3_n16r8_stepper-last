@@ -164,6 +164,9 @@ function updateChaosUI(data) {
   const isRunning = data.chaosState.isRunning;
   const wasRunning = DOM.chaosStats.style.display === 'block';  // Track previous state
   const isCalibrating = data.state === SystemState.CALIBRATING;
+  const isPaused = data.state === SystemState.PAUSED;
+  const isRunningOrPaused = isRunning || isPaused;
+  const isError = data.state === SystemState.ERROR;
   
   // Show/hide stats panel
   DOM.chaosStats.style.display = isRunning ? 'block' : 'none';
@@ -178,7 +181,20 @@ function updateChaosUI(data) {
   // Update button states (disable if not calibrated or calibrating)
   const canStart = canStartOperation() && !isRunning;
   setButtonState(DOM.btnStartChaos, canStart);
-  DOM.btnStopChaos.disabled = !isRunning;
+  
+  // Pause button
+  const btnPauseChaos = document.getElementById('btnPauseChaos');
+  if (btnPauseChaos) {
+    btnPauseChaos.disabled = !isRunningOrPaused;
+    if (isPaused) {
+      btnPauseChaos.innerHTML = '▶ Reprendre';
+    } else {
+      btnPauseChaos.innerHTML = '⏸ Pause';
+    }
+  }
+  
+  // Stop button - ALSO enabled in ERROR state for recovery
+  DOM.btnStopChaos.disabled = !(isRunningOrPaused || isError);
   
   // Allow live config changes while running (except seed)
   // Config inputs remain enabled for real-time adjustments

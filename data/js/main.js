@@ -592,106 +592,13 @@
       updateOscillationUI(data);
       
       // ===== UPDATE CYCLE PAUSE DISPLAY (MODE SIMPLE) =====
-      if (data.motion && data.motion.cyclePause) {
-        const pauseStatus = document.getElementById('cyclePauseStatus');
-        const pauseRemaining = document.getElementById('cyclePauseRemaining');
-        
-        if (data.motion.cyclePause.isPausing && pauseStatus && pauseRemaining) {
-          // Use server-calculated remaining time
-          const remainingSec = (data.motion.cyclePause.remainingMs / 1000).toFixed(1);
-          
-          pauseStatus.style.display = 'block';
-          pauseRemaining.textContent = remainingSec + 's';
-        } else if (pauseStatus) {
-          pauseStatus.style.display = 'none';
-        }
-        
-        // Sync UI to backend state (only if section is expanded)
-        const section = getCyclePauseSection();
-        const headerText = document.getElementById('cyclePauseHeaderText');
-        if (section && headerText) {
-          const isEnabled = data.motion.cyclePause.enabled;
-          const isCollapsed = section.classList.contains('collapsed');
-          
-          // Sync collapsed state with backend enabled state
-          if (isEnabled && isCollapsed) {
-            section.classList.remove('collapsed');
-            headerText.textContent = '⏸️ Pause entre cycles - activée';
-          } else if (!isEnabled && !isCollapsed) {
-            section.classList.add('collapsed');
-            headerText.textContent = '⏸️ Pause entre cycles - désactivée';
-          }
-          
-          // Sync radio buttons
-          if (data.motion.cyclePause.isRandom) {
-            document.getElementById('pauseModeRandom').checked = true;
-            document.getElementById('pauseFixedControls').style.display = 'none';
-            document.getElementById('pauseRandomControls').style.display = 'block';
-          } else {
-            document.getElementById('pauseModeFixed').checked = true;
-            document.getElementById('pauseFixedControls').style.display = 'flex';
-            document.getElementById('pauseRandomControls').style.display = 'none';
-          }
-          
-          // Sync input values (avoid overwriting if user is editing)
-          if (document.activeElement !== document.getElementById('cyclePauseDuration')) {
-            document.getElementById('cyclePauseDuration').value = data.motion.cyclePause.pauseDurationSec.toFixed(1);
-          }
-          if (document.activeElement !== document.getElementById('cyclePauseMin')) {
-            document.getElementById('cyclePauseMin').value = data.motion.cyclePause.minPauseSec.toFixed(1);
-          }
-          if (document.activeElement !== document.getElementById('cyclePauseMax')) {
-            document.getElementById('cyclePauseMax').value = data.motion.cyclePause.maxPauseSec.toFixed(1);
-          }
-        }
-      }
+      // Update Simple mode UI (delegated to SimpleController.js)
+      updateSimpleUI(data);
       
       // Note: Cycle pause oscillation UI update is handled by updateOscillationUI() above
       
-      // Update chaos UI
+      // Update chaos UI (delegated to ChaosController.js)
       updateChaosUI(data);
-      
-      // Update Pause/Resume buttons for Simple, Oscillation, and Chaos modes
-      // Note: Oscillation buttons are handled by updateOscillationUI()
-      const isPaused = (data.state === SystemState.PAUSED);
-      const isRunningOrPaused = (isRunning || isPaused);
-      const isError = (data.state === SystemState.ERROR);
-      
-      // Simple mode Pause button
-      const btnPause = document.getElementById('btnPause');
-      if (btnPause) {
-        btnPause.disabled = !isRunningOrPaused;
-        if (isPaused) {
-          btnPause.innerHTML = '▶ Reprendre';
-        } else {
-          btnPause.innerHTML = '⏸ Pause';
-        }
-      }
-      
-      // Simple mode Stop button - ALSO enabled in ERROR state for recovery
-      const btnStop = document.getElementById('btnStop');
-      if (btnStop) {
-        btnStop.disabled = !(isRunningOrPaused || isError);
-      }
-      
-      // Note: Oscillation mode buttons are handled by updateOscillationUI()
-      
-      // Chaos mode Pause button
-      const btnPauseChaos = document.getElementById('btnPauseChaos');
-      if (btnPauseChaos) {
-        btnPauseChaos.disabled = !isRunningOrPaused;
-        if (isPaused) {
-          btnPauseChaos.innerHTML = '▶ Reprendre';
-        } else {
-          btnPauseChaos.innerHTML = '⏸ Pause';
-        }
-      }
-      
-      // Chaos mode Stop button - ALSO enabled in ERROR state for recovery
-      const btnStopChaos = document.getElementById('btnStopChaos');
-      if (btnStopChaos) {
-        btnStopChaos.disabled = !(isRunningOrPaused || isError);
-      }
       
       // SEQUENCER MODE: Re-enable start buttons when system is READY and not running
       // This catches cases where sequenceStatus WebSocket message was missed
