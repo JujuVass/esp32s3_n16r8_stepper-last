@@ -465,5 +465,324 @@ function initSimpleListeners() {
     radio.addEventListener('change', handleSpeedModeChange);
   });
   
+  // ===== DECELERATION ZONE EVENT LISTENERS =====
+  initDecelZoneListeners();
+  
   console.log('✅ Simple mode listeners initialized');
+}
+
+// ============================================================================
+// DECELERATION ZONE - Simple Mode Only
+// ============================================================================
+
+/**
+ * JavaScript implementation of C++ calculateSlowdownFactor()
+ * Delegates to pure function from presets.js if available
+ */
+function calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode) {
+  if (typeof calculateSlowdownFactorPure === 'function') {
+    return calculateSlowdownFactorPure(zoneProgress, maxSlowdown, mode);
+  }
+  // Fallback - linear only
+  return 1.0 + (1.0 - zoneProgress) * (maxSlowdown - 1.0);
+}
+
+/**
+ * Toggle deceleration section collapsed state
+ */
+function toggleDecelSection() {
+  const section = document.getElementById('decelSection');
+  const headerText = document.getElementById('decelHeaderText');
+  const isCollapsed = section.classList.contains('collapsed');
+  
+  section.classList.toggle('collapsed');
+  
+  if (isCollapsed) {
+    // Expanding = activating
+    headerText.textContent = '🎯 Décélération - activée';
+    sendDecelConfig();
+    drawDecelPreview();
+  } else {
+    // Collapsing = deactivating
+    headerText.textContent = '🎯 Décélération - désactivée';
+    sendCommand(WS_CMD.SET_DECEL_ZONE, { enabled: false });
+  }
+}
+
+/**
+ * Send deceleration configuration to ESP32
+ */
+function sendDecelConfig() {
+  const section = document.getElementById('decelSection');
+  const isEnabled = !section.classList.contains('collapsed');
+  
+  const zoneMM = parseFloat(document.getElementById('decelZoneMM').value) || 50;
+  
+  const config = {
+    enabled: isEnabled,
+    enableStart: document.getElementById('decelZoneStart').checked,
+    enableEnd: document.getElementById('decelZoneEnd').checked,
+    zoneMM: zoneMM,
+    effectPercent: parseFloat(document.getElementById('decelEffectPercent').value) || 75,
+    mode: parseInt(document.getElementById('decelModeSelect')?.value || 1)
+  };
+  
+  // Store requested zone value for comparison
+  AppState.lastDecelZoneRequest = zoneMM;
+  
+  sendCommand(WS_CMD.SET_DECEL_ZONE, config);
+}
+
+/**
+ * Update deceleration zone UI from server data
+ * @param {Object} decelZone - Deceleration zone data from backend
+ */
+function updateDecelZoneUI(decelZone) {
+  if (!decelZone || AppState.editing.input === 'decelZone') return;
+  
+  const section = document.getElementById('decelSection');
+  const headerText = document.getElementById('decelHeaderText');
+  
+  // Defense: Only update full decelZone fields if enabled (Phase 1 optimization)
+  // When disabled, backend sends only {enabled: false} to save bandwidth
+  if (decelZone.enabled && decelZone.zoneMM !== undefined) {
+    // Update section collapsed state and header text based on enabled
+    if (section && headerText) {
+      section.classList.remove('collapsed');
+      headerText.textContent = '🎯 Décélération - activée';
+    }
+    
+    // Safe access to optional fields
+    if (decelZone.enableStart !== undefined) {
+      const startCheckbox = document.getElementById('decelZoneStart');
+      if (startCheckbox) startCheckbox.checked = decelZone.enableStart;
+    }
+    if (decelZone.enableEnd !== undefined) {
+      const endCheckbox = document.getElementById('decelZoneEnd');
+      if (endCheckbox) endCheckbox.checked = decelZone.enableEnd;
+    }
+    
+    // Check if zone value was adapted by ESP32 (only if we just sent a request)
+    const decelZoneInput = document.getElementById('decelZoneMM');
+    const requestedZone = AppState.lastDecelZoneRequest;
+    const receivedZone = decelZone.zoneMM;
+    
+    if (requestedZone !== undefined && Math.abs(requestedZone - receivedZone) > 0.1) {
+      // Value was adapted - show notification once
+      showNotification(`⚠️ Zone ajustée: ${requestedZone.toFixed(0)}mm → ${receivedZone.toFixed(0)}mm (limite du mouvement)`, 'warning', 4000);
+      AppState.lastDecelZoneRequest = undefined;
+    }
+    
+    if (decelZoneInput) {
+      decelZoneInput.value = receivedZone;
+    }
+    
+    // Effect percent (safe access)
+    if (decelZone.effectPercent !== undefined) {
+      const effectPercentInput = document.getElementById('decelEffectPercent');
+      const effectValueSpan = document.getElementById('effectValue');
+      if (effectPercentInput) {
+        effectPercentInput.value = decelZone.effectPercent;
+      }
+      if (effectValueSpan) {
+        effectValueSpan.textContent = decelZone.effectPercent.toFixed(0) + '%';
+      }
+    }
+    
+    // Update select dropdown for mode
+    if (decelZone.mode !== undefined) {
+      const decelModeSelect = document.getElementById('decelModeSelect');
+      if (decelModeSelect) {
+        decelModeSelect.value = decelZone.mode.toString();
+      }
+    }
+    
+    // Update zone preset active state
+    document.querySelectorAll('[data-decel-zone]').forEach(btn => {
+      const btnValue = parseInt(btn.getAttribute('data-decel-zone'));
+      if (btnValue === decelZone.zoneMM) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    
+    // Redraw preview if enabled
+    drawDecelPreview();
+  } else {
+    // Disabled state
+    if (section && headerText) {
+      section.classList.add('collapsed');
+      headerText.textContent = '🎯 Décélération - désactivée';
+    }
+  }
+}
+
+/**
+ * Draw deceleration curve preview on canvas
+ */
+function drawDecelPreview() {
+  const canvas = document.getElementById('decelPreview');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const padding = 20;
+  const plotWidth = width - 2 * padding;
+  const plotHeight = height - 2 * padding;
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, width, height);
+  
+  // Get current config
+  const section = document.getElementById('decelSection');
+  const enabled = !section.classList.contains('collapsed');
+  const enableStart = document.getElementById('decelZoneStart').checked;
+  const enableEnd = document.getElementById('decelZoneEnd').checked;
+  const zoneMM = parseFloat(document.getElementById('decelZoneMM').value) || 50;
+  const effectPercent = parseFloat(document.getElementById('decelEffectPercent').value) || 75;
+  const mode = parseInt(document.getElementById('decelModeSelect')?.value || 1);
+  
+  if (!enabled) {
+    ctx.font = '14px Arial';
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'center';
+    ctx.fillText('Décélération désactivée', width / 2, height / 2);
+    return;
+  }
+  
+  // Assume a movement amplitude of 150mm for preview
+  const movementAmplitude = 150;
+  const maxSlowdown = 1.0 + (effectPercent / 100.0) * 9.0;  // 1× to 10×
+  
+  // Draw axes
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+  
+  // Draw curve
+  ctx.strokeStyle = '#4CAF50';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  
+  for (let x = 0; x <= plotWidth; x++) {
+    const positionMM = (x / plotWidth) * movementAmplitude;
+    let speedFactor = 1.0;  // Normal speed
+    
+    // Check START zone
+    if (enableStart && positionMM <= zoneMM) {
+      const zoneProgress = positionMM / zoneMM;
+      speedFactor = calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode);
+    }
+    // Check END zone
+    if (enableEnd && positionMM >= (movementAmplitude - zoneMM)) {
+      const distanceFromEnd = movementAmplitude - positionMM;
+      const zoneProgress = distanceFromEnd / zoneMM;
+      speedFactor = calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode);
+    }
+    
+    // Convert speed factor to Y coordinate (inverted: slower = higher on graph)
+    const normalizedSpeed = 1.0 / speedFactor;  // 1.0 = normal, 0.1 = 10× slower
+    const y = height - padding - (normalizedSpeed * plotHeight);
+    
+    if (x === 0) {
+      ctx.moveTo(padding + x, y);
+    } else {
+      ctx.lineTo(padding + x, y);
+    }
+  }
+  
+  ctx.stroke();
+  
+  // Draw zone boundaries
+  if (enableStart || enableEnd) {
+    ctx.setLineDash([5, 3]);
+    ctx.strokeStyle = '#FF9800';
+    ctx.lineWidth = 1;
+    
+    if (enableStart) {
+      const startX = padding + (zoneMM / movementAmplitude) * plotWidth;
+      ctx.beginPath();
+      ctx.moveTo(startX, padding);
+      ctx.lineTo(startX, height - padding);
+      ctx.stroke();
+    }
+    
+    if (enableEnd) {
+      const endX = padding + ((movementAmplitude - zoneMM) / movementAmplitude) * plotWidth;
+      ctx.beginPath();
+      ctx.moveTo(endX, padding);
+      ctx.lineTo(endX, height - padding);
+      ctx.stroke();
+    }
+    
+    ctx.setLineDash([]);
+  }
+  
+  // Draw labels
+  ctx.font = '10px Arial';
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'center';
+  ctx.fillText('Départ', padding, height - 5);
+  ctx.fillText('Arrivée', width - padding, height - 5);
+  
+  // Draw speed indicators
+  ctx.textAlign = 'left';
+  ctx.fillText('Rapide', padding + 5, padding + 10);
+  ctx.fillText('Lent', padding + 5, height - padding - 5);
+}
+
+/**
+ * Initialize deceleration zone event listeners
+ */
+function initDecelZoneListeners() {
+  // Decel zone presets
+  document.querySelectorAll('[data-decel-zone]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const value = this.getAttribute('data-decel-zone');
+      document.getElementById('decelZoneMM').value = value;
+      
+      // Update active state
+      document.querySelectorAll('[data-decel-zone]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      
+      sendDecelConfig();
+      drawDecelPreview();
+    });
+  });
+  
+  // Decel zone start/end checkboxes
+  document.getElementById('decelZoneStart').addEventListener('change', function() {
+    sendDecelConfig();
+    drawDecelPreview();
+  });
+  
+  document.getElementById('decelZoneEnd').addEventListener('change', function() {
+    sendDecelConfig();
+    drawDecelPreview();
+  });
+  
+  // Zone size input
+  document.getElementById('decelZoneMM').addEventListener('input', function() {
+    sendDecelConfig();
+    drawDecelPreview();
+  });
+  
+  // Effect percent slider
+  document.getElementById('decelEffectPercent').addEventListener('input', function() {
+    document.getElementById('effectValue').textContent = this.value + '%';
+    sendDecelConfig();
+    drawDecelPreview();
+  });
+  
+  // Deceleration mode select dropdown
+  document.getElementById('decelModeSelect').addEventListener('change', function() {
+    sendDecelConfig();
+    drawDecelPreview();
+  });
 }
