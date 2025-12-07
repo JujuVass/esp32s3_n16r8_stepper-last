@@ -6,24 +6,29 @@
   <title>Stepper Controller</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
 
-    <!-- Preload JS modules for faster loading -->
-  <link rel="preload" href="/js/milestones.js" as="script">
-  <link rel="preload" href="/js/app.js" as="script">
-  <link rel="preload" href="/js/utils.js" as="script">
-  <link rel="preload" href="/js/DOMManager.js" as="script">
-  <link rel="preload" href="/js/websocket.js" as="script">
-  <link rel="preload" href="/js/StatsController.js" as="script">
-  <link rel="preload" href="/js/ToolsController.js" as="script">
-  <link rel="preload" href="/js/PlaylistUtils.js" as="script">
-  <link rel="preload" href="/js/PlaylistController.js" as="script">
-  <link rel="preload" href="/js/SimpleUtils.js" as="script">
-  <link rel="preload" href="/js/SimpleController.js" as="script">
-  <link rel="preload" href="/js/PursuitController.js" as="script">
-  <link rel="preload" href="/js/OscillationController.js" as="script">
-  <link rel="preload" href="/js/ChaosController.js" as="script">
-  <link rel="preload" href="/js/SequenceUtils.js" as="script">
-  <link rel="preload" href="/js/SequenceController.js" as="script">
-  <link rel="preload" href="/js/UIController.js" as="script">
+  <!-- Preload JS modules for faster loading -->
+  <!-- Core -->
+  <link rel="preload" href="/js/ui/milestones.js" as="script">
+  <link rel="preload" href="/js/core/app.js" as="script">
+  <link rel="preload" href="/js/core/utils.js" as="script">
+  <link rel="preload" href="/js/core/DOMManager.js" as="script">
+  <link rel="preload" href="/js/core/websocket.js" as="script">
+  <!-- UI -->
+  <link rel="preload" href="/js/ui/StatsController.js" as="script">
+  <link rel="preload" href="/js/ui/ToolsController.js" as="script">
+  <link rel="preload" href="/js/ui/UIController.js" as="script">
+  <!-- Utils -->
+  <link rel="preload" href="/js/utils/PlaylistUtils.js" as="script">
+  <link rel="preload" href="/js/utils/SimpleUtils.js" as="script">
+  <link rel="preload" href="/js/utils/SequenceUtils.js" as="script">
+  <!-- Controllers -->
+  <link rel="preload" href="/js/controllers/PlaylistController.js" as="script">
+  <link rel="preload" href="/js/controllers/SimpleController.js" as="script">
+  <link rel="preload" href="/js/controllers/PursuitController.js" as="script">
+  <link rel="preload" href="/js/controllers/OscillationController.js" as="script">
+  <link rel="preload" href="/js/controllers/ChaosController.js" as="script">
+  <link rel="preload" href="/js/controllers/SequenceController.js" as="script">
+  <!-- Main -->
   <link rel="preload" href="/js/main.js" as="script">
 
   <link rel="stylesheet" href="/css/styles.css">
@@ -1735,23 +1740,28 @@
   </div>
 
   <!-- External JavaScript Modules -->
-  <script src="/js/milestones.js"></script>  <!-- Must load BEFORE app.js -->
-  <script src="/js/app.js"></script>
-  <script src="/js/utils.js"></script>
-  <script src="/js/DOMManager.js"></script>  <!-- Must load BEFORE main.js -->
-  <script src="/js/websocket.js"></script>   <!-- WebSocket connection & handlers -->
-  <script src="/js/StatsController.js"></script>  <!-- Stats panel, display & charts -->
-  <script src="/js/ToolsController.js"></script>  <!-- Common tools (calib, logs, sys) -->
-  <script src="/js/PlaylistUtils.js"></script>  <!-- Playlist utility functions (names, tooltips) -->
-  <script src="/js/PlaylistController.js"></script>  <!-- Playlist management for all modes -->
-  <script src="/js/SimpleUtils.js"></script>  <!-- Simple mode utilities (decel preview) -->
-  <script src="/js/SimpleController.js"></script>  <!-- Simple mode control -->
-  <script src="/js/PursuitController.js"></script>  <!-- Pursuit mode gauge control -->
-  <script src="/js/OscillationController.js"></script>  <!-- Oscillation mode control -->
-  <script src="/js/ChaosController.js"></script>    <!-- Chaos mode control -->
-  <script src="/js/SequenceUtils.js"></script>  <!-- Sequence display utilities -->
-  <script src="/js/SequenceController.js"></script>  <!-- Sequence table management -->
-  <script src="/js/UIController.js"></script>  <!-- Tab navigation & modals -->
+  <!-- Core (load first) -->
+  <script src="/js/ui/milestones.js"></script>  <!-- Must load BEFORE app.js -->
+  <script src="/js/core/app.js"></script>
+  <script src="/js/core/utils.js"></script>
+  <script src="/js/core/DOMManager.js"></script>  <!-- Must load BEFORE main.js -->
+  <script src="/js/core/websocket.js"></script>   <!-- WebSocket connection & handlers -->
+  <!-- UI -->
+  <script src="/js/ui/StatsController.js"></script>  <!-- Stats panel, display & charts -->
+  <script src="/js/ui/ToolsController.js"></script>  <!-- Common tools (calib, logs, sys) -->
+  <script src="/js/ui/UIController.js"></script>  <!-- Tab navigation & modals -->
+  <!-- Utils (load before controllers) -->
+  <script src="/js/utils/PlaylistUtils.js"></script>  <!-- Playlist utility functions (names, tooltips) -->
+  <script src="/js/utils/SimpleUtils.js"></script>  <!-- Simple mode utilities (decel preview) -->
+  <script src="/js/utils/SequenceUtils.js"></script>  <!-- Sequence display utilities -->
+  <!-- Controllers -->
+  <script src="/js/controllers/PlaylistController.js"></script>  <!-- Playlist management for all modes -->
+  <script src="/js/controllers/SimpleController.js"></script>  <!-- Simple mode control -->
+  <script src="/js/controllers/PursuitController.js"></script>  <!-- Pursuit mode gauge control -->
+  <script src="/js/controllers/OscillationController.js"></script>  <!-- Oscillation mode control -->
+  <script src="/js/controllers/ChaosController.js"></script>    <!-- Chaos mode control -->
+  <script src="/js/controllers/SequenceController.js"></script>  <!-- Sequence table management -->
+  <!-- Main (load last) -->
   <script src="/js/main.js"></script>
 
 </body>
