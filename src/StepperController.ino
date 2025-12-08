@@ -380,6 +380,10 @@ void loop() {
   // OTA UPDATE HANDLER (Must be called in every loop iteration)
   Network.handleOTA();
   
+  // WiFi CONNECTION HEALTH CHECK (mDNS re-announce after reconnection)
+  // Ensures esp32-stepper.local stays responsive
+  Network.checkConnectionHealth();
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // INITIAL CALIBRATION (with delay for web interface access)
   // ═══════════════════════════════════════════════════════════════════════════

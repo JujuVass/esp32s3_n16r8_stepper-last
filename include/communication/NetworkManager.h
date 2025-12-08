@@ -76,6 +76,12 @@ public:
      * Handle Captive Portal DNS in loop - MUST be called in AP mode
      */
     void handleCaptivePortal();
+    
+    /**
+     * Check WiFi connection health and re-announce mDNS if needed
+     * Call this periodically in loop() to maintain stable mDNS
+     */
+    void checkConnectionHealth();
 
 private:
     NetworkManager() = default;
@@ -97,6 +103,10 @@ private:
     // State
     bool _apMode = false;
     bool _otaConfigured = false;
+    bool _wasConnected = false;              // Track connection state for mDNS re-announce
+    unsigned long _lastHealthCheck = 0;      // Last health check timestamp
+    unsigned long _lastReconnectAttempt = 0; // Last WiFi reconnect attempt timestamp
+    uint8_t _reconnectAttempts = 0;          // Count of consecutive reconnect attempts
     
     // Captive Portal DNS server
     DNSServer _dnsServer;

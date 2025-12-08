@@ -78,6 +78,9 @@ void NetworkManager::startAPMode() {
     String apName = String(otaHostname) + "-AP";
     WiFi.softAP(apName.c_str());  // Open network, channel 1, max 4 clients
     
+    // Disable WiFi power saving in AP mode too
+    WiFi.setSleep(WIFI_PS_NONE);
+    
     // Start Captive Portal DNS server
     // This makes all DNS queries return our IP, triggering auto-open on mobile/Windows
     _dnsServer.start(53, "*", WiFi.softAPIP());
@@ -89,6 +92,7 @@ void NetworkManager::startAPMode() {
     engine->info("   Network: " + apName);
     engine->info("   IP: " + WiFi.softAPIP().toString());
     engine->info("   📱 Captive Portal active - auto-opens on connect!");
+    engine->info("   ⚡ Power save: DISABLED");
     engine->info("═══════════════════════════════════════════════════════");
 }
 
@@ -162,6 +166,11 @@ bool NetworkManager::startSTAMode() {
     engine->info("   Hostname: http://" + String(otaHostname) + ".local");
     engine->info("═══════════════════════════════════════════════════════");
     
+    // Disable WiFi power saving - keep ESP32 always responsive
+    // Without this, mDNS/WebSocket can have 100-300ms latency spikes
+    WiFi.setSleep(WIFI_PS_NONE);
+    engine->info("⚡ WiFi power save: DISABLED (always active)");
+    
     // Setup additional services
     setupMDNS();
     setupNTP();
@@ -200,7 +209,16 @@ String NetworkManager::getIPAddress() const {
 bool NetworkManager::setupMDNS() {
     if (MDNS.begin(otaHostname)) {
         engine->info("✅ mDNS: http://" + String(otaHostname) + ".local");
-        MDNS.addService("http", "tcp", 80);
+        
+        // Add services for discovery
+        MDNS.addService("http", "tcp", 80);        // Web server
+        MDNS.addService("ws", "tcp", 81);          // WebSocket
+        MDNS.addService("arduino", "tcp", 3232);   // OTA service (standard Arduino port)
+        
+        // Add TXT record with device info for better discovery
+        MDNS.addServiceTxt("http", "tcp", "board", "ESP32-S3");
+        MDNS.addServiceTxt("http", "tcp", "path", "/");
+        
         return true;
     }
     engine->error("❌ mDNS failed to start");
@@ -279,6 +297,70 @@ bool NetworkManager::begin() {
         startAPMode();
         return false;  // AP mode = not connected to home WiFi
     } else {
-        return startSTAMode();  // Returns true if connected
+        bool connected = startSTAMode();  // Returns true if connected
+        _wasConnected = connected;
+        return connected;
     }
+}
+
+// ============================================================================
+// CONNECTION HEALTH CHECK (STA mode)
+// - Auto-reconnect WiFi if connection lost
+// - Re-announces mDNS after WiFi reconnection for stable .local resolution
+// ============================================================================
+
+void NetworkManager::checkConnectionHealth() {
+    // Only in STA mode
+    if (_apMode) return;
+    
+    // Rate limit to once per second
+    unsigned long now = millis();
+    if (now - _lastHealthCheck < 1000) return;
+    _lastHealthCheck = now;
+    
+    bool currentlyConnected = (WiFi.status() == WL_CONNECTED);
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // CASE 1: Lost connection → Attempt auto-reconnect
+    // ═══════════════════════════════════════════════════════════════════════
+    if (!currentlyConnected && _wasConnected) {
+        engine->warn("⚠️ WiFi connection lost!");
+        _reconnectAttempts = 0;
+    }
+    
+    if (!currentlyConnected) {
+        // Attempt reconnect every WIFI_RECONNECT_INTERVAL_MS (5s default)
+        if (now - _lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL_MS) {
+            _lastReconnectAttempt = now;
+            _reconnectAttempts++;
+            
+            if (_reconnectAttempts <= 10) {
+                engine->info("🔄 WiFi reconnect attempt " + String(_reconnectAttempts) + "/10...");
+                WiFi.reconnect();
+            } else if (_reconnectAttempts == 11) {
+                // After 10 failed attempts (~50s), log once and keep trying silently
+                engine->warn("⚠️ WiFi reconnect failed 10 times, continuing in background...");
+            }
+            // Keep trying indefinitely but silently after 10 attempts
+            if (_reconnectAttempts > 10) {
+                WiFi.reconnect();
+            }
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // CASE 2: Reconnected → Re-announce mDNS
+    // ═══════════════════════════════════════════════════════════════════════
+    if (currentlyConnected && !_wasConnected) {
+        engine->info("✅ WiFi reconnected! IP: " + WiFi.localIP().toString());
+        engine->info("🔄 Re-announcing mDNS...");
+        _reconnectAttempts = 0;
+        
+        // Re-initialize mDNS after reconnection
+        MDNS.end();
+        delay(50);
+        setupMDNS();
+    }
+    
+    _wasConnected = currentlyConnected;
 }
