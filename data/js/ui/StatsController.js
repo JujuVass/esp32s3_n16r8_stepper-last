@@ -673,6 +673,9 @@ function updateMilestones(totalTraveledMM) {
 // STATS RECORDING TOGGLE
 // ============================================================================
 
+// Flag to prevent status updates from overwriting user input
+let isEditingStatsRecording = false;
+
 /**
  * Toggle stats recording on/off (persisted to EEPROM)
  */
@@ -683,6 +686,9 @@ function toggleStatsRecording() {
   const enabled = checkbox.checked;
   console.log(`📊 Stats recording toggle: ${enabled ? 'ENABLED' : 'DISABLED'}`);
   
+  // Set flag to prevent status updates from reverting the checkbox
+  isEditingStatsRecording = true;
+  
   // Send command via WebSocket
   if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
     AppState.ws.send(JSON.stringify({
@@ -690,6 +696,11 @@ function toggleStatsRecording() {
       enabled: enabled
     }));
   }
+  
+  // Clear flag after server has time to process and send updated status
+  setTimeout(() => {
+    isEditingStatsRecording = false;
+  }, 500);
 }
 
 /**
@@ -697,6 +708,9 @@ function toggleStatsRecording() {
  * @param {boolean} enabled - Current recording state from ESP32
  */
 function updateStatsRecordingUI(enabled) {
+  // Don't update if user is currently editing
+  if (isEditingStatsRecording) return;
+  
   const checkbox = document.getElementById('statsRecordingEnabled');
   const warning = document.getElementById('statsRecordingWarning');
   
