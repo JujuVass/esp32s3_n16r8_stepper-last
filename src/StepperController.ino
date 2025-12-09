@@ -12,41 +12,31 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
-#include <ArduinoJson.h>
-#include <LittleFS.h>
-#include <ArduinoOTA.h>  // OTA (Over-The-Air) updates
-#include <ESPmDNS.h>     // mDNS for local domain name (esp32-stepper.local)
-#include <functional>     // For std::function (recursive directory listing)
 
 // ============================================================================
-// PROJECT CONFIGURATION HEADERS
+// PROJECT HEADERS
 // ============================================================================
-// Core (config, types, utilities)
-#include "core/Config.h"            // WiFi, OTA, GPIO, Hardware, Timing constants
-#include "core/Types.h"             // Data structures and enums
-#include "core/GlobalState.h"       // Global state declarations
-#include "core/UtilityEngine.h"     // Unified logging, WebSocket, LittleFS manager
-#include "core/Validators.h"        // Parameter validation functions
+#include "core/Config.h"
+#include "core/Types.h"
+#include "core/GlobalState.h"
+#include "core/UtilityEngine.h"
 
-// Hardware abstraction layer
-#include "hardware/MotorDriver.h"    // Motor control (Motor.step(), Motor.enable()...)
-#include "hardware/ContactSensors.h" // Contact sensors (Contacts.isStartContactActive()...)
+#include "hardware/MotorDriver.h"
+#include "hardware/ContactSensors.h"
 
-// Communication layer
-#include "communication/CommandDispatcher.h" // WebSocket command routing
-#include "communication/StatusBroadcaster.h" // Status broadcasting (Status.send()...)
-#include "communication/NetworkManager.h"    // WiFi, OTA, mDNS, NTP (Network.begin()...)
-#include "communication/APIRoutes.h"         // HTTP API routes
-#include "communication/FilesystemManager.h" // Filesystem REST API
+#include "communication/CommandDispatcher.h"
+#include "communication/StatusBroadcaster.h"
+#include "communication/NetworkManager.h"
+#include "communication/APIRoutes.h"
+#include "communication/FilesystemManager.h"
 
-// Movement controllers
-#include "movement/ChaosController.h"        // Chaos mode (Chaos.start(), Chaos.process()...)
-#include "movement/OscillationController.h"  // Oscillation mode (Osc.start(), Osc.process()...)
-#include "movement/PursuitController.h"      // Pursuit mode (Pursuit.move(), Pursuit.process()...)
-#include "movement/BaseMovementController.h" // Base movement + decel zone
-#include "movement/CalibrationManager.h"     // Calibration (Calibration.startCalibration()...)
-#include "movement/SequenceTableManager.h"   // Sequence table CRUD operations
-#include "movement/SequenceExecutor.h"       // Sequence execution (SeqExecutor.start()...)
+#include "movement/ChaosController.h"
+#include "movement/OscillationController.h"
+#include "movement/PursuitController.h"
+#include "movement/BaseMovementController.h"
+#include "movement/CalibrationManager.h"
+#include "movement/SequenceTableManager.h"
+#include "movement/SequenceExecutor.h"
 
 // ============================================================================
 // LOGGING - Use engine->info(), engine->error(), engine->warn(), engine->debug()
