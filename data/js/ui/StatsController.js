@@ -684,8 +684,8 @@ function toggleStatsRecording() {
   console.log(`📊 Stats recording toggle: ${enabled ? 'ENABLED' : 'DISABLED'}`);
   
   // Send command via WebSocket
-  if (AppState.connection.ws && AppState.connection.ws.readyState === WebSocket.OPEN) {
-    AppState.connection.ws.send(JSON.stringify({
+  if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+    AppState.ws.send(JSON.stringify({
       command: 'setStatsRecording',
       enabled: enabled
     }));

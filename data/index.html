@@ -287,7 +287,7 @@
       <!-- Row 4: Distance + Progress Bar (colonnes fixes) -->
       <div style="padding:6px 15px; font-size:13px; display:grid; grid-template-columns: 280px 1fr 50px; gap:10px; align-items:center; border-bottom:1px solid #f0f0f0;">
         <div style="white-space:nowrap;">
-          📊 <strong>Distance:</strong> <span id="milestoneIcon" style="font-size: 20px; margin-left: 8px; cursor: help; display: inline-block; transition: transform 0.3s;" title=""></span> <span id="totalTraveled">0.000 m</span> <button class="btn-icon" id="btnResetDistanceCommon" title="Réinitialiser distance" style="padding:2px 6px; font-size:13px; background:transparent; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-left:4px;">↻</button>
+          📊 <strong>Distance:</strong> <span id="statsRecordingWarning" style="display: none; color: #FF9800; cursor: help; margin-left: 4px;" title="⚠️ Enregistrement des stats désactivé (mode dev)">⚠️</span> <span id="milestoneIcon" style="font-size: 20px; margin-left: 8px; cursor: help; display: inline-block; transition: transform 0.3s;" title=""></span> <span id="totalTraveled">0.000 m</span> <button class="btn-icon" id="btnResetDistanceCommon" title="Réinitialiser distance" style="padding:2px 6px; font-size:13px; background:transparent; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-left:4px;">↻</button>
           
         </div>
         <div style="height:8px; background:#e0e0e0; border-radius:4px; overflow:hidden;">
@@ -350,7 +350,6 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #4CAF50; padding-bottom: 8px;">
         <h3 style="margin: 0; color: #4CAF50; font-size: 18px;">
           📊 Statistiques
-          <span id="statsRecordingWarning" style="display: none; color: #FF9800; cursor: help;" title="⚠️ Enregistrement des stats désactivé (mode dev)">⚠️</span>
         </h3>
         <button id="btnCloseStats" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">✕</button>
       </div>
@@ -393,9 +392,9 @@
         <button id="btnClearStats" class="button btn-danger" style="padding: 8px 20px; font-size: 13px;">
           🗑️ Effacer tout
         </button>
-        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 12px; background: #f5f5f5; border-radius: 5px; border: 1px solid #ddd;" title="Désactiver pour ignorer les stats en mode dev">
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 12px; background: #f5f5f5; border-radius: 5px; border: 1px solid #ddd;" title="Désactiver pour ignorer les enregistrements des stats">
           <input type="checkbox" id="statsRecordingEnabled" checked style="width: 16px; height: 16px; cursor: pointer;">
-          <span style="font-size: 12px; color: #666;">Comptabiliser</span>
+          <span style="font-size: 12px; color: #666;">Activer sauvegarde</span>
         </label>
       </div>
       
