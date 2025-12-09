@@ -8,10 +8,11 @@
 #include <EEPROM.h>
 #include <math.h>
 
-// EEPROM addresses for logging preferences
-#define EEPROM_SIZE 128   // Increased: 0-1 for logging, 2-100 for WiFi config
+// EEPROM addresses for preferences
+#define EEPROM_SIZE 128   // Increased: 0-2 for logging/stats, 3-100 for WiFi config
 #define EEPROM_ADDR_LOGGING_ENABLED 0
 #define EEPROM_ADDR_LOG_LEVEL 1
+#define EEPROM_ADDR_STATS_ENABLED 2  // Stats recording enabled (1=enabled, 0=disabled)
 
 // NOTE: isPaused removed - use config.isPaused instead (Phase 4D cleanup)
 // NOTE: currentState moved to SystemConfig struct - accessed via config.currentState
@@ -948,11 +949,36 @@ void UtilityEngine::loadLoggingPreferences() {
     Serial.print(", Level: ");
     Serial.println(getLevelPrefix(currentLogLevel));
   }
+  
+  // Load stats recording preference
+  uint8_t statsByte = EEPROM.read(EEPROM_ADDR_STATS_ENABLED);
+  if (statsByte == 0xFF) {
+    // First boot: enable stats by default
+    statsRecordingEnabled = true;
+    EEPROM.write(EEPROM_ADDR_STATS_ENABLED, 1);
+    EEPROM.commit();
+    Serial.println("[UtilityEngine] 🔧 First boot: stats recording enabled by default");
+  } else {
+    statsRecordingEnabled = (statsByte == 1);
+    Serial.print("[UtilityEngine] 📂 Stats recording: ");
+    Serial.println(statsRecordingEnabled ? "ENABLED" : "DISABLED");
+  }
 }
 
 // ============================================================================
-// STATISTICS MANAGEMENT
+// STATS RECORDING PREFERENCE
 // ============================================================================
+
+/**
+ * Enable/disable stats recording (saved in EEPROM)
+ */
+void UtilityEngine::setStatsRecordingEnabled(bool enabled) {
+  statsRecordingEnabled = enabled;
+  EEPROM.write(EEPROM_ADDR_STATS_ENABLED, enabled ? 1 : 0);
+  EEPROM.commit();
+  
+  info(String("📊 Stats recording: ") + (enabled ? "ENABLED" : "DISABLED") + " (saved to EEPROM)");
+}
 
 /**
  * Increment daily statistics with distance traveled
@@ -960,6 +986,12 @@ void UtilityEngine::loadLoggingPreferences() {
  */
 void UtilityEngine::incrementDailyStats(float distanceMM) {
   if (distanceMM <= 0) return;
+  
+  // Check if stats recording is disabled
+  if (!statsRecordingEnabled) {
+    debug("📊 Stats recording disabled - skipping save");
+    return;
+  }
   
   // Get current date (YYYY-MM-DD format)
   time_t now = time(nullptr);

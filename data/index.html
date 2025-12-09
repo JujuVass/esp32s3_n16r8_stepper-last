@@ -348,7 +348,10 @@
     <!-- Statistics Panel -->
     <div id="statsPanel" style="display: none; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #4CAF50; padding-bottom: 8px;">
-        <h3 style="margin: 0; color: #4CAF50; font-size: 18px;">📊 Statistiques</h3>
+        <h3 style="margin: 0; color: #4CAF50; font-size: 18px;">
+          📊 Statistiques
+          <span id="statsRecordingWarning" style="display: none; color: #FF9800; cursor: help;" title="⚠️ Enregistrement des stats désactivé (mode dev)">⚠️</span>
+        </h3>
         <button id="btnCloseStats" style="background: #f44336; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;">✕</button>
       </div>
 
@@ -380,7 +383,7 @@
       </div>
 
       <!-- Stats Action Buttons -->
-      <div style="margin-bottom: 20px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+      <div style="margin-bottom: 20px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center;">
         <button id="btnExportStats" class="button" style="padding: 8px 20px; font-size: 13px; background: #4CAF50; color: white;">
           📥 Exporter
         </button>
@@ -390,6 +393,10 @@
         <button id="btnClearStats" class="button btn-danger" style="padding: 8px 20px; font-size: 13px;">
           🗑️ Effacer tout
         </button>
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 12px; background: #f5f5f5; border-radius: 5px; border: 1px solid #ddd;" title="Désactiver pour le mode développement">
+          <input type="checkbox" id="chkStatsRecording" checked style="width: 16px; height: 16px; cursor: pointer;">
+          <span style="font-size: 12px; color: #666;">Enregistrer</span>
+        </label>
       </div>
       
       <!-- Hidden file input for import -->

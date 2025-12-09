@@ -444,6 +444,11 @@
       if (data.system) {
         updateSystemStats(data.system);
       }
+      
+      // Update stats recording UI (delegated to StatsController.js)
+      if (data.statsRecordingEnabled !== undefined) {
+        updateStatsRecordingUI(data.statsRecordingEnabled);
+      }
     }
     
     // ============================================================================

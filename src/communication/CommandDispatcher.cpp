@@ -180,6 +180,13 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
         return true;
     }
     
+    if (strcmp(cmd, "setStatsRecording") == 0) {
+        bool enabled = doc["enabled"] | true;
+        engine->setStatsRecordingEnabled(enabled);
+        sendStatus();  // Update UI with new state
+        return true;
+    }
+    
     if (strcmp(cmd, "setMaxDistanceLimit") == 0) {
         float percent = doc["percent"] | 100.0;
         

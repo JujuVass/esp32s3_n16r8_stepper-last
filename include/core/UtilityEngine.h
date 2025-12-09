@@ -436,6 +436,19 @@ public:
    */
   float getTodayDistance();
   
+  /**
+   * Enable/disable stats recording (saved in EEPROM)
+   * When disabled, incrementDailyStats() does nothing
+   * @param enabled true to enable recording, false to disable
+   */
+  void setStatsRecordingEnabled(bool enabled);
+  
+  /**
+   * Check if stats recording is enabled
+   * @return true if stats are being recorded
+   */
+  bool isStatsRecordingEnabled() const { return statsRecordingEnabled; }
+  
   // ========================================================================
   // UTILITY METHODS
   // ========================================================================
@@ -505,6 +518,7 @@ private:
   // Logging state
   LogLevel currentLogLevel;
   bool loggingEnabled;  // Master switch for all logging
+  bool statsRecordingEnabled;  // Stats recording enabled (saved in EEPROM)
   LogEntry logBuffer[LOG_BUFFER_SIZE];
   int logBufferWriteIndex;
   unsigned long lastLogFlush;

@@ -670,6 +670,46 @@ function updateMilestones(totalTraveledMM) {
 }
 
 // ============================================================================
+// STATS RECORDING TOGGLE
+// ============================================================================
+
+/**
+ * Toggle stats recording on/off (persisted to EEPROM)
+ */
+function toggleStatsRecording() {
+  const checkbox = document.getElementById('statsRecordingEnabled');
+  if (!checkbox) return;
+  
+  const enabled = checkbox.checked;
+  console.log(`📊 Stats recording toggle: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  
+  // Send command via WebSocket
+  if (AppState.connection.ws && AppState.connection.ws.readyState === WebSocket.OPEN) {
+    AppState.connection.ws.send(JSON.stringify({
+      command: 'setStatsRecording',
+      enable: enabled
+    }));
+  }
+}
+
+/**
+ * Update stats recording UI from status
+ * @param {boolean} enabled - Current recording state from ESP32
+ */
+function updateStatsRecordingUI(enabled) {
+  const checkbox = document.getElementById('statsRecordingEnabled');
+  const warning = document.getElementById('statsRecordingWarning');
+  
+  if (checkbox) {
+    checkbox.checked = enabled;
+  }
+  
+  if (warning) {
+    warning.classList.toggle('hidden', enabled);
+  }
+}
+
+// ============================================================================
 // INITIALIZE STATS LISTENERS
 // ============================================================================
 
@@ -686,6 +726,12 @@ function initStatsListeners() {
   document.getElementById('btnExportStats').addEventListener('click', exportStats);
   document.getElementById('btnImportStats').addEventListener('click', triggerStatsImport);
   document.getElementById('statsFileInput').addEventListener('change', handleStatsFileImport);
+  
+  // Stats recording toggle
+  const statsRecordingCheckbox = document.getElementById('statsRecordingEnabled');
+  if (statsRecordingCheckbox) {
+    statsRecordingCheckbox.addEventListener('change', toggleStatsRecording);
+  }
   
   console.log('✅ Stats listeners initialized');
 }

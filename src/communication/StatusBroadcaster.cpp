@@ -94,6 +94,7 @@ void StatusBroadcaster::send() {
     doc["executionContext"] = (int)config.executionContext;
     doc["operationMode"] = (int)currentMovement;  // Legacy
     doc["pursuitActive"] = pursuit.isMoving;
+    doc["statsRecordingEnabled"] = engine->isStatsRecordingEnabled();  // Stats recording preference
     
     // ============================================================================
     // MODE-SPECIFIC FIELDS
