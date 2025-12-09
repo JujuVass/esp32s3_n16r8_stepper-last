@@ -461,6 +461,12 @@ public:
    */
   void resetTotalDistance();
   
+  /**
+   * Update effective max distance based on limit percent
+   * effectiveMaxDistanceMM = totalDistanceMM * (maxDistanceLimitPercent / 100)
+   */
+  void updateEffectiveMaxDistance();
+  
   // ========================================================================
   // UTILITY METHODS
   // ========================================================================

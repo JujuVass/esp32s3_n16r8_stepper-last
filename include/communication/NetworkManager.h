@@ -82,6 +82,11 @@ public:
      * Call this periodically in loop() to maintain stable mDNS
      */
     void checkConnectionHealth();
+    
+    /**
+     * AP Mode LED blink control (can be disabled after successful config)
+     */
+    volatile bool apLedBlinkEnabled = true;
 
 private:
     NetworkManager() = default;

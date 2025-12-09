@@ -66,9 +66,6 @@ void setRgbLed(uint8_t r, uint8_t g, uint8_t b) {
   neopixelWrite(PIN_RGB_LED, r, g, b);
 }
 
-// LED blink control for AP mode (can be disabled after successful config)
-volatile bool apLedBlinkEnabled = true;
-
 // ============================================================================
 // NOTE: Hardware configuration moved to Config.h
 // NOTE: Type definitions (structs, enums) moved to Types.h
@@ -78,8 +75,7 @@ volatile bool apLedBlinkEnabled = true;
 // ============================================================================
 // HELPER FUNCTIONS FOR DEBUGGING (Forward declarations)
 // ============================================================================
-const char* movementTypeName(int type);  // Forward declaration
-const char* executionContextName(ExecutionContext ctx);  // Forward declaration
+const char* executionContextName(ExecutionContext ctx);  // Used by ChaosController
 
 // ============================================================================
 // GLOBAL STATE DEFINITIONS (extern declarations in GlobalState.h)
@@ -126,17 +122,6 @@ unsigned long lastStatsRequestTime = 0;
 // ============================================================================
 // DEBUG HELPERS
 // ============================================================================
-const char* movementTypeName(int type) {
-  switch((MovementType)type) {
-    case MOVEMENT_VAET: return "VAET";
-    case MOVEMENT_OSC: return "OSC";
-    case MOVEMENT_CHAOS: return "CHAOS";
-    case MOVEMENT_PURSUIT: return "PURSUIT";
-    case MOVEMENT_CALIBRATION: return "CALIBRATION";
-    default: return "UNKNOWN";
-  }
-}
-
 const char* executionContextName(ExecutionContext ctx) {
   switch(ctx) {
     case CONTEXT_STANDALONE: return "STANDALONE";
@@ -173,37 +158,6 @@ FilesystemManager filesystemManager(server);
 
 // Core functions (defined below in this file)
 void sendStatus();
-
-// ============================================================================
-// UTILITY HELPERS
-// ============================================================================
-/**
- * Convert boolean to JSON string literal
- * Replaces 100+ occurrences of '? "true" : "false"' pattern
- * 
- * @param value Boolean value to convert
- * @return "true" or "false" as const char* (no String allocation)
- */
-inline const char* boolToJson(bool value) {
-  return value ? "true" : "false";
-}
-
-// NOTE: readContactDebounced() removed - use Contacts.readDebounced() directly
-
-/**
- * Service WebSocket and HTTP server for specified duration (non-blocking delay)
- * Replaces repetitive while(millis() - start < duration) loops with yield/loop pattern
- * 
- * @param durationMs Duration in milliseconds to keep servicing
- */
-void serviceWebSocketFor(unsigned long durationMs) {
-  unsigned long start = millis();
-  while (millis() - start < durationMs) {
-    yield();
-    webSocket.loop();
-    server.handleClient();
-  }
-}
 
 // ============================================================================
 // VALIDATION HELPERS
@@ -354,7 +308,7 @@ void loop() {
     static unsigned long lastLedToggle = 0;
     static bool ledIsBlue = true;
     
-    if (apLedBlinkEnabled && millis() - lastLedToggle > 500) {
+    if (Network.apLedBlinkEnabled && millis() - lastLedToggle > 500) {
       lastLedToggle = millis();
       if (ledIsBlue) {
         setRgbLed(50, 0, 0);  // RED (dimmed)
@@ -503,23 +457,6 @@ void loop() {
 }
 
 // ============================================================================
-// EFFECTIVE MAX DISTANCE - Calculate usable distance based on limit percent
-// ============================================================================
-void updateEffectiveMaxDistance() {
-  effectiveMaxDistanceMM = config.totalDistanceMM * (maxDistanceLimitPercent / 100.0);
-  engine->debug(String("📏 Effective max distance: ") + String(effectiveMaxDistanceMM, 1) + 
-        " mm (" + String(maxDistanceLimitPercent, 0) + "% of " + 
-        String(config.totalDistanceMM, 1) + " mm)");
-}
-
-// ============================================================================
-// MOTOR CONTROL - Stepping delegated to controllers
-// - BaseMovement.process() for MOVEMENT_VAET
-// - Chaos.process() for MOVEMENT_CHAOS
-// - Osc.process() for MOVEMENT_OSC
-// ============================================================================
-
-// ============================================================================
 // STATUS BROADCASTING - Delegates to StatusBroadcaster module
 // ============================================================================
 
@@ -537,12 +474,4 @@ void sendStatus() {
 
 void stopMovement() {
   BaseMovement.stop();
-}
-
-void togglePause() {
-  BaseMovement.togglePause();
-}
-
-void returnToStart() {
-  BaseMovement.returnToStart();
 }

@@ -20,7 +20,6 @@ extern UtilityEngine* engine;
 
 // External LED control (defined in main .ino)
 extern void setRgbLed(uint8_t r, uint8_t g, uint8_t b);
-extern volatile bool apLedBlinkEnabled;
 
 // ============================================================================
 // MIME TYPE DETECTION
@@ -1088,7 +1087,7 @@ void setupAPIRoutes() {
     
     if (connected) {
       // LED GREEN = Success! Stop blinking
-      apLedBlinkEnabled = false;
+      Network.apLedBlinkEnabled = false;
       setRgbLed(0, 50, 0);
       
       // Save to EEPROM
@@ -1110,7 +1109,7 @@ void setupAPIRoutes() {
       // LED RED = Failed, resume blinking
       setRgbLed(50, 0, 0);
       delay(100);
-      apLedBlinkEnabled = true;
+      Network.apLedBlinkEnabled = true;
       
       server.send(200, "application/json", "{\"success\":false,\"error\":\"Connection failed. Check password.\"}");
       engine->warn("❌ WiFi test failed: " + ssid);

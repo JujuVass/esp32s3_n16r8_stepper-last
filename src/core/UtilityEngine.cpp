@@ -1021,6 +1021,16 @@ void UtilityEngine::resetTotalDistance() {
 }
 
 /**
+ * Update effective max distance based on limit percent
+ */
+void UtilityEngine::updateEffectiveMaxDistance() {
+  effectiveMaxDistanceMM = config.totalDistanceMM * (maxDistanceLimitPercent / 100.0);
+  debug(String("📏 Effective max distance: ") + String(effectiveMaxDistanceMM, 1) + 
+        " mm (" + String(maxDistanceLimitPercent, 0) + "% of " + 
+        String(config.totalDistanceMM, 1) + " mm)");
+}
+
+/**
  * Increment daily statistics with distance traveled
  * Saves to /stats.json as array of {date, distanceMM} objects
  */

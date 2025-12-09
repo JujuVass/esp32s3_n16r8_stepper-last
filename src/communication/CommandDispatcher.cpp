@@ -206,7 +206,7 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
         }
         
         maxDistanceLimitPercent = percent;
-        updateEffectiveMaxDistance();
+        engine->updateEffectiveMaxDistance();
         
         engine->info(String("✅ Limite course: ") + String(percent, 0) + "% (" + 
               String(effectiveMaxDistanceMM, 1) + " mm / " + 
