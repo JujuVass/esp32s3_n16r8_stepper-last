@@ -504,7 +504,7 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     
     Motor.setDirection(movingForward);
     
-    lastStepForDistance = currentStep;
+    stats.syncPosition(currentStep);
     lastStartContactMillis = 0;
     cycleTimeMillis = 0;
     measuredCyclesPerMinute = 0;

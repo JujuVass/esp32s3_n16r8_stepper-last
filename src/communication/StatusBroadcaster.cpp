@@ -62,7 +62,7 @@ void StatusBroadcaster::send() {
     
     // Calculate derived values
     float positionMM = currentStep / STEPS_PER_MM;
-    float totalTraveledMM = totalDistanceTraveled / STEPS_PER_MM;
+    float totalTraveledMM = stats.totalDistanceTraveled / STEPS_PER_MM;
     
     // Validation state - canStart controls UI visibility (tabs shown after calibration)
     bool canStart = (config.totalDistanceMM > 0);  // Show UI after calibration
@@ -72,7 +72,7 @@ void StatusBroadcaster::send() {
     }
     
     bool canCalibrate = (config.currentState == STATE_READY || 
-                         config.currentState == STATE_INIT || 
+                         config.currentState == STATE_INIT ||
                          config.currentState == STATE_ERROR);
     
     // Use ArduinoJson for efficient JSON construction

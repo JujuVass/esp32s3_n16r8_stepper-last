@@ -134,17 +134,11 @@ void PursuitControllerClass::process() {
     
     if (moveForward) {
         currentStep++;
-        if (currentStep > lastStepForDistance) {
-            totalDistanceTraveled += (currentStep - lastStepForDistance);
-            lastStepForDistance = currentStep;
-        }
     } else {
         currentStep--;
-        if (lastStepForDistance > currentStep) {
-            totalDistanceTraveled += (lastStepForDistance - currentStep);
-            lastStepForDistance = currentStep;
-        }
     }
+    // Track distance using StatsTracking
+    stats.trackDelta(currentStep);
 }
 
 void PursuitControllerClass::stop() {

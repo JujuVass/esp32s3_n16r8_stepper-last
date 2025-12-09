@@ -539,7 +539,7 @@ void BaseMovementControllerClass::start(float distMM, float speedLevel) {
     Motor.setDirection(movingForward);
     
     // Initialize distance tracking
-    lastStepForDistance = currentStep;
+    stats.syncPosition(currentStep);
     
     // Reset speed measurement
     resetCycleTiming();
@@ -821,9 +821,6 @@ void BaseMovementControllerClass::measureCycleTime() {
 }
 
 void BaseMovementControllerClass::trackDistance() {
-    long delta = abs(currentStep - lastStepForDistance);
-    if (delta > 0) {
-        totalDistanceTraveled += delta;
-        lastStepForDistance = currentStep;
-    }
+    // Use encapsulated StatsTracking method
+    stats.trackDelta(currentStep);
 }

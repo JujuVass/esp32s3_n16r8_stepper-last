@@ -113,10 +113,8 @@ unsigned long cycleTimeMillis = 0;
 float measuredCyclesPerMinute = 0;
 bool wasAtStart = false;
 
-// Statistics
-unsigned long totalDistanceTraveled = 0;
-unsigned long lastSavedDistance = 0;
-long lastStepForDistance = 0;
+// Statistics - encapsulated in StatsTracking struct
+StatsTracking stats;
 
 // Startup
 bool needsInitialCalibration = true;
@@ -494,7 +492,7 @@ void loop() {
     // Print summary every 60 seconds (avoid log spam)
     if (millis() - lastSummary > SUMMARY_LOG_INTERVAL_MS) {
       engine->debug("Status: " + String(cycleCounter) + " cycles | " + 
-            String(totalDistanceTraveled / 1000000.0, 2) + " km");
+            String(stats.totalDistanceTraveled / 1000000.0, 2) + " km");
       lastSummary = millis();
     }
   } else {
@@ -566,9 +564,8 @@ void resetTotalDistance() {
   // Save any unsaved distance before resetting
   saveCurrentSessionStats();
   
-  // Now reset counters
-  totalDistanceTraveled = 0;
-  lastSavedDistance = 0;  // Also reset last saved to prevent negative increment
+  // Now reset counters using StatsTracking method
+  stats.reset();
   engine->info("🔄 Total distance counter reset to 0");
 }
 
@@ -595,12 +592,12 @@ void sendStatus() {
  * - Mode change occurs
  * - WebSocket disconnects
  * 
- * Uses totalDistanceTraveled (global counter in steps)
+ * Uses stats.totalDistanceTraveled (encapsulated counter in steps)
  * IMPORTANT: Only saves the INCREMENT since last save to avoid double-counting
  */
 void saveCurrentSessionStats() {
   // Calculate distance increment since last save (in steps)
-  unsigned long incrementSteps = totalDistanceTraveled - lastSavedDistance;
+  unsigned long incrementSteps = stats.getIncrementSteps();
   
   // Convert to millimeters
   float incrementMM = incrementSteps / STEPS_PER_MM;
@@ -613,10 +610,10 @@ void saveCurrentSessionStats() {
   // Save increment to daily stats via UtilityEngine
   engine->incrementDailyStats(incrementMM);
   
-  engine->debug(String("💾 Session stats saved: +") + String(incrementMM, 1) + "mm (total session: " + String(totalDistanceTraveled / STEPS_PER_MM, 1) + "mm)");
+  engine->debug(String("💾 Session stats saved: +") + String(incrementMM, 1) + "mm (total session: " + String(stats.totalDistanceTraveled / STEPS_PER_MM, 1) + "mm)");
   
-  // Update last saved distance (but keep totalDistanceTraveled for UI display)
-  lastSavedDistance = totalDistanceTraveled;
+  // Mark as saved using StatsTracking method
+  stats.markSaved();
 }
 
 // ============================================================================

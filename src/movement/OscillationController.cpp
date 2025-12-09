@@ -570,18 +570,13 @@ bool OscillationControllerClass::handleInitialPositioning() {
     Motor.setDirection(moveForward);
     Motor.step();
     
+    // Track distance using StatsTracking
+    stats.trackDelta(currentStep);
+    
     if (moveForward) {
         currentStep++;
-        if (currentStep > lastStepForDistance) {
-            totalDistanceTraveled += (currentStep - lastStepForDistance);
-            lastStepForDistance = currentStep;
-        }
     } else {
         currentStep--;
-        if (lastStepForDistance > currentStep) {
-            totalDistanceTraveled += (lastStepForDistance - currentStep);
-            lastStepForDistance = currentStep;
-        }
     }
     
     lastStepMicros = currentMicros;
@@ -648,18 +643,10 @@ void OscillationControllerClass::executeSteps(long targetStep, bool isCatchUp) {
         Motor.step();
         if (moveForward) {
             currentStep++;
-            // Track distance traveled
-            if (currentStep > lastStepForDistance) {
-                totalDistanceTraveled += (currentStep - lastStepForDistance);
-                lastStepForDistance = currentStep;
-            }
         } else {
             currentStep--;
-            // Track distance traveled
-            if (lastStepForDistance > currentStep) {
-                totalDistanceTraveled += (lastStepForDistance - currentStep);
-                lastStepForDistance = currentStep;
-            }
         }
+        // Track distance traveled using StatsTracking
+        stats.trackDelta(currentStep);
     }
 }

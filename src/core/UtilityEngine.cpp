@@ -718,7 +718,7 @@ bool UtilityEngine::loadSystemConfig(SystemConfig& config, const String& configP
   config.startStep = doc["startStep"] | 0L;
   config.targetStep = doc["targetStep"] | 0L;
   config.hasReachedStartStep = doc["hasReachedStartStep"] | false;
-  config.lastStepForDistance = doc["lastStepForDistance"] | 0L;
+  // Note: lastStepForDistance now in global StatsTracking struct (not persisted)
   
   // ========================================================================
   // EXTRACT MOTION CONFIG
@@ -832,7 +832,7 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   doc["startStep"] = config.startStep;
   doc["targetStep"] = config.targetStep;
   doc["hasReachedStartStep"] = config.hasReachedStartStep;
-  doc["lastStepForDistance"] = config.lastStepForDistance;
+  // Note: lastStepForDistance now in global StatsTracking struct (not persisted)
   
   // ========================================================================
   // SAVE MOTION CONFIG

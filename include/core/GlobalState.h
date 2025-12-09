@@ -69,8 +69,7 @@ extern DecelZoneConfig decelZone;  // Owned by BaseMovementController.cpp
 // STATISTICS TRACKING
 // ============================================================================
 
-extern unsigned long totalDistanceTraveled;
-extern long lastStepForDistance;
+extern StatsTracking stats;  // Encapsulated distance tracking
 extern unsigned long lastStartContactMillis;
 extern unsigned long cycleTimeMillis;
 extern float measuredCyclesPerMinute;

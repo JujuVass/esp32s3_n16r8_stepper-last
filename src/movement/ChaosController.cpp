@@ -168,12 +168,8 @@ void ChaosController::doStep() {
         Motor.step();
         currentStep++;
         
-        // Track distance
-        long delta = abs(currentStep - lastStepForDistance);
-        if (delta > 0) {
-            totalDistanceTraveled += delta;
-            lastStepForDistance = currentStep;
-        }
+        // Track distance using StatsTracking
+        stats.trackDelta(currentStep);
         
     } else {
         // ═══════════════════════════════════════════════════════════════════
@@ -203,12 +199,8 @@ void ChaosController::doStep() {
         Motor.step();
         currentStep--;
         
-        // Track distance
-        long delta = abs(currentStep - lastStepForDistance);
-        if (delta > 0) {
-            totalDistanceTraveled += delta;
-            lastStepForDistance = currentStep;
-        }
+        // Track distance using StatsTracking
+        stats.trackDelta(currentStep);
     }
 }
 

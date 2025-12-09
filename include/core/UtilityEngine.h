@@ -99,7 +99,7 @@ struct SystemConfig {
   long startStep;                    // Start position for current move
   long targetStep;                   // Target position for current move
   bool hasReachedStartStep;          // Has reached startStep at least once
-  long lastStepForDistance;          // Last step for distance calculation
+  // Note: lastStepForDistance moved to global StatsTracking struct
   
   // ========================================================================
   // VA-ET-VIENT MODE
@@ -159,7 +159,6 @@ struct SystemConfig {
     startStep(0),
     targetStep(0),
     hasReachedStartStep(false),
-    lastStepForDistance(0),
     motion(),
     oscillation(),
     oscillationState(),

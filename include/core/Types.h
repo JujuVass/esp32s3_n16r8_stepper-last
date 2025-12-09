@@ -92,6 +92,54 @@ struct CyclePauseState {
 };
 
 // ============================================================================
+// STATS TRACKING - Distance tracking encapsulation
+// ============================================================================
+
+struct StatsTracking {
+  unsigned long totalDistanceTraveled;  // Total steps traveled (session)
+  unsigned long lastSavedDistance;      // Last saved value (for increment calc)
+  long lastStepForDistance;             // Last step position (for delta calc)
+  
+  StatsTracking() : 
+    totalDistanceTraveled(0),
+    lastSavedDistance(0),
+    lastStepForDistance(0) {}
+  
+  // Reset all counters
+  void reset() {
+    totalDistanceTraveled = 0;
+    lastSavedDistance = 0;
+  }
+  
+  // Add distance traveled (in steps)
+  void addDistance(long delta) {
+    if (delta > 0) totalDistanceTraveled += delta;
+  }
+  
+  // Get increment since last save (in steps)
+  unsigned long getIncrementSteps() const {
+    return totalDistanceTraveled - lastSavedDistance;
+  }
+  
+  // Mark current distance as saved
+  void markSaved() {
+    lastSavedDistance = totalDistanceTraveled;
+  }
+  
+  // Sync lastStepForDistance with current position
+  void syncPosition(long currentStep) {
+    lastStepForDistance = currentStep;
+  }
+  
+  // Track distance from last position to current
+  void trackDelta(long currentStep) {
+    long delta = abs(currentStep - lastStepForDistance);
+    addDistance(delta);
+    lastStepForDistance = currentStep;
+  }
+};
+
+// ============================================================================
 // VA-ET-VIENT STRUCTURES
 // ============================================================================
 
