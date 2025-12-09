@@ -11,10 +11,9 @@
  */
 
 #include "communication/CommandDispatcher.h"
-#include "communication/StatusBroadcaster.h"  // For Status.sendError()
+#include "communication/StatusBroadcaster.h"
 #include "core/UtilityEngine.h"
 #include "movement/CalibrationManager.h"
-#include "hardware/MotorDriver.h"
 #include "movement/SequenceTableManager.h"
 #include "movement/OscillationController.h"
 #include "movement/PursuitController.h"
