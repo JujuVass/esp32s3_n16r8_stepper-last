@@ -1030,6 +1030,12 @@ void ChaosController::process() {
 // ============================================================================
 
 void ChaosController::start() {
+    MutexGuard guard(stateMutex);
+    if (!guard) {
+        engine->warn("ChaosController::start: mutex timeout");
+        return;
+    }
+    
     if (config.currentState != STATE_READY && config.currentState != STATE_PAUSED) {
         engine->error("❌ Cannot start chaos: system not ready");
         return;
@@ -1134,6 +1140,12 @@ void ChaosController::start() {
 }
 
 void ChaosController::stop() {
+    MutexGuard guard(stateMutex);
+    if (!guard) {
+        engine->warn("ChaosController::stop: mutex timeout");
+        return;
+    }
+    
     if (!chaosState.isRunning) return;
     
     chaosState.isRunning = false;

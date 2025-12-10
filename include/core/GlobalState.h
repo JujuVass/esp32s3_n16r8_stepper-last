@@ -50,6 +50,51 @@ extern TaskHandle_t networkTaskHandle;
 extern SemaphoreHandle_t motionMutex;      // Protects: motion, pendingMotion, decelZone
 extern SemaphoreHandle_t stateMutex;       // Protects: config.currentState changes
 
+// ============================================================================
+// MUTEX HELPER FUNCTIONS (inline for performance)
+// ============================================================================
+// Usage: if (takeMotionMutex()) { ... giveMotionMutex(); }
+// Default timeout: 10ms (non-blocking for real-time motor task)
+
+inline bool takeMotionMutex(TickType_t timeout = pdMS_TO_TICKS(10)) {
+    if (motionMutex == NULL) return true;  // Not initialized yet
+    return xSemaphoreTake(motionMutex, timeout) == pdTRUE;
+}
+
+inline void giveMotionMutex() {
+    if (motionMutex != NULL) xSemaphoreGive(motionMutex);
+}
+
+inline bool takeStateMutex(TickType_t timeout = pdMS_TO_TICKS(10)) {
+    if (stateMutex == NULL) return true;  // Not initialized yet
+    return xSemaphoreTake(stateMutex, timeout) == pdTRUE;
+}
+
+inline void giveStateMutex() {
+    if (stateMutex != NULL) xSemaphoreGive(stateMutex);
+}
+
+// RAII-style mutex guard for automatic release (C++ scope-based)
+class MutexGuard {
+public:
+    MutexGuard(SemaphoreHandle_t mutex, TickType_t timeout = pdMS_TO_TICKS(10)) 
+        : _mutex(mutex), _locked(false) {
+        if (_mutex != NULL) {
+            _locked = (xSemaphoreTake(_mutex, timeout) == pdTRUE);
+        }
+    }
+    ~MutexGuard() {
+        if (_locked && _mutex != NULL) {
+            xSemaphoreGive(_mutex);
+        }
+    }
+    bool isLocked() const { return _locked; }
+    operator bool() const { return _locked; }
+private:
+    SemaphoreHandle_t _mutex;
+    bool _locked;
+};
+
 // Atomic flags (no mutex needed - set from Core 0, read from Core 1)
 extern volatile bool emergencyStop;
 extern volatile bool requestCalibration;   // Trigger calibration from motorTask

@@ -73,6 +73,12 @@ void OscillationControllerClass::begin() {
 // ============================================================================
 
 void OscillationControllerClass::start() {
+    MutexGuard guard(stateMutex);
+    if (!guard) {
+        engine->warn("OscillationController::start: mutex timeout");
+        return;
+    }
+    
     // Validate configuration
     String errorMsg;
     if (!validateAmplitude(oscillation.centerPositionMM, oscillation.amplitudeMM, errorMsg)) {

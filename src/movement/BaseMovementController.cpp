@@ -40,6 +40,12 @@ BaseMovementControllerClass::BaseMovementControllerClass()
 // ============================================================================
 
 void BaseMovementControllerClass::setDistance(float distMM) {
+    MutexGuard guard(motionMutex);
+    if (!guard) {
+        engine->warn("setDistance: mutex timeout");
+        return;
+    }
+    
     // Limit distance to valid range
     if (motion.startPositionMM + distMM > config.totalDistanceMM) {
         distMM = config.totalDistanceMM - motion.startPositionMM;
@@ -62,6 +68,12 @@ void BaseMovementControllerClass::setDistance(float distMM) {
 }
 
 void BaseMovementControllerClass::setStartPosition(float startMM) {
+    MutexGuard guard(motionMutex);
+    if (!guard) {
+        engine->warn("setStartPosition: mutex timeout");
+        return;
+    }
+    
     if (startMM < 0) startMM = 0;
     if (startMM > config.totalDistanceMM) {
         startMM = config.totalDistanceMM;
@@ -105,6 +117,12 @@ void BaseMovementControllerClass::setStartPosition(float startMM) {
 }
 
 void BaseMovementControllerClass::setSpeedForward(float speedLevel) {
+    MutexGuard guard(motionMutex);
+    if (!guard) {
+        engine->warn("setSpeedForward: mutex timeout");
+        return;
+    }
+    
     float oldSpeedLevel = motion.speedLevelForward;
     bool wasRunning = (config.currentState == STATE_RUNNING);
     
@@ -127,6 +145,12 @@ void BaseMovementControllerClass::setSpeedForward(float speedLevel) {
 }
 
 void BaseMovementControllerClass::setSpeedBackward(float speedLevel) {
+    MutexGuard guard(motionMutex);
+    if (!guard) {
+        engine->warn("setSpeedBackward: mutex timeout");
+        return;
+    }
+    
     float oldSpeedLevel = motion.speedLevelBackward;
     bool wasRunning = (config.currentState == STATE_RUNNING);
     
@@ -370,6 +394,12 @@ void BaseMovementControllerClass::validateDecelZone() {
 // ============================================================================
 
 void BaseMovementControllerClass::applyPendingChanges() {
+    MutexGuard guard(motionMutex);
+    if (!guard) {
+        engine->warn("applyPendingChanges: mutex timeout");
+        return;
+    }
+    
     if (!pendingMotion.hasChanges) return;
     
     engine->debug(String("🔄 Applying pending config: ") + String(pendingMotion.distanceMM, 1) + 
@@ -399,6 +429,12 @@ void BaseMovementControllerClass::resetCycleTiming() {
 // ============================================================================
 
 void BaseMovementControllerClass::togglePause() {
+    MutexGuard guard(stateMutex);
+    if (!guard) {
+        engine->warn("togglePause: mutex timeout");
+        return;
+    }
+    
     if (config.currentState == STATE_RUNNING || config.currentState == STATE_PAUSED) {
         bool wasPaused = (config.currentState == STATE_PAUSED);
         
@@ -423,6 +459,12 @@ void BaseMovementControllerClass::togglePause() {
 }
 
 void BaseMovementControllerClass::stop() {
+    MutexGuard guard(stateMutex);
+    if (!guard) {
+        engine->warn("stop: mutex timeout");
+        return;
+    }
+    
     if (currentMovement == MOVEMENT_PURSUIT) {
         Pursuit.stop();  // Delegated to PursuitController
         // Keep motor enabled - HSS86 needs to stay synchronized
@@ -464,6 +506,14 @@ void BaseMovementControllerClass::stop() {
 }
 
 void BaseMovementControllerClass::start(float distMM, float speedLevel) {
+    // Use both mutexes - motion config AND state change
+    MutexGuard motionGuard(motionMutex);
+    MutexGuard stateGuard(stateMutex);
+    if (!motionGuard || !stateGuard) {
+        engine->warn("start: mutex timeout");
+        return;
+    }
+    
     // ✅ Stop sequence if running (user manually starts simple mode)
     if (seqState.isRunning) {
         engine->debug("start(): stopping sequence because user manually started movement");

@@ -181,7 +181,7 @@ const unsigned long SUMMARY_LOG_INTERVAL_MS = 60000;  // Print summary every 60s
 // System overhead compensation factor (WebSocket, direction changes, debouncing)
 // Why 1.20? Measured overhead is ~20% (1450ms actual vs 1200ms theoretical)
 // Applied to step delay calculation to compensate for system delays
-const float SPEED_COMPENSATION_FACTOR = 1.20;  // +20% faster to compensate overhead
+const float SPEED_COMPENSATION_FACTOR = 1;  // +20% faster to compensate overhead
 
 // ============================================================================
 // CONFIGURATION - HSS86 Feedback Monitoring
