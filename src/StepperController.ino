@@ -2,7 +2,7 @@
 // ESP32-S3 STEPPER MOTOR CONTROLLER WITH WEB INTERFACE
 // ============================================================================
 // Hardware: ESP32-S3, HSS86 Driver (closed loop), NEMA34 8NM Motor
-// Mechanics: HTD 5M belt, 20T pulley → 100mm/rev → 6 steps/mm
+// Mechanics: HTD 5M belt, 18T pulley → 90mm/rev → 6.67 steps/mm
 // Features: Automatic calibration, va-et-vient motion, web control
 // ============================================================================
 
@@ -361,6 +361,36 @@ void motorTask(void* param) {
     // ═══════════════════════════════════════════════════════════════════════
     if (config.executionContext == CONTEXT_SEQUENCER) {
       SeqExecutor.process();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // HSS86 FEEDBACK MONITORING (ALM & PEND)
+    // ═══════════════════════════════════════════════════════════════════════
+    Motor.updatePendTracking();
+    
+    // ALM monitoring (informative only for now)
+    static bool lastAlarmState = false;
+    bool alarmActive = Motor.isAlarmActive();
+    
+    if (alarmActive && !lastAlarmState) {
+      // Alarm just activated
+      engine->warn("🚨 HSS86 ALARM ACTIVE - Check motor/mechanics!");
+    } else if (!alarmActive && lastAlarmState) {
+      // Alarm cleared
+      engine->info("✅ HSS86 Alarm cleared");
+    }
+    lastAlarmState = alarmActive;
+    
+    // PEND monitoring during movement (detect motor lag)
+    static unsigned long lastPendWarnMs = 0;
+    if (config.currentState == STATE_RUNNING) {
+      unsigned long lagMs = Motor.getPositionLagMs();
+      
+      // Warn if motor hasn't reached position for > threshold (significant lag)
+      if (lagMs > PEND_LAG_WARN_THRESHOLD_MS && millis() - lastPendWarnMs > PEND_WARN_COOLDOWN_MS) {
+        engine->warn("⚠️ Motor position lag: " + String(lagMs) + "ms - possible load/resistance");
+        lastPendWarnMs = millis();
+      }
     }
     
     // ═══════════════════════════════════════════════════════════════════════

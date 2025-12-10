@@ -76,7 +76,7 @@ struct CyclePauseConfig {
     enabled(false),
     pauseDurationSec(1.5),
     isRandom(false),
-    minPauseSec(1.5),
+    minPauseSec(0.5),
     maxPauseSec(5.0) {}
 };
 

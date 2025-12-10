@@ -80,6 +80,37 @@ public:
      * @return true if motor is enabled (holding torque)
      */
     bool isEnabled() const;
+    
+    // ========================================================================
+    // HSS86 FEEDBACK SIGNALS (ALM & PEND)
+    // ========================================================================
+    
+    /**
+     * Check if HSS86 alarm is active
+     * ALM signal is LOW when alarm (position error, over-current, overheat)
+     * @return true if alarm is active (problem detected)
+     */
+    bool isAlarmActive() const;
+    
+    /**
+     * Check if motor has reached commanded position
+     * PEND signal is HIGH when motor is at position
+     * @return true if motor is at commanded position
+     */
+    bool isPositionReached() const;
+    
+    /**
+     * Get time since last position reached (PEND went HIGH)
+     * Useful for detecting motor lag/load
+     * @return milliseconds since PEND was last HIGH, or 0 if currently at position
+     */
+    unsigned long getPositionLagMs() const;
+    
+    /**
+     * Update PEND tracking (call from motorTask loop)
+     * Tracks timing for position lag calculation
+     */
+    void updatePendTracking();
 
 private:
     // Singleton pattern - prevent external construction
@@ -90,6 +121,10 @@ private:
     bool m_enabled = false;
     bool m_direction = true;  // true = forward (HIGH)
     bool m_initialized = false;
+    
+    // PEND tracking for lag detection
+    unsigned long m_lastPendHighMs = 0;
+    bool m_lastPendState = true;
 };
 
 // ============================================================================

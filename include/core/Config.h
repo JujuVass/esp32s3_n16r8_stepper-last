@@ -33,6 +33,12 @@ constexpr int PIN_PULSE = 12;          // Cable jaune
 constexpr int PIN_DIR = 13;            // Cable orange
 constexpr int PIN_ENABLE = 14;         // Cable rouge
 
+// HSS86 feedback signals (directly connected, active states documented below)
+// ALM (Alarm): LOW = alarm active (position error, over-current, overheat)
+// PEND (Position End): HIGH = motor reached commanded position
+constexpr int PIN_ALM = 5;             // HSS86 ALM+ → GPIO5, ALM- → GND
+constexpr int PIN_PEND = 6;            // HSS86 PEND+ → GPIO6, PEND- → GND
+
 // AP Mode forcing pin (active LOW - connect to GND to force AP mode at boot)
 constexpr int PIN_AP_MODE = 18;
 
@@ -43,8 +49,8 @@ constexpr int PIN_RGB_LED = 48;
 // CONFIGURATION - Motor Parameters
 // ============================================================================
 const int STEPS_PER_REV = 600;
-const float MM_PER_REV = 100.0;  // HTD 5M belt, 20T pulley
-const float STEPS_PER_MM = STEPS_PER_REV / MM_PER_REV;  // 6 steps/mm
+const float MM_PER_REV = 90.0;  // HTD 5M belt, 18T pulley (5mm pitch × 18 teeth = 90mm)
+const float STEPS_PER_MM = STEPS_PER_REV / MM_PER_REV;  // 6.67 steps/mm
 
 // ============================================================================
 // CONFIGURATION - Drift Correction (Safety Offset)
@@ -53,12 +59,12 @@ const float STEPS_PER_MM = STEPS_PER_REV / MM_PER_REV;  // 6 steps/mm
 // Why 10? Position 0 is set 10 steps AFTER START contact release
 // maxStep is set 10 steps BEFORE END contact
 // This creates a buffer zone for drift tolerance
-const int SAFETY_OFFSET_STEPS = 10;  // 10 steps = 1.67mm @ 6 steps/mm
+const int SAFETY_OFFSET_STEPS = 10;  // 10 steps = 1.5mm @ 6.67 steps/mm
 
 // Hard drift detection zone (only test physical contacts when close to limits)
-// Why 20mm? Balance between performance (88% less tests) and safety (120 steps buffer)
+// Why 20mm? Balance between performance (88% less tests) and safety (~133 steps buffer)
 // Reduces false positives and CPU overhead while maintaining excellent protection
-const float HARD_DRIFT_TEST_ZONE_MM = 20.0;  // ~120 steps @ 6 steps/mm
+const float HARD_DRIFT_TEST_ZONE_MM = 20.0;  // ~133 steps @ 6.67 steps/mm
 
 // ============================================================================
 // CONFIGURATION - Step Timing
@@ -78,7 +84,7 @@ const int WEBSOCKET_SERVICE_INTERVAL_STEPS = 20;
 const int CALIB_DELAY = 2000;  // 2ms per step = 500 steps/sec (safer for heavy loads)
 
 // Safety limit for contact search
-// Why 5000? At 6 steps/mm, 5000 steps = 833mm (well above physical max 221mm)
+// Why 3000? At 6.67 steps/mm, 3000 steps = 450mm (well above physical max ~200mm)
 // Prevents infinite loop if contact sensor fails
 const int CALIBRATION_MAX_STEPS = 3000;
 
@@ -97,8 +103,8 @@ const float MAX_CALIBRATION_ERROR_PERCENT = 5.0;
 const int MAX_CALIBRATION_RETRIES = 3;
 
 // Safety margin for return verification
-// Why 1000? 1000 steps = 166mm @ 6 steps/mm
-// If we move 166mm backward without hitting START contact, something is wrong
+// Why 1000? 1000 steps = 150mm @ 6.67 steps/mm
+// If we move 150mm backward without hitting START contact, something is wrong
 const int CALIBRATION_ERROR_MARGIN_STEPS = 1000;
 
 // ============================================================================
@@ -144,13 +150,14 @@ const unsigned long SEQUENCE_STATUS_UPDATE_MS = 500;
 const long WASATSTART_THRESHOLD_STEPS = 10;
 
 // Hard mechanical limits for safety
-// Why 221mm? Physical constraint of HTD 5M belt system (20T pulley, limited travel)
+// Why 200mm? Physical constraint of HTD 5M belt system (18T pulley, limited travel)
 // Prevents over-travel damage to mechanics
-const float HARD_MAX_DISTANCE_MM = 220.0;
+const float HARD_MAX_DISTANCE_MM = 200.0;
 
-// Why 200mm? Minimum expected travel distance (detects mechanical issues early)
-// If calibration finds less than 200mm, something is wrong (contact not working, obstruction, etc.)
-const float HARD_MIN_DISTANCE_MM = 200.0;
+// Why 180mm? Minimum expected travel distance (detects mechanical issues early)
+// If calibration finds less than 180mm, something is wrong (contact not working, obstruction, etc.)
+// Set lower for initial testing after pulley correction (18T vs 20T)
+const float HARD_MIN_DISTANCE_MM = 180.0;
 
 // ============================================================================
 // CONFIGURATION - Speed Limits MAXGLOSPE
@@ -175,6 +182,16 @@ const unsigned long SUMMARY_LOG_INTERVAL_MS = 60000;  // Print summary every 60s
 // Why 1.20? Measured overhead is ~20% (1450ms actual vs 1200ms theoretical)
 // Applied to step delay calculation to compensate for system delays
 const float SPEED_COMPENSATION_FACTOR = 1.20;  // +20% faster to compensate overhead
+
+// ============================================================================
+// CONFIGURATION - HSS86 Feedback Monitoring
+// ============================================================================
+// PEND (Position End) lag threshold - warn if motor hasn't reached position
+// Why 100ms? At 6.67 steps/mm and typical speeds, >100ms lag indicates load/resistance
+constexpr unsigned long PEND_LAG_WARN_THRESHOLD_MS = 100;
+
+// PEND warning cooldown - don't spam logs
+constexpr unsigned long PEND_WARN_COOLDOWN_MS = 5000;  // Max 1 warning per 5 seconds
 
 // ============================================================================
 // CONFIGURATION - Logging & Performance Monitoring
