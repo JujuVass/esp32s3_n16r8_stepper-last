@@ -130,13 +130,8 @@ void StatusBroadcaster::send() {
     // Performance monitoring: warn if broadcast took too long (can cause step loss)
     unsigned long elapsedMicros = micros() - startMicros;
     if (elapsedMicros > BROADCAST_SLOW_THRESHOLD_US) {
-        // Calculate potential step loss based on current speed
-        unsigned long stepDelay = movingForward ? stepDelayMicrosForward : stepDelayMicrosBackward;
-        unsigned long potentialStepsLost = (stepDelay > 0) ? elapsedMicros / stepDelay : 0;
-        
-        engine->warn("⚠️ SLOW BROADCAST: " + String(elapsedMicros / 1000.0, 1) + "ms"
-                     " | stepDelay=" + String(stepDelay) + "µs"
-                     " | ~" + String(potentialStepsLost) + " steps perdus potentiels");
+     
+        engine->warn("⚠️ SLOW BROADCAST: " + String(elapsedMicros / 1000.0, 1) + "ms");
     }
 }
 

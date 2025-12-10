@@ -366,7 +366,7 @@ void NetworkManager::checkConnectionHealth() {
     // Only refresh if no WebSocket clients connected (avoid disrupting active sessions)
     // DISABLED FOR TESTING - suspected to cause motor jitter
     // ═══════════════════════════════════════════════════════════════════════
-    /*
+    
     if (currentlyConnected && (now - _lastMdnsRefresh >= MDNS_REFRESH_INTERVAL_MS)) {
         if (!engine->hasConnectedClients()) {
             engine->debug("🔄 Periodic mDNS refresh (no WS clients)...");
@@ -376,7 +376,7 @@ void NetworkManager::checkConnectionHealth() {
         }
         _lastMdnsRefresh = now;  // Reset timer even if skipped
     }
-    */
+    
     
     _wasConnected = currentlyConnected;
 }
