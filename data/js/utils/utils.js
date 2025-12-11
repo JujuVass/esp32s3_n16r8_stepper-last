@@ -440,20 +440,26 @@ function initMainNumericConstraints() {
 async function fetchWithRetry(url, options = {}, retryConfig = {}) {
   const {
     maxRetries = 3,
-    baseDelay = 500,
+    baseDelay = 1000,
     exponentialBackoff = true,
-    silent = false
+    silent = false,
+    timeout = 8000
   } = retryConfig;
 
   let lastError;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
       const response = await fetch(url, {
         ...options,
-        // Add timeout to prevent hanging requests
-        signal: options.signal || AbortSignal.timeout(10000)
+        signal: options.signal || controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       // Success - return response
       if (attempt > 0 && !silent) {
@@ -464,13 +470,17 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
     } catch (error) {
       lastError = error;
       
-      // Check if it's a retryable error (network issues)
+      // Check if it's a retryable error (network issues, timeouts)
       const isRetryable = 
-        error.name === 'TypeError' || // NetworkError
-        error.name === 'AbortError' || // Timeout
+        error.name === 'TypeError' ||        // NetworkError
+        error.name === 'AbortError' ||       // Abort/Timeout via AbortController
+        error.name === 'DOMException' ||     // Timeout via AbortSignal.timeout()
+        error.name === 'TimeoutError' ||     // Explicit timeout
         error.message?.includes('NetworkError') ||
         error.message?.includes('Failed to fetch') ||
-        error.message?.includes('network');
+        error.message?.includes('network') ||
+        error.message?.includes('timed out') ||
+        error.message?.includes('timeout');
       
       if (!isRetryable || attempt >= maxRetries) {
         // Not retryable or max retries reached
@@ -483,7 +493,7 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
         : baseDelay;
       
       if (!silent) {
-        console.warn(`⚠️ Network error on ${url}, retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
+        console.warn(`⚠️ Request failed (${error.name}), retry ${attempt + 1}/${maxRetries} in ${delay}ms: ${url}`);
       }
       
       // Wait before retry
