@@ -36,8 +36,8 @@ constexpr int PIN_ENABLE = 14;         // Cable rouge
 // HSS86 feedback signals (directly connected, active states documented below)
 // ALM (Alarm): LOW = alarm active (position error, over-current, overheat)
 // PEND (Position End): HIGH = motor reached commanded position
-constexpr int PIN_ALM = 5;             // HSS86 ALM+ → GPIO5, ALM- → GND
-constexpr int PIN_PEND = 6;            // HSS86 PEND+ → GPIO6, PEND- → GND
+constexpr int PIN_ALM = 1;             
+constexpr int PIN_PEND = 2;            
 
 // AP Mode forcing pin (active LOW - connect to GND to force AP mode at boot)
 constexpr int PIN_AP_MODE = 18;

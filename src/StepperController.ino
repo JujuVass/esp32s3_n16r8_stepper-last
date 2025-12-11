@@ -364,7 +364,7 @@ void motorTask(void* param) {
     }
     
     // ═══════════════════════════════════════════════════════════════════════
-    // HSS86 FEEDBACK MONITORING (ALM & PEND)
+    // HSS86 FEEDBACK MONITORING (ALM only - PEND ISR runs in background)
     // ═══════════════════════════════════════════════════════════════════════
     Motor.updatePendTracking();
     
@@ -373,91 +373,11 @@ void motorTask(void* param) {
     bool alarmActive = Motor.isAlarmActive();
     
     if (alarmActive && !lastAlarmState) {
-      // Alarm just activated
       engine->warn("🚨 HSS86 ALARM ACTIVE - Check motor/mechanics!");
     } else if (!alarmActive && lastAlarmState) {
-      // Alarm cleared
       engine->info("✅ HSS86 Alarm cleared");
     }
     lastAlarmState = alarmActive;
-    
-    // PEND monitoring during movement (cumulative stats every 5 seconds)
-    static unsigned long pendStatsStartMs = 0;
-    static unsigned long pendNotReachedCount = 0;
-    static unsigned long pendReachedCount = 0;
-    static unsigned long pendMaxLagMs = 0;
-    static unsigned long pendTotalLagMs = 0;
-    static unsigned long pendTransitionCount = 0;  // LOW→HIGH transitions (proves signal changes)
-    static bool lastPendStateForStats = true;
-    static const unsigned long PEND_STATS_INTERVAL_MS = 5000;  // Log every 5 seconds
-    
-    if (config.currentState == STATE_RUNNING) {
-      bool positionReached = Motor.isPositionReached();
-      unsigned long lagMs = Motor.getPositionLagMs();
-      
-      // Initialize stats period
-      if (pendStatsStartMs == 0) {
-        pendStatsStartMs = millis();
-        pendNotReachedCount = 0;
-        pendReachedCount = 0;
-        pendMaxLagMs = 0;
-        pendTotalLagMs = 0;
-        pendTransitionCount = 0;
-        lastPendStateForStats = positionReached;
-      }
-      
-      // Count transitions (proves signal is actually changing)
-      if (positionReached && !lastPendStateForStats) {
-        pendTransitionCount++;  // LOW→HIGH transition detected
-      }
-      lastPendStateForStats = positionReached;
-      
-      // Track PEND state
-      if (positionReached) {
-        pendReachedCount++;
-      } else {
-        pendNotReachedCount++;
-        pendTotalLagMs += lagMs;
-        if (lagMs > pendMaxLagMs) {
-          pendMaxLagMs = lagMs;
-        }
-      }
-      
-      // Log summary every 5 seconds
-      if (millis() - pendStatsStartMs >= PEND_STATS_INTERVAL_MS) {
-        unsigned long totalChecks = pendReachedCount + pendNotReachedCount;
-        float reachedPercent = (totalChecks > 0) ? (pendReachedCount * 100.0 / totalChecks) : 0;
-        float avgLagMs = (pendNotReachedCount > 0) ? (pendTotalLagMs / (float)pendNotReachedCount) : 0;
-        
-        // Always show transition count to prove signal is working
-        String transitionInfo = " | Transitions: " + String(pendTransitionCount);
-        if (pendTransitionCount == 0) {
-          transitionInfo += " ⚠️ SIGNAL STUCK?";
-        }
-        
-        if (pendNotReachedCount > 0) {
-          // Position not reached at least once - log with details
-          engine->info("📊 PEND Stats (5s): " + String(reachedPercent, 1) + "% reached | " +
-                "Not reached: " + String(pendNotReachedCount) + "x | " +
-                "Max lag: " + String(pendMaxLagMs) + "ms | " +
-                "Avg lag: " + String(avgLagMs, 1) + "ms" + transitionInfo);
-        } else {
-          // All positions reached - show transition count to verify signal works
-          engine->debug("📊 PEND Stats (5s): 100% reached (" + String(pendReachedCount) + " checks)" + transitionInfo);
-        }
-        
-        // Reset for next period
-        pendStatsStartMs = millis();
-        pendNotReachedCount = 0;
-        pendReachedCount = 0;
-        pendMaxLagMs = 0;
-        pendTotalLagMs = 0;
-        pendTransitionCount = 0;
-      }
-    } else {
-      // Reset when not running
-      pendStatsStartMs = 0;
-    }
     
     // ═══════════════════════════════════════════════════════════════════════
     // CYCLE COUNTER (periodic stats)

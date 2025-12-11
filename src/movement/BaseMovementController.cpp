@@ -807,9 +807,6 @@ void BaseMovementControllerClass::processCycleCompletion() {
     // Prepare for next forward movement
     Motor.setDirection(true);
     
-    engine->debug(String("🔄 End of backward cycle - State: ") + String(config.currentState) + 
-          " | movingForward: " + String(movingForward) + 
-          " | seqState.isRunning: " + String(seqState.isRunning));
 }
 
 bool BaseMovementControllerClass::handleCyclePause() {

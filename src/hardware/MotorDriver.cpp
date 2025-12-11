@@ -6,6 +6,15 @@
 #include "core/UtilityEngine.h"
 
 // ============================================================================
+// ISR FOR PEND SIGNAL (counts all transitions for debugging)
+// ============================================================================
+static volatile unsigned long pendInterruptCount = 0;
+
+void IRAM_ATTR pendISR() {
+    pendInterruptCount++;
+}
+
+// ============================================================================
 // SINGLETON INSTANCE
 // ============================================================================
 
@@ -32,6 +41,9 @@ void MotorDriver::init() {
     pinMode(PIN_ALM, INPUT_PULLUP);
     pinMode(PIN_PEND, INPUT_PULLUP);
     
+    // Attach ISR on PEND for debugging (detect ANY change)
+    attachInterrupt(digitalPinToInterrupt(PIN_PEND), pendISR, CHANGE);
+    
     // Set initial state: disabled, forward direction
     digitalWrite(PIN_ENABLE, HIGH);  // Disable (active LOW)
     digitalWrite(PIN_DIR, HIGH);     // Forward direction
@@ -43,7 +55,7 @@ void MotorDriver::init() {
     m_lastPendState = true;
     m_initialized = true;
     
-    engine->info("✅ MotorDriver initialized (ALM=GPIO" + String(PIN_ALM) + ", PEND=GPIO" + String(PIN_PEND) + ")");
+    engine->info("✅ MotorDriver initialized (ALM=GPIO" + String(PIN_ALM) + ", PEND=GPIO" + String(PIN_PEND) + " with ISR)");
 }
 
 // ============================================================================
@@ -112,13 +124,11 @@ bool MotorDriver::isEnabled() const {
 // ============================================================================
 
 bool MotorDriver::isAlarmActive() const {
-    // ALM is active LOW (LOW = alarm, HIGH = OK)
     return digitalRead(PIN_ALM) == LOW;
 }
 
 bool MotorDriver::isPositionReached() const {
-    // PEND is active HIGH (HIGH = position reached)
-    return digitalRead(PIN_PEND) == HIGH;
+    return digitalRead(PIN_PEND) == HIGH;  // Enable when wiring confirmed
 }
 
 unsigned long MotorDriver::getPositionLagMs() const {
@@ -137,4 +147,12 @@ void MotorDriver::updatePendTracking() {
     }
     
     m_lastPendState = currentPend;
+}
+
+unsigned long MotorDriver::getPendInterruptCount() const {
+    return pendInterruptCount;
+}
+
+void MotorDriver::resetPendInterruptCount() {
+    pendInterruptCount = 0;
 }

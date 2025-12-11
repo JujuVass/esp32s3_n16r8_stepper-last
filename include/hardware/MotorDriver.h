@@ -111,6 +111,18 @@ public:
      * Tracks timing for position lag calculation
      */
     void updatePendTracking();
+    
+    /**
+     * Get PEND interrupt counter (for debugging)
+     * Counts both RISING and FALLING edges on PEND pin
+     * @return total number of PEND transitions detected by ISR
+     */
+    unsigned long getPendInterruptCount() const;
+    
+    /**
+     * Reset PEND interrupt counter
+     */
+    void resetPendInterruptCount();
 
 private:
     // Singleton pattern - prevent external construction
