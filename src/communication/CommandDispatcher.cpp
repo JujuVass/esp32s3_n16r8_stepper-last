@@ -442,7 +442,12 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
         chaos.amplitudeMM = doc["amplitudeMM"] | 50.0;
         chaos.maxSpeedLevel = doc["maxSpeedLevel"] | 10.0;
         chaos.crazinessPercent = doc["crazinessPercent"] | 50.0;
-        chaos.durationSeconds = doc["durationSeconds"] | 60;
+        // Don't use | operator for durationSeconds as 0 means infinite (falsy but valid)
+        if (!doc["durationSeconds"].isNull()) {
+            chaos.durationSeconds = doc["durationSeconds"].as<int>();
+        } else {
+            chaos.durationSeconds = 60;  // Default: 60 seconds
+        }
         chaos.seed = doc["seed"] | (int)millis();
         
         String errorMsg;
@@ -482,7 +487,7 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
         chaos.maxSpeedLevel = doc["maxSpeedLevel"] | chaos.maxSpeedLevel;
         chaos.crazinessPercent = doc["crazinessPercent"] | chaos.crazinessPercent;
         // Don't use | operator for durationSeconds as 0 means infinite (falsy but valid)
-        if (doc.containsKey("durationSeconds")) {
+        if (!doc["durationSeconds"].isNull()) {
             chaos.durationSeconds = doc["durationSeconds"].as<int>();
         }
         
@@ -543,11 +548,19 @@ bool CommandDispatcher::handleOscillationCommands(const char* cmd, JsonDocument&
         oscillation.frequencyHz = doc["frequencyHz"] | oscillation.frequencyHz;
         
         oscillation.enableRampIn = doc["enableRampIn"] | oscillation.enableRampIn;
-        oscillation.rampInDurationMs = doc["rampInDurationMs"] | oscillation.rampInDurationMs;
+        // Don't use | for rampDurationMs as 0 means disabled (falsy but valid)
+        if (!doc["rampInDurationMs"].isNull()) {
+            oscillation.rampInDurationMs = doc["rampInDurationMs"].as<int>();
+        }
         oscillation.enableRampOut = doc["enableRampOut"] | oscillation.enableRampOut;
-        oscillation.rampOutDurationMs = doc["rampOutDurationMs"] | oscillation.rampOutDurationMs;
+        if (!doc["rampOutDurationMs"].isNull()) {
+            oscillation.rampOutDurationMs = doc["rampOutDurationMs"].as<int>();
+        }
         
-        oscillation.cycleCount = doc["cycleCount"] | oscillation.cycleCount;
+        // Don't use | for cycleCount as 0 means infinite (falsy but valid)
+        if (!doc["cycleCount"].isNull()) {
+            oscillation.cycleCount = doc["cycleCount"].as<int>();
+        }
         oscillation.returnToCenter = doc["returnToCenter"] | oscillation.returnToCenter;
         
         // Cycle pause parameters

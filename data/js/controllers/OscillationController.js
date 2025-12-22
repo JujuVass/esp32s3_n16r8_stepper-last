@@ -123,7 +123,9 @@ function sendOscillationConfig() {
   if (typeof buildOscillationConfigPure === 'function') {
     config = buildOscillationConfigPure(formValues);
   } else {
-    // Fallback
+    // Fallback - use isNaN check for values where 0 is valid
+    const rampIn = parseFloat(formValues.rampInDuration);
+    const rampOut = parseFloat(formValues.rampOutDuration);
     config = {
       centerPositionMM: parseFloat(formValues.centerPos) || 0,
       amplitudeMM: parseFloat(formValues.amplitude) || 0,
@@ -131,9 +133,9 @@ function sendOscillationConfig() {
       frequencyHz: parseFloat(formValues.frequency) || 0.5,
       cycleCount: parseInt(formValues.cycleCount) || 0,
       enableRampIn: formValues.enableRampIn,
-      rampInDurationMs: parseFloat(formValues.rampInDuration) || 2000,
+      rampInDurationMs: isNaN(rampIn) ? 2000 : rampIn,
       enableRampOut: formValues.enableRampOut,
-      rampOutDurationMs: parseFloat(formValues.rampOutDuration) || 2000,
+      rampOutDurationMs: isNaN(rampOut) ? 2000 : rampOut,
       returnToCenter: formValues.returnToCenter
     };
   }
