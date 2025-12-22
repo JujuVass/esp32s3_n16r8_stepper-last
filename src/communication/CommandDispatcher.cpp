@@ -511,6 +511,8 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
               (chaosState.isRunning ? " | ✓ Applied live" : " | seed=" + String(chaos.seed)));
         
         if (chaosState.isRunning) {
+            // Reset duration timer when applying config live (avoid immediate stop if new duration < elapsed)
+            chaosState.startTime = millis();
             chaosState.nextPatternChangeTime = millis();
         }
         
