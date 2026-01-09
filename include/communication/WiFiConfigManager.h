@@ -22,12 +22,14 @@
 #include <ArduinoJson.h>
 
 // EEPROM addresses for WiFi config
-#define WIFI_EEPROM_START       2
-#define WIFI_EEPROM_FLAG        2       // 1 byte: 0xAA = configured
-#define WIFI_EEPROM_SSID        3       // 32 bytes
-#define WIFI_EEPROM_PASSWORD    35      // 64 bytes
-#define WIFI_EEPROM_CHECKSUM    99      // 1 byte
-#define WIFI_EEPROM_END         100
+// 🛡️ CRITICAL FIX: Shifted from byte 2 to byte 3 to avoid collision with UtilityEngine stats
+// Layout: 0=logging, 1=log_level, 2=stats_enabled, 3-100=WiFi, 127=global_checksum
+#define WIFI_EEPROM_START       3
+#define WIFI_EEPROM_FLAG        3       // 1 byte: 0xAA = configured
+#define WIFI_EEPROM_SSID        4       // 32 bytes
+#define WIFI_EEPROM_PASSWORD    36      // 64 bytes
+#define WIFI_EEPROM_CHECKSUM    100     // 1 byte
+#define WIFI_EEPROM_END         101
 
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PASSWORD_MAX_LEN   64

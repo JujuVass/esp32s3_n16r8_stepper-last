@@ -125,14 +125,28 @@ bool WiFiConfigManager::saveConfig(const String& ssid, const String& password) {
     uint8_t checksum = calculateChecksum();
     EEPROM.write(WIFI_EEPROM_CHECKSUM, checksum);
     
-    // Commit to flash
-    bool committed = EEPROM.commit();
+    // 🛡️ COMMIT WITH RETRY: Flash wear-out protection
+    const int maxRetries = 3;
+    bool committed = false;
+    
+    for (int attempt = 0; attempt < maxRetries && !committed; attempt++) {
+        if (attempt > 0 && engine) {
+            engine->warn("⚠️ EEPROM commit retry #" + String(attempt) + "/" + String(maxRetries));
+        }
+        
+        committed = EEPROM.commit();
+        
+        if (!committed) {
+            // Exponential backoff: 50ms, 100ms, 150ms
+            delay(50 * (attempt + 1));
+        }
+    }
     
     // 🛡️ PROTECTION: Clear EEPROM write flag BEFORE any other operations
     _eepromWriteInProgress = false;
     
     if (!committed) {
-        if (engine) engine->error("❌ EEPROM commit failed!");
+        if (engine) engine->error("❌ EEPROM commit failed after " + String(maxRetries) + " retries!");
         return false;
     }
     
@@ -182,11 +196,25 @@ bool WiFiConfigManager::clearConfig() {
     // Clear checksum
     EEPROM.write(WIFI_EEPROM_CHECKSUM, 0);
     
-    EEPROM.commit();
+    // 🛡️ COMMIT WITH RETRY
+    const int maxRetries = 3;
+    bool committed = false;
+    
+    for (int attempt = 0; attempt < maxRetries && !committed; attempt++) {
+        if (attempt > 0 && engine) {
+            engine->warn("⚠️ EEPROM clear retry #" + String(attempt));
+        }
+        committed = EEPROM.commit();
+        if (!committed) delay(50 * (attempt + 1));
+    }
     
     // 🛡️ PROTECTION: Clear flag and stabilize
     _eepromWriteInProgress = false;
     delay(50);
+    
+    if (!committed && engine) {
+        engine->error("❌ EEPROM clear commit failed after retries");
+    }
     
     if (engine) {
         engine->info("🗑️ WiFi config cleared from EEPROM");

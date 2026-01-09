@@ -1013,9 +1013,23 @@ void UtilityEngine::saveLoggingPreferences() {
   uint8_t checksum = calculateEEPROMChecksum();
   EEPROM.write(EEPROM_ADDR_CHECKSUM, checksum);
   
-  EEPROM.commit();
+  // 🛡️ COMMIT WITH RETRY
+  const int maxRetries = 3;
+  bool committed = false;
   
-  Serial.println("[UtilityEngine] 💾 Logging preferences saved to EEPROM with checksum");
+  for (int attempt = 0; attempt < maxRetries && !committed; attempt++) {
+    if (attempt > 0) {
+      Serial.println("[UtilityEngine] ⚠️ EEPROM commit retry #" + String(attempt));
+    }
+    committed = EEPROM.commit();
+    if (!committed) delay(50 * (attempt + 1));
+  }
+  
+  if (committed) {
+    Serial.println("[UtilityEngine] 💾 Logging preferences saved to EEPROM with checksum");
+  } else {
+    Serial.println("[UtilityEngine] ❌ EEPROM commit failed after retries!");
+  }
 }
 
 /**
@@ -1069,7 +1083,14 @@ void UtilityEngine::loadLoggingPreferences() {
     // First boot: enable stats by default
     statsRecordingEnabled = true;
     EEPROM.write(EEPROM_ADDR_STATS_ENABLED, 1);
-    EEPROM.commit();
+    
+    // 🛡️ COMMIT WITH RETRY
+    bool committed = false;
+    for (int i = 0; i < 3 && !committed; i++) {
+      committed = EEPROM.commit();
+      if (!committed) delay(50 * (i + 1));
+    }
+    
     Serial.println("[UtilityEngine] 🔧 First boot: stats recording enabled by default");
   } else {
     statsRecordingEnabled = (statsByte == 1);
@@ -1093,7 +1114,21 @@ void UtilityEngine::setStatsRecordingEnabled(bool enabled) {
   uint8_t checksum = calculateEEPROMChecksum();
   EEPROM.write(EEPROM_ADDR_CHECKSUM, checksum);
   
-  EEPROM.commit();
+  // 🛡️ COMMIT WITH RETRY
+  const int maxRetries = 3;
+  bool committed = false;
+  
+  for (int attempt = 0; attempt < maxRetries && !committed; attempt++) {
+    if (attempt > 0) {
+      Serial.println("[UtilityEngine] ⚠️ Stats EEPROM retry #" + String(attempt));
+    }
+    committed = EEPROM.commit();
+    if (!committed) delay(50 * (attempt + 1));
+  }
+  
+  if (!committed) {
+    Serial.println("[UtilityEngine] ❌ Stats EEPROM commit failed!");
+  }
   
   info(String("📊 Stats recording: ") + (enabled ? "ENABLED" : "DISABLED") + " (saved to EEPROM with checksum)");
 }
