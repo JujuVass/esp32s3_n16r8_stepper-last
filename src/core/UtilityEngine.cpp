@@ -15,6 +15,24 @@
 #define EEPROM_ADDR_LOGGING_ENABLED 0
 #define EEPROM_ADDR_LOG_LEVEL 1
 #define EEPROM_ADDR_STATS_ENABLED 2  // Stats recording enabled (1=enabled, 0=disabled)
+#define EEPROM_ADDR_CHECKSUM 127     // 🛡️ NEW: Checksum for data integrity validation
+
+// 🛡️ EEPROM PROTECTION: Calculate XOR checksum of critical bytes
+static uint8_t calculateEEPROMChecksum() {
+  uint8_t checksum = 0;
+  // Only checksum the critical data (logging, stats)
+  for (int i = 0; i < 3; i++) {
+    checksum ^= EEPROM.read(i);
+  }
+  return checksum;
+}
+
+// 🛡️ EEPROM PROTECTION: Verify checksum validity
+static bool verifyEEPROMChecksum() {
+  uint8_t calculated = calculateEEPROMChecksum();
+  uint8_t stored = EEPROM.read(EEPROM_ADDR_CHECKSUM);
+  return (calculated == stored);
+}
 
 // NOTE: isPaused removed - use config.isPaused instead (Phase 4D cleanup)
 // NOTE: currentState moved to SystemConfig struct - accessed via config.currentState
@@ -49,54 +67,93 @@ UtilityEngine::UtilityEngine(WebSocketsServer& webSocketServer)
 bool UtilityEngine::initialize() {
   Serial.println("\n[UtilityEngine] Initializing...");
   
-  // Mount LittleFS
-  Serial.println("[UtilityEngine] Mounting LittleFS...");
-  if (!LittleFS.begin(true)) {  // true = format if mount fails
-    Serial.println("[UtilityEngine] ❌ LittleFS mount FAILED!");
-    littleFsMounted = false;
-    return false;
-  }
+  // 🛡️ ROBUST LittleFS INITIALIZATION with multi-level protection
+  Serial.println("[UtilityEngine] Attempting LittleFS mount with safety checks...");
   
-  littleFsMounted = true;
-  Serial.println("[UtilityEngine] ✅ LittleFS mounted successfully");
+  // STEP 1: Try mounting WITHOUT auto-format (safer)
+  littleFsMounted = LittleFS.begin(false);
   
-  // Create logs directory if needed
-  if (!directoryExists("/logs")) {
-    if (!createDirectory("/logs")) {
-      Serial.println("[UtilityEngine] ⚠️ Failed to create /logs directory");
-    }
-  }
-  
-  // Clean up epoch date log files (created before NTP sync)
-  Serial.println("[UtilityEngine] Cleaning up epoch log files...");
-  File logsDir = LittleFS.open("/logs");
-  if (logsDir && logsDir.isDirectory()) {
-    File logFile = logsDir.openNextFile();
-    while (logFile) {
-      String fileName = String(logFile.name());
-      if (fileName.indexOf("1970") >= 0) {
-        String fullPath = "/logs/" + fileName;
-        logFile.close();
-        if (LittleFS.remove(fullPath)) {
-          Serial.println("[UtilityEngine] 🗑️ Removed epoch file: " + fullPath);
-        }
-        logFile = logsDir.openNextFile();
+  if (!littleFsMounted) {
+    Serial.println("[UtilityEngine] ⚠️ LittleFS mount failed - filesystem may be corrupted");
+    
+    // STEP 2: Try manual format in controlled way
+    Serial.println("[UtilityEngine] 🔧 Attempting manual LittleFS format...");
+    if (LittleFS.format()) {
+      Serial.println("[UtilityEngine] ✅ Format successful, remounting...");
+      
+      // STEP 3: Try mounting again after format
+      littleFsMounted = LittleFS.begin(false);
+      
+      if (littleFsMounted) {
+        Serial.println("[UtilityEngine] ✅ LittleFS mounted after format");
       } else {
-        logFile = logsDir.openNextFile();
+        Serial.println("[UtilityEngine] ❌ CRITICAL: LittleFS still won't mount after format!");
+        Serial.println("[UtilityEngine] 🚨 Running in DEGRADED mode (no filesystem)");
+      }
+    } else {
+      Serial.println("[UtilityEngine] ❌ Format failed - hardware issue or severe corruption");
+      Serial.println("[UtilityEngine] 🚨 Running in DEGRADED mode (no filesystem)");
+    }
+  } else {
+    Serial.println("[UtilityEngine] ✅ LittleFS mounted successfully");
+  }
+  
+  // STEP 4: If mounted, verify filesystem health
+  if (littleFsMounted) {
+    size_t totalBytes = LittleFS.totalBytes();
+    size_t usedBytes = LittleFS.usedBytes();
+    Serial.printf("[UtilityEngine] 💾 LittleFS: %u KB total, %u KB used (%.1f%%)\n", 
+      totalBytes / 1024, usedBytes / 1024, (usedBytes * 100.0) / totalBytes);
+  }
+  
+  // STEP 5: Create logs directory if filesystem is healthy
+  if (littleFsMounted) {
+    if (!directoryExists("/logs")) {
+      Serial.println("[UtilityEngine] 📁 Creating /logs directory...");
+      if (createDirectory("/logs")) {
+        Serial.println("[UtilityEngine] ✅ /logs directory created");
+      } else {
+        Serial.println("[UtilityEngine] ⚠️ Failed to create /logs - continuing anyway");
       }
     }
+    
+    // Clean up epoch date log files (created before NTP sync)
+    Serial.println("[UtilityEngine] 🧹 Cleaning up epoch log files...");
+    File logsDir = LittleFS.open("/logs");
+    if (logsDir && logsDir.isDirectory()) {
+      File logFile = logsDir.openNextFile();
+      while (logFile) {
+        String fileName = String(logFile.name());
+        if (fileName.indexOf("1970") >= 0) {
+          String fullPath = "/logs/" + fileName;
+          logFile.close();
+          if (LittleFS.remove(fullPath)) {
+            Serial.println("[UtilityEngine] 🗑️ Removed epoch file: " + fullPath);
+          }
+          logFile = logsDir.openNextFile();
+        } else {
+          logFile = logsDir.openNextFile();
+        }
+      }
+    }
+  } else {
+    Serial.println("[UtilityEngine] ⚠️ Log directory/cleanup SKIPPED (filesystem not mounted)");
   }
   
   // Wait for NTP sync (should be done by main firmware)
   delay(1000);
   
-  // Initialize log file
-  if (!initializeLogFile()) {
-    Serial.println("[UtilityEngine] ⚠️ Log file initialization deferred (NTP not ready)");
-    // Not fatal - will retry on first log message
+  // STEP 6: Initialize log file ONLY if filesystem is mounted
+  if (littleFsMounted) {
+    if (!initializeLogFile()) {
+      Serial.println("[UtilityEngine] ⚠️ Log file initialization deferred (NTP not ready)");
+      // Not fatal - will retry on first log message
+    }
+  } else {
+    Serial.println("[UtilityEngine] ⚠️ Log file init SKIPPED (filesystem not available - logs to Serial only)");
   }
   
-  Serial.println("[UtilityEngine] ✅ Initialization complete");
+  Serial.println("[UtilityEngine] ✅ Initialization complete (degraded mode = " + String(!littleFsMounted ? "YES" : "NO") + ")");
   return true;
 }
 
@@ -214,7 +271,16 @@ void UtilityEngine::flushLogBuffer(bool forceFlush) {
     }
   }
   
-  globalLogFile.flush();
+  // 🛡️ PROTECTION: Flush AND verify file is still valid after write
+  if (globalLogFile) {
+    globalLogFile.flush();
+    // Check if file is still writable after flush
+    if (!globalLogFile) {
+      Serial.println("[UtilityEngine] ⚠️ Log file corrupted during flush - reinitializing...");
+      initializeLogFile();  // Try to recover
+    }
+  }
+  
   lastLogFlush = now;
 }
 
@@ -274,12 +340,24 @@ bool UtilityEngine::writeFileAsString(const String& path, const String& data) {
   if (!littleFsMounted) return false;
   
   File file = LittleFS.open(path, "w");
-  if (!file) return false;
+  if (!file) {
+    Serial.println("[UtilityEngine] ❌ Failed to open file for writing: " + path);
+    return false;
+  }
   
   size_t written = file.print(data);
+  
+  // 🛡️ PROTECTION: Flush to ensure data is written before closing
+  file.flush();
   file.close();
   
-  return written == data.length();
+  // 🛡️ VALIDATION: Verify write completed successfully
+  if (written != data.length()) {
+    Serial.println("[UtilityEngine] ⚠️ Write incomplete: " + String(written) + "/" + String(data.length()) + " bytes to " + path);
+    return false;
+  }
+  
+  return true;
 }
 
 bool UtilityEngine::deleteFile(const String& path) {
@@ -609,12 +687,26 @@ bool UtilityEngine::saveJsonFile(const String& path, const JsonDocument& doc) {
   // Serialize JSON to file
   size_t bytesWritten = serializeJson(doc, file);
   
-  // CRITICAL: Flush before close to ensure data is written to flash
+  // 🛡️ PROTECTION: Flush before close to ensure data is written to flash
   file.flush();
+  
+  // 🛡️ VERIFICATION: Check file handle is still valid after flush
+  if (!file) {
+    error("❌ CRITICAL: File corrupted during JSON write (flush failed): " + path);
+    return false;
+  }
+  
   file.close();
   
+  // 🛡️ VALIDATION: Verify bytes were actually written
   if (bytesWritten == 0) {
     error("Failed to write JSON to: " + path);
+    return false;
+  }
+  
+  // 🛡️ PARANOID CHECK: Read back and verify file exists and has data
+  if (!fileExists(path)) {
+    error("❌ CRITICAL: JSON file vanished after write: " + path);
     return false;
   }
   
@@ -911,30 +1003,48 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
  * EEPROM Layout:
  * - Byte 0: loggingEnabled (0=disabled, 1=enabled)
  * - Byte 1: currentLogLevel (0-3: ERROR, WARN, INFO, DEBUG)
+ * - Byte 127: Checksum (XOR of bytes 0-2)
  */
 void UtilityEngine::saveLoggingPreferences() {
   EEPROM.write(EEPROM_ADDR_LOGGING_ENABLED, loggingEnabled ? 1 : 0);
   EEPROM.write(EEPROM_ADDR_LOG_LEVEL, (uint8_t)currentLogLevel);
+  
+  // 🛡️ NEW: Write checksum for data integrity
+  uint8_t checksum = calculateEEPROMChecksum();
+  EEPROM.write(EEPROM_ADDR_CHECKSUM, checksum);
+  
   EEPROM.commit();
   
-  Serial.println("[UtilityEngine] 💾 Logging preferences saved to EEPROM");
+  Serial.println("[UtilityEngine] 💾 Logging preferences saved to EEPROM with checksum");
 }
 
 /**
  * Load logging preferences from EEPROM
- * Reads saved preferences or uses defaults if uninitialized (0xFF)
+ * Reads saved preferences or uses defaults if uninitialized (0xFF) or corrupted
  */
 void UtilityEngine::loadLoggingPreferences() {
   uint8_t enabledByte = EEPROM.read(EEPROM_ADDR_LOGGING_ENABLED);
   uint8_t levelByte = EEPROM.read(EEPROM_ADDR_LOG_LEVEL);
   
-  // Check if EEPROM is uninitialized (fresh ESP32)
-  if (enabledByte == 0xFF) {
-    // First boot: use defaults and save them
+  // 🛡️ NEW: Check EEPROM integrity with checksum
+  bool checksumValid = verifyEEPROMChecksum();
+  
+  // Check if EEPROM is uninitialized (fresh ESP32) OR corrupted
+  if (enabledByte == 0xFF || !checksumValid) {
+    if (!checksumValid && enabledByte != 0xFF) {
+      Serial.println("[UtilityEngine] ⚠️ EEPROM CORRUPTION DETECTED! Checksum mismatch - resetting to defaults");
+    }
+    
+    // First boot or corruption: use defaults and save them
     loggingEnabled = true;
     currentLogLevel = LOG_INFO;
     saveLoggingPreferences();
-    Serial.println("[UtilityEngine] 🔧 First boot: initialized EEPROM with default logging preferences");
+    
+    if (enabledByte == 0xFF) {
+      Serial.println("[UtilityEngine] 🔧 First boot: initialized EEPROM with default logging preferences");
+    } else {
+      Serial.println("[UtilityEngine] 🔧 EEPROM repaired: reset to default logging preferences");
+    }
   } else {
     // Load saved preferences
     loggingEnabled = (enabledByte == 1);
@@ -943,10 +1053,11 @@ void UtilityEngine::loadLoggingPreferences() {
     if (levelByte <= LOG_DEBUG) {
       currentLogLevel = (LogLevel)levelByte;
     } else {
+      Serial.println("[UtilityEngine] ⚠️ Invalid log level in EEPROM: " + String(levelByte) + " - using default");
       currentLogLevel = LOG_INFO;  // Fallback to default
     }
     
-    Serial.print("[UtilityEngine] 📂 Loaded logging preferences from EEPROM: ");
+    Serial.print("[UtilityEngine] 📂 Loaded logging preferences from EEPROM (checksum OK): ");
     Serial.print(loggingEnabled ? "ENABLED" : "DISABLED");
     Serial.print(", Level: ");
     Serial.println(getLevelPrefix(currentLogLevel));
@@ -972,14 +1083,19 @@ void UtilityEngine::loadLoggingPreferences() {
 // ============================================================================
 
 /**
- * Enable/disable stats recording (saved in EEPROM)
+ * Enable/disable stats recording (saved in EEPROM with checksum)
  */
 void UtilityEngine::setStatsRecordingEnabled(bool enabled) {
   statsRecordingEnabled = enabled;
   EEPROM.write(EEPROM_ADDR_STATS_ENABLED, enabled ? 1 : 0);
+  
+  // 🛡️ Update checksum after changing stats preference
+  uint8_t checksum = calculateEEPROMChecksum();
+  EEPROM.write(EEPROM_ADDR_CHECKSUM, checksum);
+  
   EEPROM.commit();
   
-  info(String("📊 Stats recording: ") + (enabled ? "ENABLED" : "DISABLED") + " (saved to EEPROM)");
+  info(String("📊 Stats recording: ") + (enabled ? "ENABLED" : "DISABLED") + " (saved to EEPROM with checksum)");
 }
 
 /**

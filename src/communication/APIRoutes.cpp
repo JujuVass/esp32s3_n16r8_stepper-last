@@ -167,9 +167,19 @@ void ensureFileExists(const char* path, const char* defaultContent) {
   if (!LittleFS.exists(path)) {
     File file = LittleFS.open(path, "w");
     if (file) {
-      file.print(defaultContent);
+      size_t written = file.print(defaultContent);
+      
+      // 🛡️ PROTECTION: Flush before closing
+      file.flush();
+      
+      // 🛡️ VALIDATION: Verify write succeeded
+      if (file && written > 0) {
+        engine->info("📁 Created missing file: " + String(path));
+      } else {
+        engine->error("❌ Failed to initialize file: " + String(path));
+      }
+      
       file.close();
-      engine->info("📁 Created missing file: " + String(path));
     }
   }
 }
@@ -929,6 +939,13 @@ void setupAPIRoutes() {
   server.on("/api/system/wifi/reconnect", HTTP_POST, []() {
     engine->info("📶 WiFi reconnect requested via API");
     
+    // 🛡️ PROTECTION: Don't reconnect if EEPROM write in progress
+    if (WiFiConfig.isEEPROMBusy()) {
+      engine->warn("⚠️ EEPROM write in progress - cannot reconnect WiFi now");
+      server.send(503, "application/json", "{\"success\":false,\"error\":\"EEPROM write in progress, try again in a moment\"}");
+      return;
+    }
+    
     // Send success response before disconnecting
     server.send(200, "application/json", "{\"success\":true,\"message\":\"Reconnecting WiFi...\"}");
     
@@ -1048,6 +1065,51 @@ void setupAPIRoutes() {
     server.send(200, "application/json", response);
   });
   
+  // POST /api/wifi/save - Save WiFi credentials to EEPROM without testing
+  server.on("/api/wifi/save", HTTP_POST, []() {
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing body\"}");
+      return;
+    }
+    
+    String body = server.arg("plain");
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, body);
+    
+    if (err) {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    
+    String ssid = doc["ssid"] | "";
+    String password = doc["password"] | "";
+    
+    if (ssid.length() == 0) {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"SSID required\"}");
+      return;
+    }
+    
+    engine->info("💾 Saving WiFi config to EEPROM: " + ssid);
+    
+    bool saved = WiFiConfig.saveConfig(ssid, password);
+    
+    if (saved) {
+      JsonDocument respDoc;
+      respDoc["success"] = true;
+      respDoc["message"] = "WiFi configuration saved to EEPROM";
+      respDoc["ssid"] = ssid;
+      respDoc["rebootRequired"] = true;
+      
+      String response;
+      serializeJson(respDoc, response);
+      server.send(200, "application/json", response);
+      
+      engine->info("✅ WiFi config saved successfully");
+    } else {
+      server.send(500, "application/json", "{\"success\":false,\"error\":\"Failed to save WiFi config to EEPROM\"}");
+    }
+  });
+  
   // POST /api/wifi/connect - Test and save WiFi credentials
   // We start in AP_STA mode, so testing won't disrupt the AP connection
   server.on("/api/wifi/connect", HTTP_POST, []() {
@@ -1082,6 +1144,23 @@ void setupAPIRoutes() {
     
     engine->info("🔌 Testing WiFi: " + ssid);
     
+    // 🛡️ OPTION 1: Sauvegarder D'ABORD, puis tester (recommandé pour mode AP)
+    // Même si le test échoue, les credentials sont sauvegardés pour tentative au reboot
+    bool saveFirst = true;  // Comportement mode AP : toujours sauvegarder
+    
+    if (saveFirst) {
+      // Save to EEPROM AVANT de tester
+      engine->info("💾 Saving WiFi credentials to EEPROM...");
+      bool saved = WiFiConfig.saveConfig(ssid, password);
+      
+      if (!saved) {
+        server.send(500, "application/json", "{\"success\":false,\"error\":\"Failed to save WiFi config to EEPROM\"}");
+        return;
+      }
+      
+      engine->info("✅ WiFi credentials saved - now testing connection...");
+    }
+    
     // Test connection (we're in AP_STA mode so AP stays stable)
     bool connected = WiFiConfig.testConnection(ssid, password, 15000);
     
@@ -1090,8 +1169,10 @@ void setupAPIRoutes() {
       Network.apLedBlinkEnabled = false;
       setRgbLed(0, 50, 0);
       
-      // Save to EEPROM
-      WiFiConfig.saveConfig(ssid, password);
+      // Already saved above (if saveFirst=true)
+      if (!saveFirst) {
+        WiFiConfig.saveConfig(ssid, password);
+      }
       
       JsonDocument respDoc;
       respDoc["success"] = true;
@@ -1104,15 +1185,26 @@ void setupAPIRoutes() {
       serializeJson(respDoc, response);
       server.send(200, "application/json", response);
       
-      engine->info("✅ WiFi config saved - waiting for reboot");
+      engine->info("✅ WiFi config saved AND tested successfully - waiting for reboot");
     } else {
-      // LED RED = Failed, resume blinking
-      setRgbLed(50, 0, 0);
-      delay(100);
-      Network.apLedBlinkEnabled = true;
+      // LED ORANGE = Saved but connection test failed
+      Network.apLedBlinkEnabled = false;
+      setRgbLed(25, 10, 0);  // Orange = Warning
       
-      server.send(200, "application/json", "{\"success\":false,\"error\":\"Connection failed. Check password.\"}");
-      engine->warn("❌ WiFi test failed: " + ssid);
+      // ✅ NOUVEAU: Credentials sont déjà sauvegardés, reboot essaiera de se connecter
+      JsonDocument respDoc;
+      respDoc["success"] = true;  // Changed from false - config IS saved
+      respDoc["warning"] = "WiFi credentials saved but connection test failed";
+      respDoc["message"] = "Configuration saved. Reboot to try connecting.";
+      respDoc["details"] = "Connection test timed out - password may be wrong or signal too weak";
+      respDoc["ssid"] = ssid;
+      respDoc["rebootRequired"] = true;
+      
+      String response;
+      serializeJson(respDoc, response);
+      server.send(200, "application/json", response);
+      
+      engine->warn("⚠️ WiFi saved to EEPROM but test failed: " + ssid + " (will retry on reboot)");
     }
   });
   

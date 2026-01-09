@@ -427,6 +427,22 @@ function initUIListeners() {
     });
   });
   
+  // WiFi Config Modal
+  const btnEditWifi = document.getElementById('btnEditWifi');
+  if (btnEditWifi) {
+    btnEditWifi.addEventListener('click', openWifiConfigModal);
+  }
+  
+  const btnSaveWifiConfig = document.getElementById('btnSaveWifiConfig');
+  if (btnSaveWifiConfig) {
+    btnSaveWifiConfig.addEventListener('click', saveWifiConfig);
+  }
+  
+  const wifiShowPassword = document.getElementById('wifiShowPassword');
+  if (wifiShowPassword) {
+    wifiShowPassword.addEventListener('change', toggleWifiPasswordVisibility);
+  }
+  
   console.log('✅ UI listeners initialized');
 }
 
@@ -562,6 +578,150 @@ function closeConfirmModal(confirmed) {
     ModalState.resolveCallback(confirmed);
     ModalState.resolveCallback = null;
   }
+}
+
+// ============================================================================
+// WIFI CONFIGURATION MODAL
+// ============================================================================
+
+/**
+ * Open WiFi configuration modal
+ */
+function openWifiConfigModal() {
+  const modal = document.getElementById('wifiConfigModal');
+  
+  // Load current EEPROM config
+  fetch('/api/wifi/config')
+    .then(response => response.json())
+    .then(data => {
+      const currentConfigDiv = document.getElementById('wifiCurrentSsid');
+      if (data.configured && data.ssid) {
+        currentConfigDiv.textContent = '✅ ' + data.ssid;
+        document.getElementById('wifiEditSsid').value = data.ssid;
+      } else {
+        currentConfigDiv.innerHTML = '<em style="color: #999;">Aucune configuration en EEPROM</em>';
+        document.getElementById('wifiEditSsid').value = '';
+      }
+      document.getElementById('wifiEditPassword').value = '';
+      hideWifiEditStatus();
+    })
+    .catch(error => {
+      console.error('Failed to load WiFi config:', error);
+      document.getElementById('wifiCurrentSsid').innerHTML = '<em style="color: #F44336;">❌ Erreur de chargement</em>';
+    });
+  
+  modal.classList.add('active');
+}
+
+/**
+ * Close WiFi configuration modal
+ */
+function closeWifiConfigModal() {
+  document.getElementById('wifiConfigModal').classList.remove('active');
+  document.getElementById('wifiEditSsid').value = '';
+  document.getElementById('wifiEditPassword').value = '';
+  document.getElementById('wifiShowPassword').checked = false;
+  hideWifiEditStatus();
+}
+
+/**
+ * Save WiFi configuration to EEPROM
+ */
+function saveWifiConfig() {
+  const ssid = document.getElementById('wifiEditSsid').value.trim();
+  const password = document.getElementById('wifiEditPassword').value;
+  
+  // Validation
+  if (!ssid) {
+    showWifiEditStatus('❌ Le SSID ne peut pas être vide', 'error');
+    return;
+  }
+  
+  if (ssid.length > 32) {
+    showWifiEditStatus('❌ Le SSID est trop long (max 32 caractères)', 'error');
+    return;
+  }
+  
+  if (password.length > 64) {
+    showWifiEditStatus('❌ Le mot de passe est trop long (max 64 caractères)', 'error');
+    return;
+  }
+  
+  // Disable save button during request
+  const saveBtn = document.getElementById('btnSaveWifiConfig');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳ Enregistrement...';
+  
+  showWifiEditStatus('💾 Enregistrement en EEPROM...', 'info');
+  
+  // Send to backend
+  fetch('/api/wifi/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ssid, password })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showWifiEditStatus('✅ Configuration enregistrée avec succès !', 'success');
+        setTimeout(() => {
+          closeWifiConfigModal();
+          // Show notification
+          if (typeof showNotification === 'function') {
+            showNotification('📶 WiFi configuré : ' + ssid, 'info');
+          }
+        }, 1500);
+      } else {
+        showWifiEditStatus('❌ Erreur : ' + (data.message || 'Échec de l\'enregistrement'), 'error');
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Enregistrer';
+      }
+    })
+    .catch(error => {
+      console.error('WiFi save error:', error);
+      showWifiEditStatus('❌ Erreur de communication avec l\'ESP32', 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Enregistrer';
+    });
+}
+
+/**
+ * Show status message in WiFi edit modal
+ */
+function showWifiEditStatus(message, type) {
+  const statusDiv = document.getElementById('wifiEditStatus');
+  statusDiv.textContent = message;
+  statusDiv.style.display = 'block';
+  
+  // Color based on type
+  const colors = {
+    success: { bg: '#E8F5E9', border: '#4CAF50', text: '#2E7D32' },
+    error: { bg: '#FFEBEE', border: '#F44336', text: '#C62828' },
+    info: { bg: '#E3F2FD', border: '#2196F3', text: '#1565C0' }
+  };
+  
+  const color = colors[type] || colors.info;
+  statusDiv.style.background = color.bg;
+  statusDiv.style.border = '2px solid ' + color.border;
+  statusDiv.style.color = color.text;
+}
+
+/**
+ * Hide status message in WiFi edit modal
+ */
+function hideWifiEditStatus() {
+  const statusDiv = document.getElementById('wifiEditStatus');
+  statusDiv.style.display = 'none';
+  statusDiv.textContent = '';
+}
+
+/**
+ * Toggle password visibility in WiFi modal
+ */
+function toggleWifiPasswordVisibility() {
+  const passwordField = document.getElementById('wifiEditPassword');
+  const checkbox = document.getElementById('wifiShowPassword');
+  passwordField.type = checkbox.checked ? 'text' : 'password';
 }
 
 // Log initialization

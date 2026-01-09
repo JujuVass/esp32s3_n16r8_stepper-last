@@ -213,6 +213,15 @@ void BaseMovementControllerClass::calculateStepDelay() {
     
     long stepsPerDirection = (long)(motion.targetDistanceMM * STEPS_PER_MM);
     
+    // 🛡️ CRITICAL SAFETY: Prevent division by zero (can happen with corrupted EEPROM data)
+    if (stepsPerDirection <= 0) {
+        engine->error("⚠️ DIVISION BY ZERO PREVENTED! stepsPerDirection=" + String(stepsPerDirection) + 
+              " (distance=" + String(motion.targetDistanceMM, 3) + "mm)");
+        stepDelayMicrosForward = 1000;
+        stepDelayMicrosBackward = 1000;
+        return;
+    }
+    
     // Calculate forward delay with compensation for system overhead
     float halfCycleForwardMs = (60000.0 / cyclesPerMinuteForward) / 2.0;
     float rawDelayForward = (halfCycleForwardMs * 1000.0) / (float)stepsPerDirection;

@@ -46,6 +46,12 @@ public:
     static WiFiConfigManager& getInstance();
     
     /**
+     * 🛡️ Check if EEPROM write is in progress (safety for WiFi operations)
+     * @return true if EEPROM is busy writing
+     */
+    bool isEEPROMBusy() const { return _eepromWriteInProgress; }
+    
+    /**
      * Check if WiFi is configured in EEPROM
      * @return true if valid configuration exists
      */
@@ -103,7 +109,7 @@ public:
     static String encryptionTypeToString(uint8_t encType);
 
 private:
-    WiFiConfigManager() = default;
+    WiFiConfigManager();  // Defined in .cpp to ensure EEPROM initialization
     WiFiConfigManager(const WiFiConfigManager&) = delete;
     WiFiConfigManager& operator=(const WiFiConfigManager&) = delete;
     
@@ -116,6 +122,9 @@ private:
      * Verify checksum of stored config
      */
     bool verifyChecksum();
+    
+    // 🛡️ PROTECTION: Track EEPROM write state
+    mutable bool _eepromWriteInProgress = false;
 };
 
 // Global access macro

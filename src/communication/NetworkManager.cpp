@@ -152,6 +152,12 @@ bool NetworkManager::startSTAMode() {
         engine->error("❌ WiFi connection failed after " + String(attempts * 500 / 1000) + "s");
         engine->warn("⚠️ Credentials from " + credentialSource + " - Switching to AP mode...");
         
+        // 🛡️ PROTECTION: Don't disconnect if EEPROM write in progress
+        if (WiFiConfig.isEEPROMBusy()) {
+            engine->warn("⚠️ EEPROM write in progress - delaying disconnect...");
+            delay(100);  // Wait for EEPROM to finish
+        }
+        
         // Failed to connect - switch to AP mode
         WiFi.disconnect();
         startAPMode();
@@ -330,6 +336,12 @@ void NetworkManager::checkConnectionHealth() {
         if (now - _lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL_MS) {
             _lastReconnectAttempt = now;
             _reconnectAttempts++;
+            
+            // 🛡️ PROTECTION: Don't reconnect if EEPROM write in progress
+            if (WiFiConfig.isEEPROMBusy()) {
+                engine->warn("⚠️ EEPROM write in progress - skipping WiFi reconnect");
+                return;  // Skip this reconnect attempt
+            }
             
             if (_reconnectAttempts <= 10) {
                 engine->info("🔄 WiFi reconnect attempt " + String(_reconnectAttempts) + "/10...");

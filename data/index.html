@@ -209,6 +209,47 @@
     </div>
   </div>
 
+  <!-- WiFi Configuration Modal -->
+  <div class="modal" id="wifiConfigModal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-title">📶 Configuration WiFi</div>
+      
+      <div style="padding: 15px 0;">
+        <!-- Current EEPROM Config Display -->
+        <div id="wifiCurrentConfig" style="background: #E3F2FD; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #2196F3;">
+          <div style="font-weight: 500; margin-bottom: 6px; font-size: 13px;">📦 Configuration actuelle en EEPROM:</div>
+          <div id="wifiCurrentSsid" style="font-size: 12px; color: #555; font-family: monospace;">Chargement...</div>
+        </div>
+        
+        <!-- Edit Form -->
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 6px;">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px;">SSID:</label>
+            <input type="text" id="wifiEditSsid" placeholder="Nom du réseau WiFi" 
+                   style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 4px; font-size: 13px; font-family: monospace;">
+          </div>
+          
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 500; margin-bottom: 5px; font-size: 13px;">Mot de passe:</label>
+            <input type="password" id="wifiEditPassword" placeholder="Mot de passe WiFi" 
+                   style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 4px; font-size: 13px; font-family: monospace;">
+            <label style="display: flex; align-items: center; margin-top: 5px; cursor: pointer; font-size: 12px; color: #666;">
+              <input type="checkbox" id="wifiShowPassword" style="margin-right: 5px;">
+              Afficher le mot de passe
+            </label>
+          </div>
+          
+          <div id="wifiEditStatus" style="padding: 8px; border-radius: 4px; margin-top: 10px; font-size: 12px; display: none;"></div>
+        </div>
+      </div>
+      
+      <div class="modal-buttons">
+        <button class="button btn-secondary" onclick="closeWifiConfigModal()">✖️ Annuler</button>
+        <button class="button btn-success" id="btnSaveWifiConfig">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <!-- Common Status (COMPACT VERSION) -->
     <div class="status-compact" style="background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:15px; overflow:hidden;">
@@ -420,9 +461,14 @@
         <div style="background: #f5f5f5; padding: 10px; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <div style="color: #666; font-size: 11px;">📶 WiFi</div>
-            <button id="btnRefreshWifi" style="background: #2196F3; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;" title="Reconnecter le WiFi">
-              🔄
-            </button>
+            <div style="display: flex; gap: 4px;">
+              <button id="btnEditWifi" style="background: #FF9800; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;" title="Éditer la config WiFi">
+                ✏️
+              </button>
+              <button id="btnRefreshWifi" style="background: #2196F3; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;" title="Reconnecter le WiFi">
+                🔄
+              </button>
+            </div>
           </div>
           <div id="sysWifi" class="value-display">-- dBm</div>
           <div id="sysWifiQuality" style="font-size: 11px; color: #666; margin-top: 2px;">--</div>

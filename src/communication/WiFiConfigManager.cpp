@@ -12,6 +12,21 @@
 extern UtilityEngine* engine;
 
 // ============================================================================
+// CONSTRUCTOR - Ensure EEPROM is initialized
+// ============================================================================
+
+WiFiConfigManager::WiFiConfigManager() {
+    // CRITICAL: Initialize EEPROM if not already done
+    // This ensures WiFiConfigManager works even if constructed before UtilityEngine
+    static bool eepromInitialized = false;
+    if (!eepromInitialized) {
+        EEPROM.begin(128);  // Same size as UtilityEngine uses
+        eepromInitialized = true;
+        Serial.println("[WiFiConfigManager] 🔧 EEPROM initialized in constructor");
+    }
+}
+
+// ============================================================================
 // SINGLETON INSTANCE
 // ============================================================================
 
@@ -80,6 +95,9 @@ bool WiFiConfigManager::saveConfig(const String& ssid, const String& password) {
         return false;
     }
     
+    // 🛡️ PROTECTION: Set EEPROM write in progress flag
+    _eepromWriteInProgress = true;
+    
     if (engine) engine->info("💾 Saving WiFi config: " + ssid + " (" + String(ssid.length()) + " chars)");
     
     // Write magic flag
@@ -109,10 +127,17 @@ bool WiFiConfigManager::saveConfig(const String& ssid, const String& password) {
     
     // Commit to flash
     bool committed = EEPROM.commit();
+    
+    // 🛡️ PROTECTION: Clear EEPROM write flag BEFORE any other operations
+    _eepromWriteInProgress = false;
+    
     if (!committed) {
         if (engine) engine->error("❌ EEPROM commit failed!");
         return false;
     }
+    
+    // 🛡️ SAFETY DELAY: Let EEPROM stabilize after commit
+    delay(50);
     
     // VERIFY: Read back and check
     String verifySSID, verifyPassword;
@@ -138,6 +163,9 @@ bool WiFiConfigManager::saveConfig(const String& ssid, const String& password) {
 // ============================================================================
 
 bool WiFiConfigManager::clearConfig() {
+    // 🛡️ PROTECTION: Set EEPROM write in progress
+    _eepromWriteInProgress = true;
+    
     // Clear magic flag
     EEPROM.write(WIFI_EEPROM_FLAG, 0x00);
     
@@ -155,6 +183,10 @@ bool WiFiConfigManager::clearConfig() {
     EEPROM.write(WIFI_EEPROM_CHECKSUM, 0);
     
     EEPROM.commit();
+    
+    // 🛡️ PROTECTION: Clear flag and stabilize
+    _eepromWriteInProgress = false;
+    delay(50);
     
     if (engine) {
         engine->info("🗑️ WiFi config cleared from EEPROM");

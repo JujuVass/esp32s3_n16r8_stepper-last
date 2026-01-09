@@ -296,8 +296,25 @@ void FilesystemManager::handleWriteFile() {
     return;
   }
 
-  file.print(content);
+  size_t written = file.print(content);
+  
+  // 🛡️ PROTECTION: Flush to ensure data written to flash
+  file.flush();
+  
+  // 🛡️ VALIDATION: Verify write completed
+  if (!file) {
+    sendJsonApiError(500, "File corrupted during write (flush failed)");
+    return;
+  }
+  
   file.close();
+  
+  // 🛡️ CHECK: Verify expected bytes written
+  if (written != content.length()) {
+    String errorMsg = "Incomplete write: " + String(written) + "/" + String(content.length()) + " bytes";
+    sendJsonApiError(500, errorMsg.c_str());
+    return;
+  }
 
   sendJsonSuccess("File saved");
 }
@@ -305,6 +322,7 @@ void FilesystemManager::handleWriteFile() {
 void FilesystemManager::handleUploadFile() {
   HTTPUpload& upload = server.upload();
   static File uploadFile;
+  static size_t totalWritten = 0;
 
   if (upload.status == UPLOAD_FILE_START) {
     String filename = normalizePath(upload.filename);
@@ -313,15 +331,25 @@ void FilesystemManager::handleUploadFile() {
     createParentDirs(filename);
 
     uploadFile = LittleFS.open(filename, "w");
+    totalWritten = 0;
     if (!uploadFile) {
       // Error will be caught on WRITE attempt
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (uploadFile) {
-      uploadFile.write(upload.buf, upload.currentSize);
+      size_t written = uploadFile.write(upload.buf, upload.currentSize);
+      totalWritten += written;
+      
+      // 🛡️ PROTECTION: Verify all bytes were written
+      if (written != upload.currentSize) {
+        uploadFile.close();
+        uploadFile = File();  // Invalidate to prevent further writes
+      }
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (uploadFile) {
+      // 🛡️ PROTECTION: Flush before closing
+      uploadFile.flush();
       uploadFile.close();
     }
   }
@@ -489,7 +517,14 @@ bool FilesystemManager::writeFileContent(const String& path, const String& conte
   File file = LittleFS.open(normalizedPath, "w");
   if (!file) return false;
 
-  bool success = (file.print(content) == content.length());
+  size_t written = file.print(content);
+  
+  // 🛡️ PROTECTION: Flush before closing
+  file.flush();
+  
+  // 🛡️ VALIDATION: Check file still valid and write succeeded
+  bool success = (file && written == content.length());
+  
   file.close();
   return success;
 }
