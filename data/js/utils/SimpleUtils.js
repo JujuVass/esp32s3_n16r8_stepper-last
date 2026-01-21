@@ -15,12 +15,14 @@
 
 /**
  * Deceleration mode names for UI display
+ * MUST match C++ enum DecelMode in Types.h:
+ *   DECEL_LINEAR = 0, DECEL_SINE = 1, DECEL_TRIANGLE_INV = 2, DECEL_SINE_INV = 3
  */
 const DECEL_MODE_NAMES = {
   0: 'Linéaire',
-  1: 'Quadratique',
-  2: 'Sinusoïdal',
-  3: 'Exponentiel'
+  1: 'Sinusoïdal',
+  2: 'Triangle Inv.',
+  3: 'Sinus Inv.'
 };
 
 // ============================================================================
@@ -29,38 +31,63 @@ const DECEL_MODE_NAMES = {
 
 /**
  * Calculate slowdown factor based on position in deceleration zone
- * Pure JavaScript implementation matching C++ calculateSlowdownFactor()
+ * Pure JavaScript implementation EXACTLY matching C++ calculateSlowdownFactor()
+ * in BaseMovementController.cpp
  * 
- * @param {number} zoneProgress - Progress through zone (0.0 = zone start, 1.0 = zone end)
+ * @param {number} zoneProgress - Progress through zone (0.0 = at boundary/contact, 1.0 = exiting zone)
  * @param {number} maxSlowdown - Maximum slowdown factor (e.g., 10.0 = 10× slower)
- * @param {number} mode - Deceleration curve mode (0=linear, 1=quadratic, 2=sine, 3=exponential)
+ * @param {number} mode - Deceleration curve mode (0=linear, 1=sine, 2=triangle_inv, 3=sine_inv)
  * @returns {number} Slowdown factor (1.0 = normal speed, >1.0 = slower)
  */
 function calculateSlowdownFactorPure(zoneProgress, maxSlowdown, mode) {
   // Clamp progress to [0, 1]
   const progress = Math.max(0, Math.min(1, zoneProgress));
   
-  // Calculate intensity based on mode
-  let intensity;
+  let factor;
+  
   switch (mode) {
-    case 0: // Linear
-      intensity = 1.0 - progress;
+    case 0: // DECEL_LINEAR - constant deceleration rate
+      // C++: factor = 1.0 + (1.0 - zoneProgress) * (maxSlowdown - 1.0)
+      factor = 1.0 + (1.0 - progress) * (maxSlowdown - 1.0);
       break;
-    case 1: // Quadratic (smoother)
-      intensity = Math.pow(1.0 - progress, 2);
+      
+    case 1: // DECEL_SINE - sinusoidal curve (smooth, max slowdown at contact)
+      // C++: smoothProgress = (1.0 - cos(zoneProgress * PI)) / 2.0
+      //      factor = 1.0 + (1.0 - smoothProgress) * (maxSlowdown - 1.0)
+      {
+        const smoothProgress = (1.0 - Math.cos(progress * Math.PI)) / 2.0;
+        factor = 1.0 + (1.0 - smoothProgress) * (maxSlowdown - 1.0);
+      }
       break;
-    case 2: // Sinusoidal (very smooth)
-      intensity = (1.0 + Math.cos(progress * Math.PI)) / 2.0;
+      
+    case 2: // DECEL_TRIANGLE_INV - weak at start, strong at end (quadratic)
+      // C++: invProgress = 1.0 - zoneProgress
+      //      curved = invProgress * invProgress
+      //      factor = 1.0 + curved * (maxSlowdown - 1.0)
+      {
+        const invProgress = 1.0 - progress;
+        const curved = invProgress * invProgress;
+        factor = 1.0 + curved * (maxSlowdown - 1.0);
+      }
       break;
-    case 3: // Exponential (aggressive start)
-      intensity = Math.exp(-3.0 * progress);
+      
+    case 3: // DECEL_SINE_INV - weak at start, strong at end (sine curve)
+      // C++: invProgress = 1.0 - zoneProgress
+      //      curved = sin(invProgress * PI / 2.0)
+      //      factor = 1.0 + curved * (maxSlowdown - 1.0)
+      {
+        const invProgress = 1.0 - progress;
+        const curved = Math.sin(invProgress * Math.PI / 2.0);
+        factor = 1.0 + curved * (maxSlowdown - 1.0);
+      }
       break;
+      
     default:
-      intensity = 1.0 - progress; // Fallback to linear
+      factor = 1.0;
+      break;
   }
   
-  // Convert intensity to slowdown factor
-  return 1.0 + intensity * (maxSlowdown - 1.0);
+  return factor;
 }
 
 // ============================================================================

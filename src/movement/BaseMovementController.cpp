@@ -335,6 +335,11 @@ int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM,
         return baseDelayMicros;
     }
     
+    // Safety: protect against division by zero
+    if (decelZone.zoneMM <= 0.0) {
+        return baseDelayMicros;
+    }
+    
     // Calculate distances relative to movement boundaries
     float distanceFromStart = abs(currentPositionMM - movementStartMM);
     float distanceFromEnd = abs(movementEndMM - currentPositionMM);
@@ -350,7 +355,9 @@ int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM,
     // Check if in END deceleration zone (takes priority if overlapping)
     if (decelZone.enableEnd && distanceFromEnd <= decelZone.zoneMM) {
         float zoneProgress = distanceFromEnd / decelZone.zoneMM;
-        slowdownFactor = calculateSlowdownFactor(zoneProgress);
+        float endFactor = calculateSlowdownFactor(zoneProgress);
+        // Use maximum slowdown if zones overlap (instead of just overwriting)
+        slowdownFactor = max(slowdownFactor, endFactor);
     }
     
     // Apply slowdown factor to base delay
