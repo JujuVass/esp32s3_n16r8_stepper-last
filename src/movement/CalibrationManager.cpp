@@ -294,6 +294,35 @@ bool CalibrationManager::startCalibration() {
     // ========================================
     currentStep = 0;
     config.minStep = 0;
+    
+    // ========================================
+    // Step 5: Position at 10% of total distance
+    // (rounded up to nearest mm)
+    // ========================================
+    float tenPercentMM = ceil(m_totalDistanceMM * 0.1f);  // 10% rounded up
+    long targetSteps = (long)(tenPercentMM * STEPS_PER_MM);
+    
+    engine->info("📍 Positioning at 10% (" + String(tenPercentMM, 0) + " mm)...");
+    
+    Motor.setDirection(true);  // Forward
+    while (currentStep < targetSteps) {
+        Motor.step();
+        currentStep++;
+        delayMicroseconds(CALIB_DELAY);
+        
+        // Service WebSocket periodically
+        if (currentStep % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
+            yield();
+            if (m_webSocket) m_webSocket->loop();
+            if (m_server) m_server->handleClient();
+        }
+    }
+    
+    // Update start position in BOTH motion configs (global + system config)
+    motion.startPositionMM = tenPercentMM;         // Global - used by StatusBroadcaster
+    config.motion.startPositionMM = tenPercentMM;  // SystemConfig - used for persistence
+    engine->info("✓ Start position set to " + String(tenPercentMM, 0) + " mm");
+    
     config.currentState = STATE_READY;
     m_calibrated = true;
     m_attemptCount = 0;

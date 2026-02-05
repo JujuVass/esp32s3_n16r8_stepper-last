@@ -45,16 +45,19 @@ void MotorDriver::init() {
     // Attach ISR on PEND for debugging (detect ANY change)
     attachInterrupt(digitalPinToInterrupt(PIN_PEND), pendISR, CHANGE);
     
-    // Set initial state: disabled, forward direction
-    digitalWrite(PIN_ENABLE, LOW);  // Disable (active LOW)
-    digitalWrite(PIN_DIR, HIGH);     // Forward direction
+    // Set initial state for PULSE pin (no wrapper method needed)
     digitalWrite(PIN_PULSE, LOW);    // Pulse idle LOW
     
-    m_enabled = false;
-    m_direction = true;  // Forward
+    // Initialize state tracking BEFORE calling methods
+    m_enabled = true;    // Set to true so disable() will execute
+    m_direction = false; // Set to false so setDirection(true) will execute
     m_lastPendHighMs = millis();
     m_lastPendState = true;
-    m_initialized = true;
+    m_initialized = true;  // Mark initialized so methods work
+    
+    // Use proper methods for ENABLE and DIR (respects sensorsInverted)
+    disable();            // Safely disable motor
+    setDirection(true);   // Forward - will apply inversion if needed
     
     engine->info("✅ MotorDriver initialized (ALM=GPIO" + String(PIN_ALM) + ", PEND=GPIO" + String(PIN_PEND) + " with ISR)");
 }

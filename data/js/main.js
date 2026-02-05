@@ -477,6 +477,11 @@
       if (data.sensorsInverted !== undefined) {
         DOM.chkSensorsInverted.checked = data.sensorsInverted;
         DOM.sensorsInvertedStatus.textContent = data.sensorsInverted ? '(Inversé)' : '(Normal)';
+        // Update icon next to "Course:"
+        const invertedIcon = document.getElementById('sensorsInvertedIcon');
+        if (invertedIcon) {
+          invertedIcon.style.display = data.sensorsInverted ? 'inline' : 'none';
+        }
       }
     }
     
