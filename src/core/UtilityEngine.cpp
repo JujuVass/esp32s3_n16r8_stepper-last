@@ -816,14 +816,15 @@ bool UtilityEngine::loadSystemConfig(SystemConfig& config, const String& configP
   // Note: lastStepForDistance now in global StatsTracking struct (not persisted)
   
   // ========================================================================
-  // EXTRACT MOTION CONFIG
+  // EXTRACT MOTION CONFIG → writes to global 'motion' variable
+  // NOTE: No mutex needed here - called at boot before motorTask starts
   // ========================================================================
   if (doc["motion"].is<JsonObject>()) {
     JsonObject motionObj = doc["motion"];
-    config.motion.startPositionMM = motionObj["startPositionMM"] | 0.0;
-    config.motion.targetDistanceMM = motionObj["targetDistanceMM"] | 50.0;
-    config.motion.speedLevelForward = motionObj["speedLevelForward"] | 5.0;
-    config.motion.speedLevelBackward = motionObj["speedLevelBackward"] | 5.0;
+    motion.startPositionMM = motionObj["startPositionMM"] | 0.0;
+    motion.targetDistanceMM = motionObj["targetDistanceMM"] | 50.0;
+    motion.speedLevelForward = motionObj["speedLevelForward"] | 5.0;
+    motion.speedLevelBackward = motionObj["speedLevelBackward"] | 5.0;
   }
   
   // ========================================================================
@@ -959,13 +960,14 @@ bool UtilityEngine::saveSystemConfig(const SystemConfig& config, const String& c
   // Note: lastStepForDistance now in global StatsTracking struct (not persisted)
   
   // ========================================================================
-  // SAVE MOTION CONFIG
+  // SAVE MOTION CONFIG → reads from global 'motion' variable
+  // NOTE: Caller should hold motionMutex if called during runtime
   // ========================================================================
   JsonObject motionObj = doc["motion"].to<JsonObject>();
-  motionObj["startPositionMM"] = config.motion.startPositionMM;
-  motionObj["targetDistanceMM"] = config.motion.targetDistanceMM;
-  motionObj["speedLevelForward"] = config.motion.speedLevelForward;
-  motionObj["speedLevelBackward"] = config.motion.speedLevelBackward;
+  motionObj["startPositionMM"] = motion.startPositionMM;
+  motionObj["targetDistanceMM"] = motion.targetDistanceMM;
+  motionObj["speedLevelForward"] = motion.speedLevelForward;
+  motionObj["speedLevelBackward"] = motion.speedLevelBackward;
   
   // ========================================================================
   // SAVE OSCILLATION CONFIG & STATE

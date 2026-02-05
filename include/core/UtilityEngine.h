@@ -104,7 +104,8 @@ struct SystemConfig {
   // ========================================================================
   // VA-ET-VIENT MODE
   // ========================================================================
-  MotionConfig motion;               // Current motion configuration
+  // NOTE: MotionConfig is the global 'motion' variable (GlobalState.h)
+  // NOT a member of SystemConfig - avoids duplication issues
   
   // ========================================================================
   // OSCILLATION MODE
@@ -159,7 +160,7 @@ struct SystemConfig {
     startStep(0),
     targetStep(0),
     hasReachedStartStep(false),
-    motion(),
+    // NOTE: motion is now a global variable (GlobalState.h), not a member
     oscillation(),
     oscillationState(),
     actualOscillationSpeedMMS(0.0),

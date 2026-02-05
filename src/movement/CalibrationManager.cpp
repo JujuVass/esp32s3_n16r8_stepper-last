@@ -318,9 +318,8 @@ bool CalibrationManager::startCalibration() {
         }
     }
     
-    // Update start position in BOTH motion configs (global + system config)
-    motion.startPositionMM = tenPercentMM;         // Global - used by StatusBroadcaster
-    config.motion.startPositionMM = tenPercentMM;  // SystemConfig - used for persistence
+    // Update start position (single source of truth)
+    motion.startPositionMM = tenPercentMM;
     engine->info("✓ Start position set to " + String(tenPercentMM, 0) + " mm");
     
     config.currentState = STATE_READY;
