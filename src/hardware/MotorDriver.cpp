@@ -68,8 +68,7 @@ void MotorDriver::init() {
 
 void MotorDriver::step() {
     // HSS86 requires minimum 2.5µs pulse width
-    // We use STEP_PULSE_MICROS (3µs) for safety margin
-    // Total step time: ~6µs (HIGH phase + LOW phase)
+    // We use STEP_PULSE_MICROS for safety margin
     
     digitalWrite(PIN_PULSE, HIGH);
     delayMicroseconds(STEP_PULSE_MICROS);
@@ -130,8 +129,22 @@ bool MotorDriver::isEnabled() const {
 // HSS86 FEEDBACK SIGNALS (ALM & PEND)
 // ============================================================================
 
-bool MotorDriver::isAlarmActive() const {
-    return digitalRead(PIN_ALM) == LOW;
+bool MotorDriver::isAlarmActive() {
+    // Read current state
+    bool currentAlarm = (digitalRead(PIN_ALM) == LOW);
+    
+    // Debounce: ALM must be stable for ALM_DEBOUNCE_MS to trigger
+    if (currentAlarm != m_lastAlarmState) {
+        m_alarmChangeMs = millis();
+        m_lastAlarmState = currentAlarm;
+    }
+    
+    // Only report alarm if stable for debounce period
+    if (currentAlarm && (millis() - m_alarmChangeMs >= ALM_DEBOUNCE_MS)) {
+        return true;
+    }
+    
+    return false;
 }
 
 bool MotorDriver::isPositionReached() const {
@@ -154,6 +167,11 @@ void MotorDriver::updatePendTracking() {
     }
     
     m_lastPendState = currentPend;
+}
+
+void MotorDriver::resetPendTracking() {
+    m_lastPendHighMs = millis();
+    m_lastPendState = isPositionReached();
 }
 
 unsigned long MotorDriver::getPendInterruptCount() const {

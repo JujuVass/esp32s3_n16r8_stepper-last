@@ -76,12 +76,16 @@ public:
     // HSS86 FEEDBACK SIGNALS (ALM & PEND)
     // ========================================================================
     
+    // ALM debounce: signal must be stable for this duration to trigger alarm
+    static constexpr unsigned long ALM_DEBOUNCE_MS = 100;
+    
     /**
-     * Check if HSS86 alarm is active
+     * Check if HSS86 alarm is active (with debounce)
      * ALM signal is LOW when alarm (position error, over-current, overheat)
-     * @return true if alarm is active (problem detected)
+     * Uses debounce to filter noise on ALM pin
+     * @return true if alarm is stable and active (problem detected)
      */
-    bool isAlarmActive() const;
+    bool isAlarmActive();
     
     /**
      * Check if motor has reached commanded position
@@ -102,6 +106,12 @@ public:
      * Tracks timing for position lag calculation
      */
     void updatePendTracking();
+    
+    /**
+     * Reset PEND tracking timestamps (call when movement starts)
+     * Prevents false lag warnings at movement start
+     */
+    void resetPendTracking();
     
     /**
      * Get PEND interrupt counter (for debugging)
@@ -128,6 +138,10 @@ private:
     // PEND tracking for lag detection
     unsigned long m_lastPendHighMs = 0;
     bool m_lastPendState = true;
+    
+    // ALM debounce tracking
+    unsigned long m_alarmChangeMs = 0;
+    bool m_lastAlarmState = false;
 };
 
 // ============================================================================

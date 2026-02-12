@@ -106,6 +106,7 @@ function addSequenceLine() {
         enabled: false,
         enableStart: true,
         enableEnd: true,
+        mirrorOnReturn: false,
         zoneMM: 50,
         speedEffect: 1,
         speedCurve: 1,
@@ -446,6 +447,7 @@ function editSequenceLine(lineId) {
   // Apply ALL Zone Effects to edit modal
   document.getElementById('editZoneEnableStart').checked = ze.enableStart || false;
   document.getElementById('editZoneEnableEnd').checked = ze.enableEnd ?? true;
+  document.getElementById('editZoneMirror').checked = ze.mirrorOnReturn || false;
   document.getElementById('editZoneMM').value = ze.zoneMM || 50;
   document.getElementById('editSpeedEffect').value = ze.speedEffect ?? 1;
   document.getElementById('editSpeedCurve').value = ze.speedCurve ?? 1;
@@ -531,6 +533,7 @@ function saveLineEdit(event) {
     enabled: form.zoneEnableStart.checked || form.zoneEnableEnd.checked,
     enableStart: form.zoneEnableStart.checked,
     enableEnd: form.zoneEnableEnd.checked,
+    mirrorOnReturn: form.zoneMirrorOnReturn.checked,
     zoneMM: parseFloat(form.zoneMM.value),
     speedEffect: parseInt(form.speedEffect.value),
     speedCurve: parseInt(form.speedCurve.value),

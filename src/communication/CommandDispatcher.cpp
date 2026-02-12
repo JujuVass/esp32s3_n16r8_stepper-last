@@ -304,6 +304,9 @@ bool CommandDispatcher::handleDecelZoneCommands(const char* cmd, JsonDocument& d
         zoneEffect.enabled = doc["enabled"] | false;
         zoneEffect.enableStart = doc["enableStart"] | zoneEffect.enableStart;
         zoneEffect.enableEnd = doc["enableEnd"] | zoneEffect.enableEnd;
+        if (doc["mirrorOnReturn"].is<bool>()) {
+            zoneEffect.mirrorOnReturn = doc["mirrorOnReturn"].as<bool>();
+        }
         
         float zoneMM = doc["zoneMM"] | zoneEffect.zoneMM;
         if (zoneMM > 0) zoneEffect.zoneMM = zoneMM;
@@ -370,6 +373,7 @@ bool CommandDispatcher::handleDecelZoneCommands(const char* cmd, JsonDocument& d
         String zones = "";
         if (zoneEffect.enableStart) zones += "START ";
         if (zoneEffect.enableEnd) zones += "END";
+        if (zoneEffect.mirrorOnReturn) zones += " MIRROR";
         
         engine->debug("✅ Zone Effect: " + String(zoneEffect.enabled ? "ON" : "OFF") + 
               (zoneEffect.enabled ? " | zones=" + zones + 

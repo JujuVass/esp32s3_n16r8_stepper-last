@@ -227,6 +227,7 @@ void StatusBroadcaster::addVaEtVientFields(JsonDocument& doc) {
     zoneObj["enabled"] = zoneEffect.enabled;
     zoneObj["enableStart"] = zoneEffect.enableStart;
     zoneObj["enableEnd"] = zoneEffect.enableEnd;
+    zoneObj["mirrorOnReturn"] = zoneEffect.mirrorOnReturn;
     zoneObj["zoneMM"] = serialized(String(zoneEffect.zoneMM, 1));
     
     // Speed effect

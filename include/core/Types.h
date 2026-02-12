@@ -203,6 +203,7 @@ struct ZoneEffectConfig {
   bool enabled;               // Master enable for zone effects
   bool enableStart;           // Apply effects at start position
   bool enableEnd;             // Apply effects at end position
+  bool mirrorOnReturn;        // Mirror zones on return (effect follows destination)
   float zoneMM;               // Zone size in mm (10-200)
   
   // === Speed Effect ===
@@ -233,6 +234,7 @@ struct ZoneEffectConfig {
     enabled(false),
     enableStart(true),
     enableEnd(true),
+    mirrorOnReturn(false),
     zoneMM(50.0),
     speedEffect(SPEED_DECEL),
     speedCurve(CURVE_SINE),

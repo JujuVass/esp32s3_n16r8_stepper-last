@@ -253,12 +253,11 @@ void BaseMovementControllerClass::calculateStepDelay() {
     float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
     float totalCycleTime = (60000.0 / cyclesPerMinuteForward / 2.0) + (60000.0 / cyclesPerMinuteBackward / 2.0);
     
-    engine->debug("⚙️  " + String(stepsPerDirection) + " steps × 2 directions | Forward: " + 
-          String(motion.speedLevelForward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(cyclesPerMinuteForward, 0) + " c/min, " + 
-          String(stepDelayMicrosForward) + " µs) | Backward: " + String(motion.speedLevelBackward, 1) + 
-          "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(cyclesPerMinuteBackward, 0) + " c/min, " + String(stepDelayMicrosBackward) + 
-          " µs) | Avg: " + String(avgSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + String(avgCyclesPerMin, 0) + 
-          " c/min) | Total: " + String((int)totalCycleTime) + " ms");
+    engine->info("⚙️ CALC: dist=" + String(motion.targetDistanceMM, 1) + "mm → " + 
+          String(stepsPerDirection) + " steps | speed=" + String(motion.speedLevelForward, 1) + 
+          " → " + String(cyclesPerMinuteForward, 0) + " c/min | halfCycle=" + 
+          String(halfCycleForwardMs, 1) + "ms | rawDelay=" + String(rawDelayForward, 1) + 
+          "µs → final=" + String(stepDelayMicrosForward) + "µs");
 }
 
 float BaseMovementControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
@@ -346,7 +345,8 @@ float BaseMovementControllerClass::calculateSpeedFactor(float zoneProgress) {
 }
 
 int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM, float movementStartMM, 
-                                                        float movementEndMM, int baseDelayMicros) {
+                                                        float movementEndMM, int baseDelayMicros,
+                                                        bool effectiveEnableStart, bool effectiveEnableEnd) {
     // If zone effects disabled or no speed effect, return base speed
     if (!zoneEffect.enabled || zoneEffect.speedEffect == SPEED_NONE) {
         return baseDelayMicros;
@@ -364,13 +364,13 @@ int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM,
     float speedFactor = 1.0;  // Default: normal speed
     
     // Check if in START zone
-    if (zoneEffect.enableStart && distanceFromStart <= zoneEffect.zoneMM) {
+    if (effectiveEnableStart && distanceFromStart <= zoneEffect.zoneMM) {
         float zoneProgress = distanceFromStart / zoneEffect.zoneMM;
         speedFactor = calculateSpeedFactor(zoneProgress);
     }
     
     // Check if in END zone
-    if (zoneEffect.enableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
+    if (effectiveEnableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
         float zoneProgress = distanceFromEnd / zoneEffect.zoneMM;
         float endFactor = calculateSpeedFactor(zoneProgress);
         
@@ -761,6 +761,9 @@ void BaseMovementControllerClass::start(float distMM, float speedLevel) {
     // Reset speed measurement
     resetCycleTiming();
     
+    // Reset PEND tracking (prevents false lag warnings at movement start)
+    Motor.resetPendTracking();
+    
     // Reset startStep reached flag
     // If we're already at or past startStep, mark it as reached
     hasReachedStartStep = (currentStep >= startStep);
@@ -847,6 +850,15 @@ void BaseMovementControllerClass::process() {
     if (zoneEffect.enabled && hasReachedStartStep) {
         float currentPositionMM = (currentStep - startStep) / STEPS_PER_MM;
         
+        // Mirror mode: swap enableStart/enableEnd on return trip
+        // Effect follows destination instead of being fixed to physical position
+        bool effectiveEnableStart = zoneEffect.enableStart;
+        bool effectiveEnableEnd = zoneEffect.enableEnd;
+        if (zoneEffect.mirrorOnReturn && !movingForward) {
+            effectiveEnableStart = zoneEffect.enableEnd;
+            effectiveEnableEnd = zoneEffect.enableStart;
+        }
+        
         // CRITICAL: Direction matters for zones!
         float movementStartMM, movementEndMM;
         if (movingForward) {
@@ -863,7 +875,7 @@ void BaseMovementControllerClass::process() {
         float distanceFromEnd = abs(movementEndMM - currentPositionMM);
         
         // Check for random turnback in START zone (when moving backward)
-        if (!movingForward && zoneEffect.enableStart && distanceFromEnd <= zoneEffect.zoneMM) {
+        if (!movingForward && effectiveEnableStart && distanceFromEnd <= zoneEffect.zoneMM) {
             float distanceIntoZone = zoneEffect.zoneMM - distanceFromEnd;
             checkAndTriggerRandomTurnback(distanceIntoZone, false);
             // If pause was triggered, exit early
@@ -873,7 +885,7 @@ void BaseMovementControllerClass::process() {
         }
         
         // Check for random turnback in END zone (when moving forward)
-        if (movingForward && zoneEffect.enableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
+        if (movingForward && effectiveEnableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
             float distanceIntoZone = zoneEffect.zoneMM - distanceFromEnd;
             checkAndTriggerRandomTurnback(distanceIntoZone, true);
             // If pause was triggered, exit early
@@ -882,8 +894,8 @@ void BaseMovementControllerClass::process() {
             }
         }
         
-        // Apply speed effect (decel or accel)
-        currentDelay = calculateAdjustedDelay(currentPositionMM, movementStartMM, movementEndMM, currentDelay);
+        // Apply speed effect (decel or accel) - pass effective flags directly
+        currentDelay = calculateAdjustedDelay(currentPositionMM, movementStartMM, movementEndMM, currentDelay, effectiveEnableStart, effectiveEnableEnd);
     }
     
     // Check if enough time has passed for next step
@@ -928,7 +940,10 @@ void BaseMovementControllerClass::doStep() {
         
         // Check if reached target position
         if (currentStep + 1 > targetStep) {
+            engine->debug("🎯 Reached targetStep=" + String(targetStep) + " (currentStep=" + 
+                  String(currentStep) + ", pos=" + String(currentStep / STEPS_PER_MM, 1) + "mm)");
             // Trigger end pause if enabled (at END extremity)
+            // Forward trip: no mirror swap needed, always use original enableEnd
             if (zoneEffect.enabled && zoneEffect.endPauseEnabled && zoneEffect.enableEnd) {
                 triggerEndPause();
             }
@@ -981,8 +996,15 @@ void BaseMovementControllerClass::doStep() {
         // Check if reached startStep (end of backward movement)
         // ONLY reverse if we've already been to startStep once (va-et-vient mode active)
         if (currentStep <= startStep && hasReachedStartStep) {
+            engine->debug("🏠 Reached startStep=" + String(startStep) + " (currentStep=" + 
+                  String(currentStep) + ", pos=" + String(currentStep / STEPS_PER_MM, 1) + "mm)");
             // Trigger end pause if enabled (at START extremity)
-            if (zoneEffect.enabled && zoneEffect.endPauseEnabled && zoneEffect.enableStart) {
+            // Mirror mode: when going backward to START, swap: use enableEnd instead of enableStart
+            bool effectiveEnableStart = zoneEffect.enableStart;
+            if (zoneEffect.mirrorOnReturn) {
+                effectiveEnableStart = zoneEffect.enableEnd;
+            }
+            if (zoneEffect.enabled && zoneEffect.endPauseEnabled && effectiveEnableStart) {
                 triggerEndPause();
             }
             resetRandomTurnback();  // Reset turnback state on direction change

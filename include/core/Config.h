@@ -69,9 +69,9 @@ const float HARD_DRIFT_TEST_ZONE_MM = 20.0;  // ~160 steps @ 8.0 steps/mm
 // ============================================================================
 // CONFIGURATION - Step Timing
 // ============================================================================
-const int STEP_PULSE_MICROS = 3;   // HSS86 requires min 2.5Âµs (used for HIGH + LOW)
+const int STEP_PULSE_MICROS = 2.5;   // HSS86 requires min 2.5Âµs (used for HIGH + LOW)
 const float STEP_EXECUTION_TIME_MICROS = STEP_PULSE_MICROS * 2.0;  // Total: 10Âµs per step
-const int DIR_CHANGE_DELAY_MICROS = 30;  // HSS86 driver requires time to process direction changes
+const int DIR_CHANGE_DELAY_MICROS = 15;  // HSS86 driver requires time to process direction changes
 
 // ============================================================================
 // CONFIGURATION - Calibration Constants
@@ -167,7 +167,7 @@ const float OSC_MAX_SPEED_MM_S = MAX_SPEED_LEVEL * 20.0;  // Maximum oscillation
 // ============================================================================
 const unsigned long WEBSERVICE_INTERVAL_US = 3000;    // Service WebSocket every 3ms
 const unsigned long STATUS_UPDATE_INTERVAL_MS = 100;  // Send status every 100ms
-const unsigned long SUMMARY_LOG_INTERVAL_MS = 60000;  // Print summary every 60s
+const unsigned long SUMMARY_LOG_INTERVAL_MS = 30000;  // Print summary every 60s
 
 // ============================================================================
 // CONFIGURATION - Speed Compensation
@@ -193,9 +193,7 @@ constexpr unsigned long PEND_WARN_COOLDOWN_MS = 5000;  // Max 1 warning per 5 se
 #define LOG_BUFFER_SIZE 100  // Circular buffer size for async log writes
 
 // Slow broadcast threshold for performance monitoring (microseconds)
-// Why 20ms? At typical stepDelay ~300Âµs, 20ms = ~66 potential steps lost
-// Logs warning when broadcast takes longer (useful for dual-core validation)
-constexpr unsigned long BROADCAST_SLOW_THRESHOLD_US = 20000;  // 20ms
+constexpr unsigned long BROADCAST_SLOW_THRESHOLD_US = 200000;  // 200ms
 
 // ============================================================================
 // CONFIGURATION - System Timing Intervals

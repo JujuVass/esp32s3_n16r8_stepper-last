@@ -121,10 +121,11 @@ function getDecelSummary(line, movementType) {
   // Build summary parts
   const parts = [];
   
-  // Position indicators (Début/Fin)
+  // Position indicators (Début/Fin/Miroir)
   const posIndicator = [];
   if (ze.enableStart) posIndicator.push('D');
   if (ze.enableEnd) posIndicator.push('F');
+  if (ze.mirrorOnReturn) posIndicator.push('🔀');
   
   // Speed effect
   let effectLine = '';

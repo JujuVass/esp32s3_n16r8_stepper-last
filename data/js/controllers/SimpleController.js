@@ -591,12 +591,14 @@ function updateZoneEffectHeaderText() {
   const speedEffect = parseInt(document.getElementById('speedEffectType')?.value || 0);
   const randomTurnback = document.getElementById('randomTurnbackEnabled')?.checked;
   const endPause = document.getElementById('endPauseEnabled')?.checked;
+  const mirrorOnReturn = document.getElementById('zoneEffectMirror')?.checked;
   
   const effects = [];
   if (speedEffect === 1) effects.push('Décél');
   if (speedEffect === 2) effects.push('Accél');
   if (randomTurnback) effects.push('Retour');
   if (endPause) effects.push('Pause');
+  if (mirrorOnReturn) effects.push('🔀Miroir');
   
   if (effects.length === 0) {
     headerText.textContent = '🎯 Effets de Zone - activés (aucun effet)';
@@ -625,6 +627,7 @@ function sendZoneEffectConfig(isInitialOpen = false) {
     enabled: isEnabled,
     enableStart: document.getElementById('zoneEffectStart')?.checked ?? true,
     enableEnd: document.getElementById('zoneEffectEnd')?.checked ?? true,
+    mirrorOnReturn: document.getElementById('zoneEffectMirror')?.checked ?? false,
     zoneMM: zoneMM,
     // Speed effect - use explicit check for null/undefined, 0 is valid
     speedEffect: speedEffectEl ? parseInt(speedEffectEl.value) : 1,
@@ -675,14 +678,18 @@ function updateZoneEffectUI(zoneEffect) {
       section.classList.remove('collapsed');
     }
     
-    // Update start/end checkboxes
+    // Update start/end checkboxes (only if value actually changed to avoid flickering)
     const startCheckbox = document.getElementById('zoneEffectStart');
     const endCheckbox = document.getElementById('zoneEffectEnd');
-    if (startCheckbox && zoneEffect.enableStart !== undefined) {
+    if (startCheckbox && zoneEffect.enableStart !== undefined && startCheckbox.checked !== zoneEffect.enableStart) {
       startCheckbox.checked = zoneEffect.enableStart;
     }
-    if (endCheckbox && zoneEffect.enableEnd !== undefined) {
+    if (endCheckbox && zoneEffect.enableEnd !== undefined && endCheckbox.checked !== zoneEffect.enableEnd) {
       endCheckbox.checked = zoneEffect.enableEnd;
+    }
+    const mirrorCheckbox = document.getElementById('zoneEffectMirror');
+    if (mirrorCheckbox && zoneEffect.mirrorOnReturn !== undefined && mirrorCheckbox.checked !== zoneEffect.mirrorOnReturn) {
+      mirrorCheckbox.checked = zoneEffect.mirrorOnReturn;
     }
     
     // Update zone size
@@ -768,9 +775,13 @@ function updateZoneEffectUI(zoneEffect) {
       btn.classList.toggle('active', btnValue === Math.round(zoneEffect.zoneMM));
     });
     
-    // Update header and redraw preview
-    updateZoneEffectHeaderText();
-    drawZoneEffectPreview();
+    // Update header and redraw preview only if config changed
+    const zoneConfigKey = `${zoneEffect.enableStart}-${zoneEffect.enableEnd}-${zoneEffect.mirrorOnReturn}-${zoneEffect.speedEffect}-${zoneEffect.speedCurve}-${zoneEffect.speedIntensity}-${zoneEffect.zoneMM}-${zoneEffect.randomTurnbackEnabled}-${zoneEffect.endPauseEnabled}`;
+    if (zoneConfigKey !== window._lastZoneConfigKey) {
+      window._lastZoneConfigKey = zoneConfigKey;
+      updateZoneEffectHeaderText();
+      drawZoneEffectPreview();
+    }
   } else {
     // Disabled state
     if (section && headerText) {
@@ -805,6 +816,7 @@ function getZoneEffectConfigFromDOM() {
     zoneMM: parseFloat(document.getElementById('zoneEffectMM')?.value) || 50,
     enableStart: document.getElementById('zoneEffectStart')?.checked ?? true,
     enableEnd: document.getElementById('zoneEffectEnd')?.checked ?? true,
+    mirrorOnReturn: document.getElementById('zoneEffectMirror')?.checked ?? false,
     speedEffect: speedEffectEl ? parseInt(speedEffectEl.value) : 1,
     speedCurve: speedCurveEl ? parseInt(speedCurveEl.value) : 1,
     speedIntensity: speedIntensityEl ? parseFloat(speedIntensityEl.value) : 75,
@@ -835,7 +847,7 @@ function initZoneEffectListeners() {
   });
   
   // Zone start/end checkboxes
-  ['zoneEffectStart', 'zoneEffectEnd'].forEach(id => {
+  ['zoneEffectStart', 'zoneEffectEnd', 'zoneEffectMirror'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => {
       sendZoneEffectConfig();

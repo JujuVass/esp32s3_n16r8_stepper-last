@@ -309,6 +309,8 @@
       <div style="padding:6px 15px; font-size:13px; border-bottom:1px solid #f0f0f0;">
         ⚡ <strong>Vitesse:</strong> <span id="currentSpeed">↗️ --  •  ↙️ --</span>
         <span style="color:#999; font-size:11px; margin-left:8px;">(-- c/min)</span>
+        <span style="margin-left:12px; font-size:16px; cursor:help;" id="speedIcon" title="">⏸️</span>
+        <span id="realSpeed" style="font-size:12px; color:#555; margin-left:4px;">0 cm/s</span>
       </div>
       
       <!-- Row 4: Distance + Progress Bar (colonnes fixes) -->
@@ -712,6 +714,10 @@
             <label style="margin-left: 10px; font-size: 13px;">
               <input type="checkbox" id="zoneEffectEnd" checked style="margin-right: 3px;">
               Fin
+            </label>
+            <label style="margin-left: 10px; font-size: 13px;" title="L'effet suit la destination: au retour, les zones Début/Fin sont inversées">
+              <input type="checkbox" id="zoneEffectMirror" style="margin-right: 3px;">
+              🔀 Miroir retour
             </label>
           </div>
 
@@ -1647,6 +1653,10 @@
                     <input type="checkbox" name="zoneEnableEnd" id="editZoneEnableEnd" style="width: 16px; height: 16px;" checked>
                     <span>Fin</span>
                   </label>
+                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px;" title="L'effet suit la destination: au retour, les zones Début/Fin sont inversées">
+                    <input type="checkbox" name="zoneMirrorOnReturn" id="editZoneMirror" style="width: 16px; height: 16px;">
+                    <span>🔀 Miroir</span>
+                  </label>
                   <span style="margin-left: 10px; font-size: 13px;">Zone:</span>
                   <input type="number" name="zoneMM" id="editZoneMM" min="10" max="200" step="5" value="50" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
                   <span style="font-size: 13px;">mm</span>
@@ -1988,6 +1998,7 @@
   <script src="/js/lib/Sortable.min.js"></script>  <!-- Drag & drop library -->
   <!-- Core (load first) -->
   <script src="/js/ui/milestones.js"></script>  <!-- Must load BEFORE app.js -->
+  <script src="/js/ui/speedMilestones.js"></script>  <!-- Speed icons, must load BEFORE app.js -->
   <script src="/js/core/app.js"></script>
   <script src="/js/utils/utils.js"></script>
   <script src="/js/core/DOMManager.js"></script>  <!-- Must load BEFORE main.js -->

@@ -122,10 +122,13 @@ public:
      * @param movementStartMM Start position of current movement in mm
      * @param movementEndMM End position of current movement in mm
      * @param baseDelayMicros Base delay in microseconds
+     * @param effectiveEnableStart Whether start zone is active (after mirror swap)
+     * @param effectiveEnableEnd Whether end zone is active (after mirror swap)
      * @return Adjusted delay in microseconds
      */
     int calculateAdjustedDelay(float currentPositionMM, float movementStartMM, 
-                               float movementEndMM, int baseDelayMicros);
+                               float movementEndMM, int baseDelayMicros,
+                               bool effectiveEnableStart, bool effectiveEnableEnd);
     
     /**
      * Check and trigger random turnback in zone

@@ -87,6 +87,14 @@ const AppState = {
     lastThreshold: 0  // Last threshold passed (for notifications)
   },
   
+  // Real speed tracking (client-side calculation from totalTraveled delta)
+  speed: {
+    lastTotalTraveledMM: 0,  // Previous totalTraveled value (mm)
+    lastUpdateTime: 0,        // Previous update timestamp (ms)
+    currentCmPerSec: 0,       // Smoothed speed in cm/s
+    smoothingFactor: 0.3      // Exponential smoothing (0-1, lower = smoother)
+  },
+  
   // Stats panel tracking (for on-demand system stats)
   statsPanel: {
     isVisible: false,  // Is stats panel currently visible

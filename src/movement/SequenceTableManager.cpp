@@ -282,6 +282,7 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
     line.vaetZoneEffect.enabled = ze["enabled"] | false;
     line.vaetZoneEffect.enableStart = ze["enableStart"] | true;
     line.vaetZoneEffect.enableEnd = ze["enableEnd"] | true;
+    line.vaetZoneEffect.mirrorOnReturn = ze["mirrorOnReturn"] | false;
     line.vaetZoneEffect.zoneMM = ze["zoneMM"] | 50.0;
     line.vaetZoneEffect.speedEffect = (SpeedEffect)(ze["speedEffect"] | 1);
     line.vaetZoneEffect.speedCurve = (SpeedCurve)(ze["speedCurve"] | 0);
@@ -398,6 +399,7 @@ String SequenceTableManager::exportToJson() {
     ze["enabled"] = line->vaetZoneEffect.enabled;
     ze["enableStart"] = line->vaetZoneEffect.enableStart;
     ze["enableEnd"] = line->vaetZoneEffect.enableEnd;
+    ze["mirrorOnReturn"] = line->vaetZoneEffect.mirrorOnReturn;
     ze["zoneMM"] = serialized(String(line->vaetZoneEffect.zoneMM, 1));
     ze["speedEffect"] = (int)line->vaetZoneEffect.speedEffect;
     ze["speedCurve"] = (int)line->vaetZoneEffect.speedCurve;

@@ -30,7 +30,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Configuration
-ESP32_IP = "192.168.1.39"
+ESP32_IP = "192.168.1.85"
 API_BASE = f"http://{ESP32_IP}/api/fs"
 DATA_DIR = "data"
 JS_DIR = "data/js"

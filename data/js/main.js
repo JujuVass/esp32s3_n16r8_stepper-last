@@ -14,6 +14,7 @@
     //   - loadPresetIntoSequencerModal(), initPlaylistListeners()
 
     // Note: MILESTONES array and getMilestoneInfo() loaded from app.js
+    // Note: SPEED_MILESTONES array and getSpeedMilestoneInfo() loaded from speedMilestones.js
     
     // ========================================================================
     // CYCLE PAUSE HELPERS - Moved to SimpleController.js
@@ -128,6 +129,78 @@
           if (cpmSpan) {
             cpmSpan.textContent = '(' + avgCpm + ' c/min)';
           }
+        }
+      }
+    }
+    
+    /**
+     * Calculate and display real speed from totalTraveled delta
+     * Uses exponential smoothing to avoid jitter
+     * @param {number} totalTraveledMM - Current total traveled distance in mm
+     */
+    function updateRealSpeed(totalTraveledMM) {
+      const now = Date.now();
+      const speedState = AppState.speed;
+      
+      // First call: initialize tracking, don't display yet
+      if (speedState.lastUpdateTime === 0) {
+        speedState.lastTotalTraveledMM = totalTraveledMM;
+        speedState.lastUpdateTime = now;
+        return;
+      }
+      
+      const deltaTimeMs = now - speedState.lastUpdateTime;
+      
+      // Need at least 200ms between samples for meaningful calculation
+      if (deltaTimeMs < 200) return;
+      
+      const deltaDistMM = totalTraveledMM - speedState.lastTotalTraveledMM;
+      const rawSpeedMMS = deltaDistMM / (deltaTimeMs / 1000); // mm/s
+      const rawSpeedCmS = rawSpeedMMS / 10; // cm/s
+      
+      // Exponential moving average for smoothing
+      if (speedState.currentCmPerSec === 0 && rawSpeedCmS > 0) {
+        // Jump start when going from 0 to moving
+        speedState.currentCmPerSec = rawSpeedCmS;
+      } else {
+        speedState.currentCmPerSec = 
+          speedState.smoothingFactor * rawSpeedCmS + 
+          (1 - speedState.smoothingFactor) * speedState.currentCmPerSec;
+      }
+      
+      // If very small, clamp to 0
+      if (speedState.currentCmPerSec < 0.05) {
+        speedState.currentCmPerSec = 0;
+      }
+      
+      // Update tracking
+      speedState.lastTotalTraveledMM = totalTraveledMM;
+      speedState.lastUpdateTime = now;
+      
+      // Convert to display units
+      const cmPerSec = speedState.currentCmPerSec;
+      const kmPerHour = (cmPerSec / 100) * 3.6; // cm/s → m/s → km/h
+      
+      // Get speed milestone
+      const speedInfo = getSpeedMilestoneInfo(cmPerSec);
+      
+      // Update DOM
+      const speedIconEl = document.getElementById('speedIcon');
+      const realSpeedEl = document.getElementById('realSpeed');
+      
+      if (speedIconEl) {
+        speedIconEl.textContent = speedInfo.current.emoji;
+        speedIconEl.title = speedInfo.current.name + 
+          (speedInfo.next ? ' → prochain: ' + speedInfo.next.emoji + ' ' + speedInfo.next.name + ' (' + speedInfo.next.threshold + ' cm/s)' : ' (max!)');
+      }
+      
+      if (realSpeedEl) {
+        if (cmPerSec < 0.05) {
+          realSpeedEl.textContent = '0 cm/s';
+        } else if (kmPerHour >= 0.1) {
+          realSpeedEl.textContent = cmPerSec.toFixed(1) + ' cm/s (' + kmPerHour.toFixed(2) + ' km/h)';
+        } else {
+          realSpeedEl.textContent = cmPerSec.toFixed(1) + ' cm/s';
         }
       }
     }
@@ -396,6 +469,7 @@
       // Update milestones (delegated to helper function)
       if (data.totalTraveled !== undefined) {
         updateMilestones(data.totalTraveled);
+        updateRealSpeed(data.totalTraveled);
       }
       
       if (data.totalDistMM > 0 && data.positionMM !== undefined) {

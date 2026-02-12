@@ -365,13 +365,8 @@ void motorTask(void* param) {
     if (config.executionContext == CONTEXT_SEQUENCER) {
       SeqExecutor.process();
     }
-    
-    // ═══════════════════════════════════════════════════════════════════════
-    // HSS86 FEEDBACK MONITORING (ALM only - PEND ISR runs in background)
-    // ═══════════════════════════════════════════════════════════════════════
-    Motor.updatePendTracking();
-    
-    // ALM monitoring (informative only for now)
+
+    // ALM monitoring always active (safety critical)
     static bool lastAlarmState = false;
     bool alarmActive = Motor.isAlarmActive();
     
@@ -383,13 +378,31 @@ void motorTask(void* param) {
     lastAlarmState = alarmActive;
     
     // ═══════════════════════════════════════════════════════════════════════
-    // CYCLE COUNTER (periodic stats)
+    // PEND + CYCLE COUNTER (periodic stats) - Debug only
     // ═══════════════════════════════════════════════════════════════════════
-    static unsigned long lastSummary = 0;
-    static unsigned long cycleCounter = 0;
-    
-    if (config.currentState == STATE_RUNNING) {
+    if (engine->getLogLevel() == LOG_DEBUG && config.currentState == STATE_RUNNING) {
+      Motor.updatePendTracking();
+      
+      static unsigned long lastPendLogMs = 0;
+      static unsigned long lastPendCount = 0;
+      
+      // Periodic HSS86 stats (PEND transitions count is sufficient for health check)
+      if (millis() - lastPendLogMs > SUMMARY_LOG_INTERVAL_MS) {
+        unsigned long currentPendCount = Motor.getPendInterruptCount();
+        unsigned long pendTransitions = currentPendCount - lastPendCount;
+        int rawAlm = digitalRead(PIN_ALM);
+        
+        engine->debug("📊 HSS86: PEND transitions=" + String(pendTransitions) + "/10s" +
+              " (total=" + String(currentPendCount) + ") | ALM=" + String(rawAlm));
+        
+        lastPendCount = currentPendCount;
+        lastPendLogMs = millis();
+      }
+
+      static unsigned long lastSummary = 0;
+      static unsigned long cycleCounter = 0;
       static bool lastWasAtStart = false;
+      
       bool nowAtStart = (currentStep == startStep);
       if (nowAtStart && !lastWasAtStart) {
         cycleCounter++;
@@ -401,10 +414,9 @@ void motorTask(void* param) {
               String(stats.totalDistanceTraveled / 1000000.0, 2) + " km");
         lastSummary = millis();
       }
-    } else {
-      lastSummary = millis();
-      cycleCounter = 0;
     }
+
+
     
     // ═══════════════════════════════════════════════════════════════════════
     // TASK YIELD - Adaptive based on motor state
