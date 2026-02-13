@@ -119,8 +119,30 @@ function generateSequenceLineTooltipPure(line) {
     tooltip += `📍 Départ: ${line.startPositionMM?.toFixed(1) || 0}mm<br>`;
     tooltip += `📏 Distance: ${line.distanceMM?.toFixed(1) || 50}mm<br>`;
     tooltip += `⚡ Vitesse: ${line.speedForward?.toFixed(1) || 5}/${line.speedBackward?.toFixed(1) || 5}`;
-    if (line.cycles !== undefined) {
-      tooltip += `<br>🔄 Cycles: ${line.cycles === 0 ? '∞' : line.cycles}`;
+    if (line.cycleCount !== undefined) {
+      tooltip += `<br>🔄 Cycles: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
+    }
+    // Zone Effects
+    const ze = line.vaetZoneEffect;
+    if (ze && (ze.enableStart || ze.enableEnd)) {
+      const pos = [];
+      if (ze.enableStart) pos.push('D');
+      if (ze.enableEnd) pos.push('F');
+      if (ze.mirrorOnReturn) pos.push('🔀');
+      tooltip += `<br>🎯 Zone: ${pos.join('/')} ${ze.zoneMM}mm`;
+      const effectNames = ['', 'Décel', 'Accél'];
+      const curveNames = ['Lin', 'Sin', 'TriInv', 'SinInv'];
+      if (ze.speedEffect > 0) {
+        tooltip += `<br>🚀 ${effectNames[ze.speedEffect] || 'Eff'} ${curveNames[ze.speedCurve] || ''} ${ze.speedIntensity}%`;
+      }
+      if (ze.randomTurnbackEnabled) tooltip += `<br>🔄 Retour aléa. ${ze.turnbackChance || 30}%`;
+      if (ze.endPauseEnabled) {
+        if (ze.endPauseIsRandom) {
+          tooltip += `<br>⏸ Pause ${ze.endPauseMinSec}-${ze.endPauseMaxSec}s`;
+        } else {
+          tooltip += `<br>⏸ Pause ${ze.endPauseDurationSec}s`;
+        }
+      }
     }
   } else if (line.movementType === 1) {
     // Oscillation
@@ -130,8 +152,8 @@ function generateSequenceLineTooltipPure(line) {
     if (line.oscWaveform !== undefined) {
       tooltip += `<br>📈 Forme: ${WAVEFORM_NAMES[line.oscWaveform] || 'Sine'}`;
     }
-    if (line.oscCycles !== undefined) {
-      tooltip += `<br>🔄 Cycles: ${line.oscCycles === 0 ? '∞' : line.oscCycles}`;
+    if (line.cycleCount !== undefined) {
+      tooltip += `<br>🔄 Cycles: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
     }
   } else if (line.movementType === 2) {
     // Chaos
@@ -139,6 +161,11 @@ function generateSequenceLineTooltipPure(line) {
     tooltip += `↔️ Amplitude: ±${line.chaosAmplitudeMM?.toFixed(1) || 40}mm<br>`;
     tooltip += `🎲 Folie: ${line.chaosCrazinessPercent?.toFixed(0) || 50}%<br>`;
     tooltip += `⏱️ Durée: ${line.chaosDurationSeconds || 30}s`;
+  }
+  
+  // Common: pause after line
+  if (line.pauseAfterMs > 0) {
+    tooltip += `<br>⏳ Pause après: ${(line.pauseAfterMs / 1000).toFixed(1)}s`;
   }
   
   return tooltip;
