@@ -39,9 +39,6 @@ constexpr int PIN_ENABLE = 15;         // EN- via level shifter
 constexpr int PIN_ALM = 17;            // ALM- via level shifter (input)
 constexpr int PIN_PEND = 16;           // PED- via level shifter (input)
 
-// AP Mode forcing pin (GND = AP_SETUP config mode, floating = normal STA+AP or AP_DIRECT)
-constexpr int PIN_AP_MODE = 19;        // GND = AP_SETUP mode, floating = normal
-
 // Onboard RGB LED (WS2812 on Freenove ESP32-S3)
 constexpr int PIN_RGB_LED = 48;
 

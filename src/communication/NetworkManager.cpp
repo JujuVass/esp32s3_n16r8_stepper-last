@@ -2,9 +2,9 @@
  * NetworkManager.cpp - WiFi Network Management Implementation
  * 
  * Three modes:
- * - AP_SETUP:  GPIO 19 GND → Config-only (setup.html + captive portal)
+ * - AP_SETUP:  No WiFi credentials → Config-only (setup.html + captive portal)
  * - STA+AP:    WiFi connected + AP parallel → Full app on both interfaces
- * - AP_DIRECT: No WiFi / fail → AP-only with full stepper control
+ * - AP_DIRECT: Credentials exist but WiFi fail → AP-only with full stepper control
  */
 
 #include "communication/NetworkManager.h"
@@ -25,23 +25,32 @@ NetworkManager& NetworkManager::getInstance() {
 
 // ============================================================================
 // MODE DETERMINATION - Should we enter AP_SETUP (config-only)?
+// AP_SETUP is triggered when NO WiFi credentials are available
 // ============================================================================
 
 bool NetworkManager::shouldStartAPSetup() {
-    // Setup GPIO for AP mode detection (active LOW with internal pull-up)
-    pinMode(PIN_AP_MODE, INPUT_PULLUP);
-    delay(10);  // Let pin stabilize
+    // Check if we have valid WiFi credentials in EEPROM
+    String savedSSID, savedPassword;
+    bool eepromConfigured = WiFiConfig.isConfigured();
+    engine->info("📦 EEPROM configured: " + String(eepromConfigured ? "YES" : "NO"));
     
-    int pinState = digitalRead(PIN_AP_MODE);
-    engine->info("📌 GPIO" + String(PIN_AP_MODE) + " state: " + String(pinState == HIGH ? "HIGH (floating)" : "LOW (GND)"));
-    
-    // GPIO 19 LOW (GND) = force AP_SETUP mode
-    if (pinState == LOW) {
-        engine->info("🔧 GPIO " + String(PIN_AP_MODE) + " is LOW (GND) - Forcing AP_SETUP mode");
-        return true;
+    if (eepromConfigured && WiFiConfig.loadConfig(savedSSID, savedPassword)) {
+        if (savedSSID.length() > 0) {
+            engine->info("� Found EEPROM WiFi config: '" + savedSSID + "' → Skip AP_SETUP");
+            return false;  // Have credentials, don't enter setup
+        }
     }
     
-    return false;
+    // Check hardcoded defaults from Config.h
+    engine->info("📄 Config.h SSID: '" + String(ssid) + "'");
+    if (strlen(ssid) > 0 && strcmp(ssid, "YOUR_WIFI_SSID") != 0) {
+        engine->info("� Using Config.h WiFi config: '" + String(ssid) + "' → Skip AP_SETUP");
+        return false;  // Have defaults, don't enter setup
+    }
+    
+    // No credentials available - must use AP_SETUP for configuration
+    engine->warn("⚠️ No WiFi credentials found - Entering AP_SETUP mode");
+    return true;
 }
 
 // ============================================================================
@@ -326,40 +335,16 @@ void NetworkManager::setupOTA() {
 bool NetworkManager::begin() {
     engine->info("🌐 Network initialization...");
     
-    // Check if GPIO forces AP_SETUP (config-only) mode
+    // Check if we should enter AP_SETUP (no credentials available)
     if (shouldStartAPSetup()) {
         startAPSetupMode();
         return false;  // AP_SETUP mode = no stepper control
     }
     
-    // Check if we have WiFi credentials to try STA mode
-    String savedSSID, savedPassword;
-    bool hasCredentials = false;
-    
-    bool eepromConfigured = WiFiConfig.isConfigured();
-    engine->info("📦 EEPROM configured: " + String(eepromConfigured ? "YES" : "NO"));
-    
-    if (eepromConfigured && WiFiConfig.loadConfig(savedSSID, savedPassword) && savedSSID.length() > 0) {
-        engine->info("📶 Found EEPROM WiFi config: '" + savedSSID + "' → Try STA+AP mode");
-        hasCredentials = true;
-    } else {
-        engine->info("📄 Config.h SSID: '" + String(ssid) + "'");
-        if (strlen(ssid) > 0 && strcmp(ssid, "YOUR_WIFI_SSID") != 0) {
-            engine->info("📶 Using Config.h WiFi config: '" + String(ssid) + "' → Try STA+AP mode");
-            hasCredentials = true;
-        }
-    }
-    
-    if (hasCredentials) {
-        bool connected = startSTAMode();  // Returns true if connected, falls back to AP_DIRECT on failure
-        _wasConnected = connected;
-        return connected;
-    }
-    
-    // No credentials → go straight to AP_DIRECT (full app via AP)
-    engine->warn("⚠️ No WiFi credentials found - Starting AP_DIRECT mode");
-    startAPDirectMode();
-    return false;
+    // We have credentials → try STA+AP mode (falls back to AP_DIRECT on failure)
+    bool connected = startSTAMode();
+    _wasConnected = connected;
+    return connected;
 }
 
 // ============================================================================
