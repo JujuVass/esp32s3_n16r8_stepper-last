@@ -73,6 +73,7 @@ function generatePresetTooltipPure(mode, config) {
       const pos = [];
       if (ze.enableStart) pos.push('D');
       if (ze.enableEnd) pos.push('F');
+      if (ze.mirrorOnReturn) pos.push('🔀');
       tooltip += `\n🎯 Zone: ${pos.join('/')} ${ze.zoneMM}mm`;
       if (ze.randomTurnbackEnabled) tooltip += ` 🔄${ze.turnbackChance}%`;
       if (ze.endPauseEnabled) tooltip += ' ⏸';

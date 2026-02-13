@@ -134,6 +134,7 @@ function getCurrentModeConfig(mode) {
         enabled: zoneEffectEnabled,
         enableStart: document.getElementById('zoneEffectStart')?.checked ?? true,
         enableEnd: document.getElementById('zoneEffectEnd')?.checked ?? true,
+        mirrorOnReturn: document.getElementById('zoneEffectMirror')?.checked ?? false,
         zoneMM: parseFloat(document.getElementById('zoneEffectMM')?.value) || 50,
         speedEffect: parseInt(document.getElementById('speedEffectType')?.value) || 1,
         speedCurve: parseInt(document.getElementById('speedCurveSelect')?.value) || 1,
@@ -567,6 +568,8 @@ function loadSimplePreset(config) {
   if (zoneMMEl) zoneMMEl.value = ze.zoneMM || 50;
   if (zoneStartEl) zoneStartEl.checked = ze.enableStart ?? true;
   if (zoneEndEl) zoneEndEl.checked = ze.enableEnd ?? true;
+  const zoneMirrorEl = document.getElementById('zoneEffectMirror');
+  if (zoneMirrorEl) zoneMirrorEl.checked = ze.mirrorOnReturn || false;
   
   // Speed effect
   const speedEffectEl = document.getElementById('speedEffectType');
@@ -985,6 +988,34 @@ function loadPresetIntoSequencerModal(mode) {
     document.getElementById('editDistance').value = config.distanceMM || 50;
     document.getElementById('editSpeedFwd').value = config.speedLevelForward || 5;
     document.getElementById('editSpeedBack').value = config.speedLevelBackward || 5;
+    
+    // Load Zone Effects into sequencer modal
+    const ze = config.vaetZoneEffect;
+    if (ze) {
+      document.getElementById('editZoneEnableStart').checked = ze.enableStart ?? true;
+      document.getElementById('editZoneEnableEnd').checked = ze.enableEnd ?? true;
+      document.getElementById('editZoneMirror').checked = ze.mirrorOnReturn || false;
+      document.getElementById('editZoneMM').value = ze.zoneMM || 50;
+      document.getElementById('editSpeedEffect').value = ze.speedEffect ?? 1;
+      document.getElementById('editSpeedCurve').value = ze.speedCurve ?? 1;
+      document.getElementById('editSpeedIntensity').value = ze.speedIntensity || 75;
+      const intensityVal = document.getElementById('editSpeedIntensityValue');
+      if (intensityVal) intensityVal.textContent = (ze.speedIntensity || 75) + '%';
+      document.getElementById('editRandomTurnback').checked = ze.randomTurnbackEnabled || false;
+      document.getElementById('editTurnbackChance').value = ze.turnbackChance || 30;
+      const turnbackVal = document.getElementById('editTurnbackChanceValue');
+      if (turnbackVal) turnbackVal.textContent = (ze.turnbackChance || 30) + '%';
+      document.getElementById('editEndPauseEnabled').checked = ze.endPauseEnabled || false;
+      const endPauseFixedEl = document.getElementById('editEndPauseModeFixed');
+      const endPauseRandomEl = document.getElementById('editEndPauseModeRandom');
+      if (endPauseFixedEl && endPauseRandomEl) {
+        endPauseFixedEl.checked = !ze.endPauseIsRandom;
+        endPauseRandomEl.checked = ze.endPauseIsRandom || false;
+      }
+      document.getElementById('editEndPauseDuration').value = ze.endPauseDurationSec || 1.0;
+      document.getElementById('editEndPauseMin').value = ze.endPauseMinSec || 0.5;
+      document.getElementById('editEndPauseMax').value = ze.endPauseMaxSec || 2.0;
+    }
   } else if (mode === 'oscillation') {
     document.getElementById('editOscCenter').value = config.centerPositionMM || 100;
     document.getElementById('editOscAmplitude').value = config.amplitudeMM || 20;
