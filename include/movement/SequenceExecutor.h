@@ -27,7 +27,7 @@
 // FORWARD DECLARATIONS
 // ============================================================================
 
-// Sequencer state - defined in SequenceExecutor.cpp (Phase 4D migration)
+// Sequencer state - defined in SequenceExecutor.cpp
 extern SequenceExecutionState seqState;
 extern MovementType currentMovement;
 

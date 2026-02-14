@@ -18,7 +18,7 @@
 #include "movement/SequenceExecutor.h"
 
 // ============================================================================
-// OSCILLATION STATE - Owned by this module (Phase 4D migration)
+// OSCILLATION STATE - Owned by this module
 // ============================================================================
 OscillationConfig oscillation;
 OscillationState oscillationState;

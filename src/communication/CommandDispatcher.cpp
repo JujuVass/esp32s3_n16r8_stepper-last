@@ -566,12 +566,12 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
               "mm, amplitude=±" + String(chaos.amplitudeMM, 1) + "mm, speed=" + 
               String(chaos.maxSpeedLevel, 1) + ", craziness=" + String(chaos.crazinessPercent, 0) + "%");
         
-        Chaos.start();  // Phase 4A: Direct singleton call
+        Chaos.start();
         return true;
     }
     
     if (strcmp(cmd, "stopChaos") == 0) {
-        Chaos.stop();  // Phase 4A: Direct singleton call
+        Chaos.stop();
         return true;
     }
     

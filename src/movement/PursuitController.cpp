@@ -16,7 +16,7 @@
 #include "hardware/ContactSensors.h"
 
 // ============================================================================
-// PURSUIT STATE - Owned by this module (Phase 4D migration)
+// PURSUIT STATE - Owned by this module
 // ============================================================================
 PursuitState pursuit;
 

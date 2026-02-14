@@ -591,7 +591,7 @@ void BaseMovementControllerClass::resetCycleTiming() {
 }
 
 // ============================================================================
-// MOVEMENT CONTROL (Phase 2)
+// MOVEMENT CONTROL
 // ============================================================================
 
 void BaseMovementControllerClass::togglePause() {
@@ -797,7 +797,7 @@ void BaseMovementControllerClass::returnToStart() {
     // (contact + decontact + SAFETY_OFFSET_STEPS)
     // ============================================================================
     
-    bool success = Calibration.returnToStart();  // Phase 4B: Use CalibrationManager
+    bool success = Calibration.returnToStart();
     
     if (!success) {
         // Error already logged by CalibrationManager
@@ -815,7 +815,7 @@ void BaseMovementControllerClass::returnToStart() {
 }
 
 // ============================================================================
-// MAIN LOOP PROCESSING (Phase 4D - encapsulates timing + zone effects + step)
+// MAIN LOOP PROCESSING
 // ============================================================================
 
 void BaseMovementControllerClass::process() {
@@ -917,7 +917,7 @@ void BaseMovementControllerClass::initPendingFromCurrent() {
 }
 
 // ============================================================================
-// STEP EXECUTION (Phase 3)
+// STEP EXECUTION
 // ============================================================================
 
 void BaseMovementControllerClass::doStep() {

@@ -35,7 +35,7 @@
 #include "core/GlobalState.h"
 
 // ============================================================================
-// PURSUIT STATE - Defined in PursuitController.cpp (Phase 4D migration)
+// PURSUIT STATE - Defined in PursuitController.cpp
 // ============================================================================
 extern PursuitState pursuit;
 

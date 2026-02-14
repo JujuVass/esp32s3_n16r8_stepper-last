@@ -33,7 +33,7 @@
 #include "hardware/ContactSensors.h"
 
 // ============================================================================
-// CHAOS STATE - Defined in ChaosController.cpp (Phase 4D migration)
+// CHAOS STATE - Defined in ChaosController.cpp
 // ============================================================================
 extern ChaosRuntimeConfig chaos;
 extern ChaosExecutionState chaosState;

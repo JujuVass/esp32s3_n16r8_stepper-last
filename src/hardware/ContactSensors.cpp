@@ -83,7 +83,7 @@ bool ContactSensors::isClear(uint8_t pin) {
 }
 
 // ============================================================================
-// DRIFT DETECTION & CORRECTION (Phase 3)
+// DRIFT DETECTION & CORRECTION
 // ============================================================================
 
 bool ContactSensors::checkAndCorrectDriftEnd() {

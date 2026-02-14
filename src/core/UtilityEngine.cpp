@@ -227,12 +227,6 @@ void UtilityEngine::flushLogBuffer(bool forceFlush) {
   // CRITICAL: Force flush if buffer is 80% full
   bool shouldForce = (bufferUsagePercent >= 80.0);
   
-  // Skip flush if motor moving (unless critical) - DISABLED after Phase 3.3 (currentState in config)
-  // NOTE: We could check config.currentState here if needed, but for now we flush normally
-  // if (currentState == STATE_RUNNING && !isPaused && !shouldForce && !forceFlush) {
-  //   return;
-  // }
-  
   // Flush every 5 seconds OR if forced/critical
   if (!forceFlush && !shouldForce && now - lastLogFlush < 5000) return;
   
@@ -631,7 +625,7 @@ void UtilityEngine::listDirectoryContents(const String& path) const {
 }
 
 // ============================================================================
-// JSON HELPERS - Phase 3.1
+// JSON HELPERS
 // ============================================================================
 
 /**

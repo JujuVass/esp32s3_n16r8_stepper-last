@@ -22,7 +22,7 @@
 #include "movement/BaseMovementController.h"
 
 // ============================================================================
-// SEQUENCER STATE - Owned by this module (Phase 4D migration)
+// SEQUENCER STATE - Owned by this module
 // ============================================================================
 SequenceExecutionState seqState;
 MovementType currentMovement = MOVEMENT_VAET;  // Default: Va-et-vient

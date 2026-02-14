@@ -1,9 +1,9 @@
 // ============================================================================
-// API ROUTES MANAGER - PHASE 3.4
+// API ROUTES MANAGER
 // ============================================================================
-// Extracted HTTP server routes from main .ino
+// HTTP server routes
 // Header file: declarations only
-// Implementation in src/web/APIRoutes.cpp
+// Implementation in src/communication/APIRoutes.cpp
 // ============================================================================
 
 #ifndef API_ROUTES_H

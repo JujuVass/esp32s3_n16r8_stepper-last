@@ -8,7 +8,6 @@
 #include "core/GlobalState.h"
 #include "core/UtilityEngine.h"
 
-// NOTE: currentStep, config now via GlobalState.h (Phase 4D cleanup)
 extern UtilityEngine* engine;
 
 // External WebSocket/Server (for servicing during long operations)

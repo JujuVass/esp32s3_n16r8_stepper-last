@@ -176,8 +176,6 @@ private:
   SequenceTableManager(const SequenceTableManager&) = delete;
   SequenceTableManager& operator=(const SequenceTableManager&) = delete;
   
-  // Note: sequenceTable, sequenceLineCount now owned by this module (Phase 4D)
-  // Note: nextLineId unified to config.nextLineId (Phase 4D)
   // Uses global 'engine' pointer for logging (extern UtilityEngine* engine)
 };
 
@@ -185,11 +183,10 @@ private:
 extern SequenceTableManager& SeqTable;
 
 // ============================================================================
-// SEQUENCE DATA - Owned by SequenceTableManager (Phase 4D migration)
+// SEQUENCE DATA - Owned by SequenceTableManager
 // ============================================================================
 // Defined in SequenceTableManager.cpp, accessible via extern:
 extern SequenceLine sequenceTable[MAX_SEQUENCE_LINES];
 extern int sequenceLineCount;
-// config.nextLineId (Phase 4D: unified in SystemConfig, auto-saved)
 
 #endif // SEQUENCE_TABLE_MANAGER_H

@@ -13,7 +13,7 @@
 #include <WebSocketsServer.h>
 
 // ============================================================================
-// SEQUENCE DATA - Owned by this module (Phase 4D migration)
+// SEQUENCE DATA - Owned by this module
 // ============================================================================
 SequenceLine sequenceTable[MAX_SEQUENCE_LINES];
 int sequenceLineCount = 0;
@@ -30,8 +30,6 @@ SequenceTableManager& SeqTable = SequenceTableManager::getInstance();
 
 SequenceTableManager::SequenceTableManager() {
   // engine is a global pointer (extern UtilityEngine* engine)
-  // Note: sequenceTable, sequenceLineCount are in main
-  // Note: nextLineId unified to config.nextLineId (Phase 4D)
 }
 
 // ============================================================================
@@ -164,7 +162,7 @@ int SequenceTableManager::duplicateLine(int lineId) {
 
 void SequenceTableManager::clear() {
   sequenceLineCount = 0;
-  config.nextLineId = 1;  // Phase 4D: Use config.nextLineId
+  config.nextLineId = 1;
   engine->info("🗑️ Table cleared");
 }
 
@@ -516,7 +514,7 @@ int SequenceTableManager::importFromJson(String jsonData) {
     importedCount++;
   }
   
-  config.nextLineId = maxLineId + 1;  // Phase 4D: Use config.nextLineId
+  config.nextLineId = maxLineId + 1;
   
   engine->info(String("✅ ") + String(importedCount) + " lines imported");
   engine->info(String("📢 nextLineId updated: ") + String(config.nextLineId));

@@ -17,7 +17,7 @@
 #include "movement/SequenceExecutor.h"
 
 // ============================================================================
-// CHAOS STATE - Owned by this module (Phase 4D migration)
+// CHAOS STATE - Owned by this module
 // ============================================================================
 ChaosRuntimeConfig chaos;
 ChaosExecutionState chaosState;
@@ -145,7 +145,7 @@ bool ChaosController::checkLimits() {
 }
 
 // ============================================================================
-// CHAOS STEP EXECUTION (Phase 3 - replaces global doStep() for chaos mode)
+// CHAOS STEP EXECUTION
 // ============================================================================
 
 void ChaosController::doStep() {

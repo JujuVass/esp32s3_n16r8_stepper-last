@@ -27,8 +27,8 @@ public:
     // ========================================================================
     // CONFIGURATION STATE
     // ========================================================================
-    // Note: Phase 1 uses global variables (motion, pendingMotion, motionPauseState)
-    // defined in stepper_controller_restructured.ino and declared extern in GlobalState.h
+    // Uses global variables (motion, pendingMotion, motionPauseState)
+    // defined in StepperController.ino and declared extern in GlobalState.h
     // Timing variables (lastStartContactMillis, cycleTimeMillis, etc.) are also globals
     // shared with SequenceExecutor - no member duplication needed
     
@@ -202,7 +202,7 @@ public:
     void resetCycleTiming();
     
     // ========================================================================
-    // MOVEMENT CONTROL (Phase 2)
+    // MOVEMENT CONTROL
     // ========================================================================
     
     /**
@@ -231,7 +231,7 @@ public:
     void returnToStart();
     
     // ========================================================================
-    // MAIN LOOP PROCESSING (Phase 4D - encapsulates timing + decel + step)
+    // MAIN LOOP PROCESSING
     // ========================================================================
     
     /**
@@ -246,7 +246,7 @@ public:
     void process();
     
     // ========================================================================
-    // STEP EXECUTION (Phase 3 - extracted from main doStep())
+    // STEP EXECUTION
     // ========================================================================
     
     /**

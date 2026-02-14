@@ -294,7 +294,7 @@ void setupAPIRoutes() {
     char dateStr[11];
     strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", timeinfo);
     
-    // Load existing stats using UtilityEngine (Phase 3.1 - JSON Manager)
+    // Load existing stats
     JsonDocument statsDoc;
     engine->loadJsonFile("/stats.json", statsDoc);
     
@@ -340,7 +340,7 @@ void setupAPIRoutes() {
       saveArray.add(entry);
     }
     
-    // Save back to file using UtilityEngine (Phase 3.1 - JSON Manager)
+    // Save back to file
     if (!engine->saveJsonFile("/stats.json", saveDoc)) {
       sendJsonError(500, "Failed to write stats");
       return;
@@ -614,7 +614,7 @@ void setupAPIRoutes() {
       }
     }
     
-    // Load existing playlists using UtilityEngine (Phase 3.1 - JSON Manager)
+    // Load existing playlists
     JsonDocument playlistDoc;
     bool fileLoaded = engine->loadJsonFile(PLAYLIST_FILE_PATH, playlistDoc);
     
@@ -669,7 +669,7 @@ void setupAPIRoutes() {
     engine->debug("📋 Adding preset: mode=" + String(mode) + ", id=" + String(nextId) + ", name=" + String(name));
     engine->debug("📋 Array size after add: " + String(modeArray.size()));
     
-    // Save to file using UtilityEngine (Phase 3.1 - JSON Manager)
+    // Save to file
     if (!engine->saveJsonFile(PLAYLIST_FILE_PATH, playlistDoc)) {
       engine->error("❌ Failed to save playlist");
       sendJsonApiError(500, "Failed to save");
