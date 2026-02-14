@@ -147,96 +147,22 @@ function sendOscillationConfig() {
  * Update visual state of oscillation preset buttons
  */
 function updateOscillationPresets() {
+  // Shared center/amplitude/linked preset validation
+  updateCenterAmplitudePresets({
+    centerInputId: 'oscCenter',
+    amplitudeInputId: 'oscAmplitude',
+    linkedCheckboxId: 'oscAmplitudeLinked',
+    dataPrefix: 'osc',
+    i18nPrefix: 'oscillation'
+  });
+  
+  // Oscillation-specific: Validate frequency presets (must not exceed speed limit)
   const effectiveMax = AppState.pursuit.effectiveMaxDistMM || AppState.pursuit.totalDistanceMM || 0;
   if (effectiveMax === 0) return;
   
-  const currentCenter = parseFloat(document.getElementById('oscCenter').value) || 0;
   const currentAmplitude = parseFloat(document.getElementById('oscAmplitude').value) || 0;
-  const isLinked = document.getElementById('oscAmplitudeLinked')?.checked || false;
-  
-  // 🚀 MAX_SPEED_LEVEL constant (must match backend)
   const MAX_SPEED_MM_S = maxSpeedLevel * 20.0; // 300 mm/s by default
   
-  // Validate center presets (must allow current amplitude)
-  document.querySelectorAll('[data-osc-center]').forEach(btn => {
-    const centerValue = parseFloat(btn.getAttribute('data-osc-center'));
-    const minPos = centerValue - currentAmplitude;
-    const maxPos = centerValue + currentAmplitude;
-    const isValid = minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid;
-    btn.style.opacity = isValid ? '1' : '0.3';
-    btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
-  });
-  
-  // Validate amplitude presets (must respect current center)
-  document.querySelectorAll('[data-osc-amplitude]').forEach(btn => {
-    const amplitudeValue = parseFloat(btn.getAttribute('data-osc-amplitude'));
-    const minPos = currentCenter - amplitudeValue;
-    const maxPos = currentCenter + amplitudeValue;
-    const isValid = minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid || isLinked;  // Disabled if linked mode
-    btn.style.opacity = (isValid && !isLinked) ? '1' : '0.3';
-    btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
-  });
-  
-  // 🆕 Validate relative center presets
-  document.querySelectorAll('[data-osc-center-rel]').forEach(btn => {
-    const relValue = parseInt(btn.getAttribute('data-osc-center-rel'));
-    const newCenter = currentCenter + relValue;
-    const minPos = newCenter - currentAmplitude;
-    const maxPos = newCenter + currentAmplitude;
-    const isValid = newCenter >= 0 && minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid;
-    btn.style.opacity = isValid ? '1' : '0.5';
-    btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
-  });
-  
-  // 🆕 Validate relative amplitude presets
-  document.querySelectorAll('[data-osc-amplitude-rel]').forEach(btn => {
-    const relValue = parseInt(btn.getAttribute('data-osc-amplitude-rel'));
-    const newAmplitude = currentAmplitude + relValue;
-    const minPos = currentCenter - newAmplitude;
-    const maxPos = currentCenter + newAmplitude;
-    const isValid = newAmplitude >= 1 && minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid || isLinked;  // Disabled if linked mode
-    btn.style.opacity = (isValid && !isLinked) ? '1' : '0.5';
-    btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
-  });
-  
-  // 🆕 Handle amplitude input disabled state when linked
-  const ampInput = document.getElementById('oscAmplitude');
-  if (ampInput) {
-    ampInput.disabled = isLinked;
-    ampInput.style.opacity = isLinked ? '0.5' : '1';
-  }
-  
-  // �️ SAFETY: Validate and disable "=Centre" checkbox if center*2 > effectiveMax
-  const linkedCheckbox = document.getElementById('oscAmplitudeLinked');
-  if (linkedCheckbox) {
-    const wouldBeValid = (currentCenter * 2) <= effectiveMax && currentCenter >= 1;
-    linkedCheckbox.disabled = !wouldBeValid;
-    linkedCheckbox.parentElement.style.opacity = wouldBeValid ? '1' : '0.5';
-    linkedCheckbox.parentElement.style.cursor = wouldBeValid ? 'pointer' : 'not-allowed';
-    linkedCheckbox.parentElement.title = wouldBeValid 
-      ? t('oscillation.amplitudeLinked')
-      : '⚠️ ' + t('oscillation.cannotLink', {val: currentCenter * 2, max: effectiveMax});
-    
-    // If currently linked but now invalid, uncheck it
-    if (isLinked && !wouldBeValid) {
-      linkedCheckbox.checked = false;
-      // Re-enable amplitude input
-      if (ampInput) {
-        ampInput.disabled = false;
-        ampInput.style.opacity = '1';
-      }
-    }
-  }
-  
-  // �🚀 Validate frequency presets (must not exceed speed limit)
   document.querySelectorAll('[data-osc-frequency]').forEach(btn => {
     const frequencyValue = parseFloat(btn.getAttribute('data-osc-frequency'));
     
@@ -412,55 +338,7 @@ function updateOscillationUI(data) {
   
   // ===== CYCLE PAUSE DISPLAY (MODE OSCILLATION) =====
   if (data.oscillation && data.oscillation.cyclePause) {
-    const pauseStatusOsc = document.getElementById('cyclePauseStatusOsc');
-    const pauseRemainingOsc = document.getElementById('cyclePauseRemainingOsc');
-    
-    if (data.oscillation.cyclePause.isPausing && pauseStatusOsc && pauseRemainingOsc) {
-      const remainingSec = (data.oscillation.cyclePause.remainingMs / 1000).toFixed(1);
-      pauseStatusOsc.style.display = 'block';
-      pauseRemainingOsc.textContent = remainingSec + 's';
-    } else if (pauseStatusOsc) {
-      pauseStatusOsc.style.display = 'none';
-    }
-    
-    // Sync UI to backend state (only if section is expanded)
-    const sectionOsc = getCyclePauseOscSection();
-    const headerTextOsc = document.getElementById('cyclePauseOscHeaderText');
-    if (sectionOsc && headerTextOsc) {
-      const isEnabled = data.oscillation.cyclePause.enabled;
-      const isCollapsed = sectionOsc.classList.contains('collapsed');
-      
-      // Sync collapsed state with backend enabled state
-      if (isEnabled && isCollapsed) {
-        sectionOsc.classList.remove('collapsed');
-        headerTextOsc.textContent = t('oscillation.cyclePauseEnabled');
-      } else if (!isEnabled && !isCollapsed) {
-        sectionOsc.classList.add('collapsed');
-        headerTextOsc.textContent = t('oscillation.cyclePauseDisabled');
-      }
-      
-      // Sync radio buttons
-      if (data.oscillation.cyclePause.isRandom) {
-        document.getElementById('pauseModeRandomOsc').checked = true;
-        document.getElementById('pauseFixedControlsOsc').style.display = 'none';
-        document.getElementById('pauseRandomControlsOsc').style.display = 'block';
-      } else {
-        document.getElementById('pauseModeFixedOsc').checked = true;
-        document.getElementById('pauseFixedControlsOsc').style.display = 'flex';
-        document.getElementById('pauseRandomControlsOsc').style.display = 'none';
-      }
-      
-      // Sync input values (avoid overwriting if user is editing)
-      if (document.activeElement !== document.getElementById('cyclePauseDurationOsc')) {
-        document.getElementById('cyclePauseDurationOsc').value = data.oscillation.cyclePause.pauseDurationSec.toFixed(1);
-      }
-      if (document.activeElement !== document.getElementById('cyclePauseMinOsc')) {
-        document.getElementById('cyclePauseMinOsc').value = data.oscillation.cyclePause.minPauseSec.toFixed(1);
-      }
-      if (document.activeElement !== document.getElementById('cyclePauseMaxOsc')) {
-        document.getElementById('cyclePauseMaxOsc').value = data.oscillation.cyclePause.maxPauseSec.toFixed(1);
-      }
-    }
+    syncCyclePauseUI(data.oscillation.cyclePause, 'Osc', getCyclePauseOscSection, 'oscillation');
   }
   
   // ===== PAUSE/STOP BUTTONS =====

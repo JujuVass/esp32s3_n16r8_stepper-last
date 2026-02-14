@@ -182,26 +182,13 @@ function getCurrentModeConfig(mode) {
       cyclePauseMaxSec: parseFloat(document.getElementById('cyclePauseMaxOsc')?.value) || 3.0
     };
   } else if (mode === 'chaos') {
-    const patterns = [
-      document.getElementById('patternZigzag').checked,
-      document.getElementById('patternSweep').checked,
-      document.getElementById('patternPulse').checked,
-      document.getElementById('patternDrift').checked,
-      document.getElementById('patternBurst').checked,
-      document.getElementById('patternWave').checked,
-      document.getElementById('patternPendulum').checked,
-      document.getElementById('patternSpiral').checked,
-      document.getElementById('patternCalm').checked,
-      document.getElementById('patternBruteForce').checked,
-      document.getElementById('patternLiberator').checked
-    ];
     return {
       centerPositionMM: parseFloat(document.getElementById('chaosCenterPos').value) || 100,
       amplitudeMM: parseFloat(document.getElementById('chaosAmplitude').value) || 40,
       maxSpeedLevel: parseFloat(document.getElementById('chaosMaxSpeed').value) || 15,
       crazinessPercent: parseInt(document.getElementById('chaosCraziness').value) || 50,
       durationSeconds: parseInt(document.getElementById('chaosDuration').value) || 30,
-      patternsEnabled: patterns
+      patternsEnabled: getPatternStates()
     };
   }
   return {};
@@ -826,19 +813,9 @@ function loadChaosPreset(config) {
   document.getElementById('chaosDuration').value = config.durationSeconds || 30;
   document.getElementById('crazinessValue').textContent = config.crazinessPercent || 50;
 
-  // Set pattern checkboxes (correct IDs)
-  if (config.patternsEnabled && Array.isArray(config.patternsEnabled) && config.patternsEnabled.length >= 11) {
-    document.getElementById('patternZigzag').checked = config.patternsEnabled[0];
-    document.getElementById('patternSweep').checked = config.patternsEnabled[1];
-    document.getElementById('patternPulse').checked = config.patternsEnabled[2];
-    document.getElementById('patternDrift').checked = config.patternsEnabled[3];
-    document.getElementById('patternBurst').checked = config.patternsEnabled[4];
-    document.getElementById('patternWave').checked = config.patternsEnabled[5];
-    document.getElementById('patternPendulum').checked = config.patternsEnabled[6];
-    document.getElementById('patternSpiral').checked = config.patternsEnabled[7];
-    document.getElementById('patternCalm').checked = config.patternsEnabled[8];
-    document.getElementById('patternBruteForce').checked = config.patternsEnabled[9];
-    document.getElementById('patternLiberator').checked = config.patternsEnabled[10];
+  // Set pattern checkboxes using shared helper
+  if (config.patternsEnabled && Array.isArray(config.patternsEnabled)) {
+    setPatternStates(config.patternsEnabled);
   }
   
   // Send command to backend

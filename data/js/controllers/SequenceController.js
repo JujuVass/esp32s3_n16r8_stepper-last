@@ -842,6 +842,40 @@ function updateBatchToolbar() {
 // TRASH ZONES
 // ========================================================================
 
+/**
+ * Handle trash zone drop: confirm and delete selected/dragged lines
+ * Shared handler for both trash zone elements
+ */
+function handleTrashDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const linesToDelete = selectedLineIds.size > 0 ? Array.from(selectedLineIds) : [draggedLineId];
+  if (linesToDelete.length === 0) return;
+  
+  const count = linesToDelete.length;
+  const message = count === 1 ? 
+    t('sequencer.deleteSingle') :
+    t('sequencer.deleteMultiple', {count: count});
+  
+  showConfirm(message, {
+    title: t('common.delete'),
+    type: 'danger',
+    confirmText: '🗑️ ' + t('common.delete'),
+    dangerous: true
+  }).then(confirmed => {
+    if (!confirmed) return;
+    
+    console.log(`🗑️ Trash zone drop: deleting ${count} line(s)`);
+    const sortedIds = linesToDelete.sort((a, b) => b - a);
+    sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
+    
+    showNotification('✅ ' + t('sequencer.linesDeleted', {count: count}), 'success', 2000);
+    clearSelection();
+  });
+  return false;
+}
+
 function initializeTrashZones() {
   const trashZone = document.getElementById('sequenceTrashZone');
   if (trashZone && !trashZone.hasAttribute('data-initialized')) {
@@ -859,34 +893,8 @@ function initializeTrashZones() {
     };
     
     trashZone.ondrop = function(e) {
-      e.preventDefault();
-      e.stopPropagation();
       this.classList.remove('drag-over');
-      
-      const linesToDelete = selectedLineIds.size > 0 ? Array.from(selectedLineIds) : [draggedLineId];
-      if (linesToDelete.length === 0) return;
-      
-      const count = linesToDelete.length;
-      const message = count === 1 ? 
-        t('sequencer.deleteSingle') :
-        t('sequencer.deleteMultiple', {count: count});
-      
-      showConfirm(message, {
-        title: t('common.delete'),
-        type: 'danger',
-        confirmText: '🗑️ ' + t('common.delete'),
-        dangerous: true
-      }).then(confirmed => {
-        if (!confirmed) return;
-        
-        console.log(`🗑️ Trash zone drop: deleting ${count} line(s)`);
-        const sortedIds = linesToDelete.sort((a, b) => b - a);
-        sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
-        
-        showNotification('✅ ' + t('sequencer.linesDeleted', {count: count}), 'success', 2000);
-        clearSelection();
-      });
-      return false;
+      return handleTrashDrop(e);
     };
   }
   
@@ -900,35 +908,7 @@ function initializeTrashZones() {
       return false;
     };
     
-    trashDropZone.ondrop = function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const linesToDelete = selectedLineIds.size > 0 ? Array.from(selectedLineIds) : [draggedLineId];
-      if (linesToDelete.length === 0) return;
-      
-      const count = linesToDelete.length;
-      const message = count === 1 ? 
-        t('sequencer.deleteSingle') :
-        t('sequencer.deleteMultiple', {count: count});
-      
-      showConfirm(message, {
-        title: t('common.delete'),
-        type: 'danger',
-        confirmText: '🗑️ ' + t('common.delete'),
-        dangerous: true
-      }).then(confirmed => {
-        if (!confirmed) return;
-        
-        console.log(`🗑️ Permanent trash zone drop: deleting ${count} line(s)`);
-        const sortedIds = linesToDelete.sort((a, b) => b - a);
-        sortedIds.forEach(lineId => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: lineId }));
-        
-        showNotification('✅ ' + t('sequencer.linesDeleted', {count: count}), 'success', 2000);
-        clearSelection();
-      });
-      return false;
-    };
+    trashDropZone.ondrop = handleTrashDrop;
   }
 }
 

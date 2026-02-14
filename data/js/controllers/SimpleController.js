@@ -130,55 +130,7 @@ function updateSimpleUI(data) {
   
   // ===== CYCLE PAUSE DISPLAY =====
   if (data.motion && data.motion.cyclePause) {
-    const pauseStatus = document.getElementById('cyclePauseStatus');
-    const pauseRemaining = document.getElementById('cyclePauseRemaining');
-    
-    if (data.motion.cyclePause.isPausing && pauseStatus && pauseRemaining) {
-      const remainingSec = (data.motion.cyclePause.remainingMs / 1000).toFixed(1);
-      pauseStatus.style.display = 'block';
-      pauseRemaining.textContent = remainingSec + 's';
-    } else if (pauseStatus) {
-      pauseStatus.style.display = 'none';
-    }
-    
-    // Sync UI to backend state (only if section is expanded)
-    const section = getCyclePauseSection();
-    const headerText = document.getElementById('cyclePauseHeaderText');
-    if (section && headerText) {
-      const isEnabled = data.motion.cyclePause.enabled;
-      const isCollapsed = section.classList.contains('collapsed');
-      
-      // Sync collapsed state with backend enabled state
-      if (isEnabled && isCollapsed) {
-        section.classList.remove('collapsed');
-        headerText.textContent = t('simple.cyclePauseEnabled');
-      } else if (!isEnabled && !isCollapsed) {
-        section.classList.add('collapsed');
-        headerText.textContent = t('simple.cyclePauseDisabled');
-      }
-      
-      // Sync radio buttons
-      if (data.motion.cyclePause.isRandom) {
-        document.getElementById('pauseModeRandom').checked = true;
-        document.getElementById('pauseFixedControls').style.display = 'none';
-        document.getElementById('pauseRandomControls').style.display = 'block';
-      } else {
-        document.getElementById('pauseModeFixed').checked = true;
-        document.getElementById('pauseFixedControls').style.display = 'flex';
-        document.getElementById('pauseRandomControls').style.display = 'none';
-      }
-      
-      // Sync input values (avoid overwriting if user is editing)
-      if (document.activeElement !== document.getElementById('cyclePauseDuration')) {
-        document.getElementById('cyclePauseDuration').value = data.motion.cyclePause.pauseDurationSec.toFixed(1);
-      }
-      if (document.activeElement !== document.getElementById('cyclePauseMin')) {
-        document.getElementById('cyclePauseMin').value = data.motion.cyclePause.minPauseSec.toFixed(1);
-      }
-      if (document.activeElement !== document.getElementById('cyclePauseMax')) {
-        document.getElementById('cyclePauseMax').value = data.motion.cyclePause.maxPauseSec.toFixed(1);
-      }
-    }
+    syncCyclePauseUI(data.motion.cyclePause, '', getCyclePauseSection, 'simple');
   }
 }
 

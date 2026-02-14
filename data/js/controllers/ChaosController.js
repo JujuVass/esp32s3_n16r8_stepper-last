@@ -22,6 +22,27 @@ const CHAOS_PATTERNS = [
   'patternLiberator'    // 10
 ];
 
+/**
+ * Get current checked state of all chaos pattern checkboxes
+ * @returns {boolean[]} Array of 11 booleans matching CHAOS_PATTERNS order
+ */
+function getPatternStates() {
+  return CHAOS_PATTERNS.map(id => document.getElementById(id).checked);
+}
+
+/**
+ * Set checked state of all chaos pattern checkboxes from an array or a Set of enabled IDs
+ * @param {boolean[]|Set<string>} states - Array of booleans (by index) or Set of pattern IDs to enable
+ */
+function setPatternStates(states) {
+  if (states instanceof Set) {
+    CHAOS_PATTERNS.forEach(id => { document.getElementById(id).checked = states.has(id); });
+  } else if (Array.isArray(states) && states.length >= CHAOS_PATTERNS.length) {
+    CHAOS_PATTERNS.forEach((id, i) => { document.getElementById(id).checked = states[i]; });
+  }
+  updatePatternToggleButton();
+}
+
 // ============================================================================
 // CHAOS MODE - HELPER FUNCTIONS
 // ============================================================================
@@ -46,19 +67,7 @@ function sendChaosConfig() {
     craziness: document.getElementById('chaosCraziness').value,
     duration: document.getElementById('chaosDuration').value,
     seed: document.getElementById('chaosSeed').value,
-    patternsEnabled: [
-      document.getElementById('patternZigzag').checked,
-      document.getElementById('patternSweep').checked,
-      document.getElementById('patternPulse').checked,
-      document.getElementById('patternDrift').checked,
-      document.getElementById('patternBurst').checked,
-      document.getElementById('patternWave').checked,
-      document.getElementById('patternPendulum').checked,
-      document.getElementById('patternSpiral').checked,
-      document.getElementById('patternCalm').checked,
-      document.getElementById('patternBruteForce').checked,
-      document.getElementById('patternLiberator').checked
-    ]
+    patternsEnabled: getPatternStates()
   };
   
   // Delegate to pure function if available (from chaos.js)
@@ -108,91 +117,14 @@ function validateChaosLimits() {
  * Update visual state of chaos preset buttons
  */
 function updateChaosPresets() {
-  const effectiveMax = AppState.pursuit.effectiveMaxDistMM || AppState.pursuit.totalDistanceMM || 0;
-  if (effectiveMax === 0) return;
-  
-  const currentCenter = parseFloat(document.getElementById('chaosCenterPos').value) || 0;
-  const currentAmplitude = parseFloat(document.getElementById('chaosAmplitude').value) || 0;
-  const isLinked = document.getElementById('chaosAmplitudeLinked')?.checked || false;
-  
-  // Validate center presets (must allow current amplitude)
-  document.querySelectorAll('[data-chaos-center]').forEach(btn => {
-    const centerValue = parseFloat(btn.getAttribute('data-chaos-center'));
-    const minPos = centerValue - currentAmplitude;
-    const maxPos = centerValue + currentAmplitude;
-    const isValid = minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid;
-    btn.style.opacity = isValid ? '1' : '0.3';
-    btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+  // Shared center/amplitude/linked preset validation
+  updateCenterAmplitudePresets({
+    centerInputId: 'chaosCenterPos',
+    amplitudeInputId: 'chaosAmplitude',
+    linkedCheckboxId: 'chaosAmplitudeLinked',
+    dataPrefix: 'chaos',
+    i18nPrefix: 'chaos'
   });
-  
-  // Validate amplitude presets (must respect current center)
-  document.querySelectorAll('[data-chaos-amplitude]').forEach(btn => {
-    const amplitudeValue = parseFloat(btn.getAttribute('data-chaos-amplitude'));
-    const minPos = currentCenter - amplitudeValue;
-    const maxPos = currentCenter + amplitudeValue;
-    const isValid = minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid || isLinked;  // Disabled if linked mode
-    btn.style.opacity = (isValid && !isLinked) ? '1' : '0.3';
-    btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
-  });
-  
-  // 🆕 Validate relative center presets
-  document.querySelectorAll('[data-chaos-center-rel]').forEach(btn => {
-    const relValue = parseInt(btn.getAttribute('data-chaos-center-rel'));
-    const newCenter = currentCenter + relValue;
-    const minPos = newCenter - currentAmplitude;
-    const maxPos = newCenter + currentAmplitude;
-    const isValid = newCenter >= 0 && minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid;
-    btn.style.opacity = isValid ? '1' : '0.5';
-    btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
-  });
-  
-  // 🆕 Validate relative amplitude presets
-  document.querySelectorAll('[data-chaos-amplitude-rel]').forEach(btn => {
-    const relValue = parseInt(btn.getAttribute('data-chaos-amplitude-rel'));
-    const newAmplitude = currentAmplitude + relValue;
-    const minPos = currentCenter - newAmplitude;
-    const maxPos = currentCenter + newAmplitude;
-    const isValid = newAmplitude >= 1 && minPos >= 0 && maxPos <= effectiveMax;
-    
-    btn.disabled = !isValid || isLinked;  // Disabled if linked mode
-    btn.style.opacity = (isValid && !isLinked) ? '1' : '0.5';
-    btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
-  });
-  
-  // 🆕 Handle amplitude input disabled state when linked
-  const ampInput = document.getElementById('chaosAmplitude');
-  if (ampInput) {
-    ampInput.disabled = isLinked;
-    ampInput.style.opacity = isLinked ? '0.5' : '1';
-  }
-  
-  // 🛡️ SAFETY: Validate and disable "=Centre" checkbox if center*2 > effectiveMax
-  const linkedCheckbox = document.getElementById('chaosAmplitudeLinked');
-  if (linkedCheckbox) {
-    const wouldBeValid = (currentCenter * 2) <= effectiveMax && currentCenter >= 1;
-    linkedCheckbox.disabled = !wouldBeValid;
-    linkedCheckbox.parentElement.style.opacity = wouldBeValid ? '1' : '0.5';
-    linkedCheckbox.parentElement.style.cursor = wouldBeValid ? 'pointer' : 'not-allowed';
-    linkedCheckbox.parentElement.title = wouldBeValid 
-      ? t('chaos.amplitudeLinked')
-      : '⚠️ ' + t('chaos.cannotLink', {val: currentCenter * 2, max: effectiveMax});
-    
-    // If currently linked but now invalid, uncheck it
-    if (isLinked && !wouldBeValid) {
-      linkedCheckbox.checked = false;
-      // Re-enable amplitude input
-      if (ampInput) {
-        ampInput.disabled = false;
-        ampInput.style.opacity = '1';
-      }
-    }
-  }
 }
 
 /**
@@ -332,20 +264,8 @@ function startChaos() {
   const duration = parseInt(document.getElementById('chaosDuration').value);
   const seed = parseInt(document.getElementById('chaosSeed').value);
   
-  // Collect pattern selections (11 patterns)
-  const patternsEnabled = [
-    document.getElementById('patternZigzag').checked,
-    document.getElementById('patternSweep').checked,
-    document.getElementById('patternPulse').checked,
-    document.getElementById('patternDrift').checked,
-    document.getElementById('patternBurst').checked,
-    document.getElementById('patternWave').checked,
-    document.getElementById('patternPendulum').checked,
-    document.getElementById('patternSpiral').checked,
-    document.getElementById('patternCalm').checked,
-    document.getElementById('patternBruteForce').checked,
-    document.getElementById('patternLiberator').checked
-  ];
+  // Collect pattern selections using shared helper
+  const patternsEnabled = getPatternStates();
   
   // Validate at least one pattern selected
   if (!patternsEnabled.some(p => p)) {
@@ -419,37 +339,17 @@ function toggleAllPatterns() {
 /**
  * Enable soft patterns only (WAVE, PENDULUM, SPIRAL, BREATHING/CALM)
  */
+const SOFT_PATTERNS = new Set(['patternWave', 'patternPendulum', 'patternSpiral', 'patternCalm']);
 function enableSoftPatterns() {
-  document.getElementById('patternZigzag').checked = false;
-  document.getElementById('patternSweep').checked = false;
-  document.getElementById('patternPulse').checked = false;
-  document.getElementById('patternDrift').checked = false;
-  document.getElementById('patternBurst').checked = false;
-  document.getElementById('patternWave').checked = true;
-  document.getElementById('patternPendulum').checked = true;
-  document.getElementById('patternSpiral').checked = true;
-  document.getElementById('patternCalm').checked = true;
-  document.getElementById('patternBruteForce').checked = false;
-  document.getElementById('patternLiberator').checked = false;
-  updatePatternToggleButton();
+  setPatternStates(SOFT_PATTERNS);
 }
 
 /**
  * Enable dynamic patterns only (ZIGZAG, SWEEP, PULSE, DRIFT, BURST, BRUTE_FORCE, LIBERATOR)
  */
+const DYNAMIC_PATTERNS = new Set(['patternZigzag', 'patternSweep', 'patternPulse', 'patternDrift', 'patternBurst', 'patternBruteForce', 'patternLiberator']);
 function enableDynamicPatterns() {
-  document.getElementById('patternZigzag').checked = true;
-  document.getElementById('patternSweep').checked = true;
-  document.getElementById('patternPulse').checked = true;
-  document.getElementById('patternDrift').checked = true;
-  document.getElementById('patternBurst').checked = true;
-  document.getElementById('patternWave').checked = false;
-  document.getElementById('patternPendulum').checked = false;
-  document.getElementById('patternSpiral').checked = false;
-  document.getElementById('patternCalm').checked = false;
-  document.getElementById('patternBruteForce').checked = true;
-  document.getElementById('patternLiberator').checked = true;
-  updatePatternToggleButton();
+  setPatternStates(DYNAMIC_PATTERNS);
 }
 
 // ============================================================================

@@ -243,6 +243,169 @@ function getISOWeek(date) {
 }
 
 // ============================================================================
+// CENTER/AMPLITUDE PRESET VALIDATION (shared by Oscillation & Chaos)
+// ============================================================================
+
+/**
+ * Update visual state of center/amplitude preset buttons.
+ * Shared logic for both Oscillation and Chaos modes.
+ * 
+ * @param {Object} cfg - Configuration
+ * @param {string} cfg.centerInputId - ID of center position input (e.g., 'oscCenter')
+ * @param {string} cfg.amplitudeInputId - ID of amplitude input (e.g., 'oscAmplitude')
+ * @param {string} cfg.linkedCheckboxId - ID of "=Centre" linked checkbox (e.g., 'oscAmplitudeLinked')
+ * @param {string} cfg.dataPrefix - Data attribute prefix (e.g., 'osc' or 'chaos')
+ * @param {string} cfg.i18nPrefix - i18n key prefix (e.g., 'oscillation' or 'chaos')
+ */
+function updateCenterAmplitudePresets(cfg) {
+  const effectiveMax = AppState.pursuit.effectiveMaxDistMM || AppState.pursuit.totalDistanceMM || 0;
+  if (effectiveMax === 0) return;
+  
+  const currentCenter = parseFloat(document.getElementById(cfg.centerInputId).value) || 0;
+  const currentAmplitude = parseFloat(document.getElementById(cfg.amplitudeInputId).value) || 0;
+  const isLinked = document.getElementById(cfg.linkedCheckboxId)?.checked || false;
+  const dp = cfg.dataPrefix; // shorthand
+  
+  // Validate center presets (must allow current amplitude)
+  document.querySelectorAll('[data-' + dp + '-center]').forEach(btn => {
+    const centerValue = parseFloat(btn.getAttribute('data-' + dp + '-center'));
+    const minPos = centerValue - currentAmplitude;
+    const maxPos = centerValue + currentAmplitude;
+    const isValid = minPos >= 0 && maxPos <= effectiveMax;
+    btn.disabled = !isValid;
+    btn.style.opacity = isValid ? '1' : '0.3';
+    btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+  });
+  
+  // Validate amplitude presets (must respect current center)
+  document.querySelectorAll('[data-' + dp + '-amplitude]').forEach(btn => {
+    const amplitudeValue = parseFloat(btn.getAttribute('data-' + dp + '-amplitude'));
+    const minPos = currentCenter - amplitudeValue;
+    const maxPos = currentCenter + amplitudeValue;
+    const isValid = minPos >= 0 && maxPos <= effectiveMax;
+    btn.disabled = !isValid || isLinked;
+    btn.style.opacity = (isValid && !isLinked) ? '1' : '0.3';
+    btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
+  });
+  
+  // Validate relative center presets
+  document.querySelectorAll('[data-' + dp + '-center-rel]').forEach(btn => {
+    const relValue = parseInt(btn.getAttribute('data-' + dp + '-center-rel'));
+    const newCenter = currentCenter + relValue;
+    const minPos = newCenter - currentAmplitude;
+    const maxPos = newCenter + currentAmplitude;
+    const isValid = newCenter >= 0 && minPos >= 0 && maxPos <= effectiveMax;
+    btn.disabled = !isValid;
+    btn.style.opacity = isValid ? '1' : '0.5';
+    btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+  });
+  
+  // Validate relative amplitude presets
+  document.querySelectorAll('[data-' + dp + '-amplitude-rel]').forEach(btn => {
+    const relValue = parseInt(btn.getAttribute('data-' + dp + '-amplitude-rel'));
+    const newAmplitude = currentAmplitude + relValue;
+    const minPos = currentCenter - newAmplitude;
+    const maxPos = currentCenter + newAmplitude;
+    const isValid = newAmplitude >= 1 && minPos >= 0 && maxPos <= effectiveMax;
+    btn.disabled = !isValid || isLinked;
+    btn.style.opacity = (isValid && !isLinked) ? '1' : '0.5';
+    btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
+  });
+  
+  // Handle amplitude input disabled state when linked
+  const ampInput = document.getElementById(cfg.amplitudeInputId);
+  if (ampInput) {
+    ampInput.disabled = isLinked;
+    ampInput.style.opacity = isLinked ? '0.5' : '1';
+  }
+  
+  // SAFETY: Validate and disable "=Centre" checkbox if center*2 > effectiveMax
+  const linkedCheckbox = document.getElementById(cfg.linkedCheckboxId);
+  if (linkedCheckbox) {
+    const wouldBeValid = (currentCenter * 2) <= effectiveMax && currentCenter >= 1;
+    linkedCheckbox.disabled = !wouldBeValid;
+    linkedCheckbox.parentElement.style.opacity = wouldBeValid ? '1' : '0.5';
+    linkedCheckbox.parentElement.style.cursor = wouldBeValid ? 'pointer' : 'not-allowed';
+    linkedCheckbox.parentElement.title = wouldBeValid 
+      ? t(cfg.i18nPrefix + '.amplitudeLinked')
+      : '⚠️ ' + t(cfg.i18nPrefix + '.cannotLink', {val: currentCenter * 2, max: effectiveMax});
+    
+    // If currently linked but now invalid, uncheck it
+    if (isLinked && !wouldBeValid) {
+      linkedCheckbox.checked = false;
+      if (ampInput) {
+        ampInput.disabled = false;
+        ampInput.style.opacity = '1';
+      }
+    }
+  }
+}
+
+// ============================================================================
+// CYCLE PAUSE UI SYNC (shared by Simple & Oscillation modes)
+// ============================================================================
+
+/**
+ * Sync cycle pause UI elements with backend state data.
+ * Shared by updateSimpleUI() and updateOscillationUI().
+ * 
+ * @param {Object} cyclePauseData - Cycle pause data from WebSocket status
+ * @param {string} suffix - Element ID suffix: '' for Simple, 'Osc' for Oscillation
+ * @param {Function} getSectionFn - Function returning the collapsible section element
+ * @param {string} i18nPrefix - i18n key prefix: 'simple' or 'oscillation'
+ */
+function syncCyclePauseUI(cyclePauseData, suffix, getSectionFn, i18nPrefix) {
+  const pauseStatusEl = document.getElementById('cyclePauseStatus' + suffix);
+  const pauseRemainingEl = document.getElementById('cyclePauseRemaining' + suffix);
+  
+  if (cyclePauseData.isPausing && pauseStatusEl && pauseRemainingEl) {
+    const remainingSec = (cyclePauseData.remainingMs / 1000).toFixed(1);
+    pauseStatusEl.style.display = 'block';
+    pauseRemainingEl.textContent = remainingSec + 's';
+  } else if (pauseStatusEl) {
+    pauseStatusEl.style.display = 'none';
+  }
+  
+  // Sync UI to backend state (only if section is expanded)
+  const section = getSectionFn();
+  const headerText = document.getElementById('cyclePause' + (suffix || '') + 'HeaderText');
+  if (section && headerText) {
+    const isEnabled = cyclePauseData.enabled;
+    const isCollapsed = section.classList.contains('collapsed');
+    
+    if (isEnabled && isCollapsed) {
+      section.classList.remove('collapsed');
+      headerText.textContent = t(i18nPrefix + '.cyclePauseEnabled');
+    } else if (!isEnabled && !isCollapsed) {
+      section.classList.add('collapsed');
+      headerText.textContent = t(i18nPrefix + '.cyclePauseDisabled');
+    }
+    
+    // Sync radio buttons
+    if (cyclePauseData.isRandom) {
+      document.getElementById('pauseModeRandom' + suffix).checked = true;
+      document.getElementById('pauseFixedControls' + suffix).style.display = 'none';
+      document.getElementById('pauseRandomControls' + suffix).style.display = 'block';
+    } else {
+      document.getElementById('pauseModeFixed' + suffix).checked = true;
+      document.getElementById('pauseFixedControls' + suffix).style.display = 'flex';
+      document.getElementById('pauseRandomControls' + suffix).style.display = 'none';
+    }
+    
+    // Sync input values (avoid overwriting if user is editing)
+    if (document.activeElement !== document.getElementById('cyclePauseDuration' + suffix)) {
+      document.getElementById('cyclePauseDuration' + suffix).value = cyclePauseData.pauseDurationSec.toFixed(1);
+    }
+    if (document.activeElement !== document.getElementById('cyclePauseMin' + suffix)) {
+      document.getElementById('cyclePauseMin' + suffix).value = cyclePauseData.minPauseSec.toFixed(1);
+    }
+    if (document.activeElement !== document.getElementById('cyclePauseMax' + suffix)) {
+      document.getElementById('cyclePauseMax' + suffix).value = cyclePauseData.maxPauseSec.toFixed(1);
+    }
+  }
+}
+
+// ============================================================================
 // SYSTEM STATE HELPERS
 // ============================================================================
 
