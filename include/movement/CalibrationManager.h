@@ -114,12 +114,6 @@ public:
      */
     long getMaxStep() const;
     
-    /**
-     * Get last calibration error percentage
-     * @return Error % from last return-to-start validation
-     */
-    float getLastErrorPercent() const;
-    
     // ========================================================================
     // CALLBACKS (set by main code)
     // ========================================================================

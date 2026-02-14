@@ -33,9 +33,6 @@ const WAVEFORM_SHORT = ['SIN', 'TRI', 'SQR'];
 const SPEED_CURVE_LABELS = ['Lin', 'Sin', 'Tri⁻¹', 'Sin⁻¹'];
 function getSpeedEffectLabels() { return ['', t('seqUtils.decel'), t('seqUtils.accel')]; }
 
-// Legacy alias for backward compatibility
-const DECEL_MODE_LABELS = SPEED_CURVE_LABELS;
-
 // ============================================================================
 // TYPE DISPLAY HELPERS
 // ============================================================================
@@ -281,58 +278,6 @@ function getSequenceTemplateDoc() {
       "Note": "Minimal template - See full documentation for more options"
     }
   };
-}
-
-// ============================================================================
-// MOVEMENT TYPE HELPERS
-// ============================================================================
-
-/**
- * Get movement type name from type number
- * @param {number} movementType - Movement type number
- * @returns {string} Movement type name
- */
-function getMovementTypeName(movementType) {
-  const names = {
-    [MOVEMENT_TYPE.VA_ET_VIENT]: t('utils.backAndForth'),
-    [MOVEMENT_TYPE.OSCILLATION]: t('utils.oscillation'),
-    [MOVEMENT_TYPE.CHAOS]: t('utils.chaos'),
-    [MOVEMENT_TYPE.CALIBRATION]: t('utils.calibration')
-  };
-  return names[movementType] || t('utils.unknown');
-}
-
-/**
- * Get movement type icon from type number
- * @param {number} movementType - Movement type number
- * @returns {string} Movement type icon emoji
- */
-function getMovementTypeIcon(movementType) {
-  const icons = {
-    [MOVEMENT_TYPE.VA_ET_VIENT]: '↔️',
-    [MOVEMENT_TYPE.OSCILLATION]: '〰️',
-    [MOVEMENT_TYPE.CHAOS]: '🌀',
-    [MOVEMENT_TYPE.CALIBRATION]: '📏'
-  };
-  return icons[movementType] || '❓';
-}
-
-/**
- * Check if a movement type supports deceleration zones
- * @param {number} movementType - Movement type number
- * @returns {boolean} True if decel zones are supported
- */
-function supportsDecelZone(movementType) {
-  return movementType === MOVEMENT_TYPE.VA_ET_VIENT;
-}
-
-/**
- * Check if a movement type has cycle count
- * @param {number} movementType - Movement type number
- * @returns {boolean} True if cycle count applies
- */
-function hasCycleCount(movementType) {
-  return movementType !== MOVEMENT_TYPE.CHAOS;
 }
 
 // ============================================================================

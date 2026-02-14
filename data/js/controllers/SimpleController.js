@@ -384,14 +384,6 @@ function initSimpleListeners() {
 // ============================================================================
 
 /**
- * JavaScript implementation of C++ calculateSlowdownFactor()
- * Delegates to pure function from SimpleUtils.js
- */
-function calculateSlowdownFactorJS(zoneProgress, maxSlowdown, mode) {
-  return calculateSlowdownFactorPure(zoneProgress, maxSlowdown, mode);
-}
-
-/**
  * Toggle zone effects section collapsed state
  */
 function toggleZoneEffectSection() {

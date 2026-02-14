@@ -89,16 +89,6 @@ public:
      * Check if pursuit is currently moving
      */
     bool isMoving() const { return pursuit.isMoving; }
-    
-    /**
-     * Get current target position in steps
-     */
-    long getTargetStep() const { return pursuit.targetStep; }
-    
-    /**
-     * Get current step delay
-     */
-    unsigned long getStepDelay() const { return pursuit.stepDelay; }
 
 private:
     // ========================================================================

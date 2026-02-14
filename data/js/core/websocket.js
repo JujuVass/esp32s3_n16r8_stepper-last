@@ -277,32 +277,5 @@ function handleLogMessage(logData) {
   }
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/**
- * Check if WebSocket is connected and ready
- * @returns {boolean} True if connected
- */
-function isWebSocketConnected() {
-  return AppState.ws && AppState.ws.readyState === WebSocket.OPEN;
-}
-
-/**
- * Send raw message through WebSocket
- * @param {string} message - Raw string message to send
- * @returns {boolean} True if sent successfully
- */
-function sendRawMessage(message) {
-  if (!isWebSocketConnected()) {
-    console.warn('WebSocket not connected, cannot send message');
-    return false;
-  }
-  
-  AppState.ws.send(message);
-  return true;
-}
-
 // Log initialization
 console.log('✅ websocket.js loaded - WebSocket handlers ready');

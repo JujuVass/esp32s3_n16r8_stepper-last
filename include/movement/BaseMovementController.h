@@ -98,13 +98,6 @@ public:
      */
     float speedLevelToCyclesPerMin(float speedLevel);
     
-    /**
-     * Convert cycles per minute to speed level
-     * @param cpm Cycles per minute
-     * @return Speed level
-     */
-    float cyclesPerMinToSpeedLevel(float cpm);
-    
     // ========================================================================
     // ZONE EFFECT METHODS (Speed Effects + Special Effects)
     // ========================================================================
@@ -173,11 +166,6 @@ public:
      * @return true if changes are queued
      */
     bool hasPendingChanges() const { return pendingMotion.hasChanges; }
-    
-    /**
-     * Clear pending changes without applying
-     */
-    void clearPendingChanges() { pendingMotion.hasChanges = false; }
     
     // ========================================================================
     // STATUS METHODS
@@ -288,12 +276,6 @@ public:
      * @return Number of completed cycles since last reset
      */
     unsigned long getCycleCount() const { return _cycleCounter; }
-    
-    /**
-     * Reset cycle counter to zero
-     * Called when movement stops
-     */
-    void resetCycleCount() { _cycleCounter = 0; }
 
 private:
     // Cycle counting state

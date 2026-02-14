@@ -302,21 +302,6 @@ public:
    */
   bool saveJsonFile(const String& path, const JsonDocument& doc);
   
-  /**
-   * Validate JSON schema (basic key presence check)
-   * Verifies that all required keys are present in the document
-   * @param doc Document to validate
-   * @param requiredKeys Space-separated or comma-separated keys (e.g., "mode speed distance")
-   * @return true if all required keys present, false otherwise
-   */
-  bool validateJsonSchema(const JsonDocument& doc, const String& requiredKeys);
-  
-  /**
-   * Clear all files from filesystem (WARNING: destructive!)
-   * @return Number of files deleted
-   */
-  int clearAllFiles();
-  
   // ========================================================================
   // WEBSOCKET INTERFACE (Relay functions)
   // ========================================================================
@@ -489,17 +474,6 @@ private:
    * Get log level prefix string ([ERROR], [WARN], etc.)
    */
   const char* getLevelPrefix(LogLevel level) const;
-  
-  /**
-   * Escape JSON special characters in strings
-   */
-  String escapeJsonString(const String& input) const;
-  
-  /**
-   * List files in directory for debugging
-   * @param path Directory path
-   */
-  void listDirectoryContents(const String& path) const;
   
 }; // class UtilityEngine
 

@@ -445,10 +445,6 @@ long CalibrationManager::getMaxStep() const {
     return m_maxStep;
 }
 
-float CalibrationManager::getLastErrorPercent() const {
-    return m_lastErrorPercent;
-}
-
 // ============================================================================
 // CALLBACK SETTERS
 // ============================================================================

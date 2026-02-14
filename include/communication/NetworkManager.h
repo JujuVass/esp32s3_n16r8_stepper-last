@@ -76,11 +76,6 @@ public:
     bool isAPMode() const { return _mode == NET_AP_SETUP; }
     
     /**
-     * Check if AP is active (true in both AP_SETUP and AP_DIRECT, and STA+AP)
-     */
-    bool isAPActive() const { return true; }  // AP is always active now
-    
-    /**
      * Check if STA is connected to a router
      */
     bool isConnected() const { return _mode == NET_STA_AP && WiFi.status() == WL_CONNECTED; }

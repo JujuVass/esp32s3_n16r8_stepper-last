@@ -10,24 +10,6 @@
  */
 
 // ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/**
- * Deceleration mode names for UI display
- * MUST match C++ enum DecelMode in Types.h:
- *   DECEL_LINEAR = 0, DECEL_SINE = 1, DECEL_TRIANGLE_INV = 2, DECEL_SINE_INV = 3
- */
-function getDecelModeNames() {
-  return {
-    0: t('utils.linear'),
-    1: t('utils.sinusoidal'),
-    2: t('utils.triangleInv'),
-    3: t('utils.sineInv')
-  };
-}
-
-// ============================================================================
 // DECELERATION CALCULATION (Pure Function)
 // ============================================================================
 

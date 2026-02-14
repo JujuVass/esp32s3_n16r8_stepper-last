@@ -384,29 +384,6 @@ float UtilityEngine::getDiskUsagePercent() const {
   return (used * 100.0) / total;
 }
 
-int UtilityEngine::clearAllFiles() {
-  if (!littleFsMounted) return 0;
-  
-  int deletedCount = 0;
-  File root = LittleFS.open("/");
-  
-  if (!root) return 0;
-  
-  File file = root.openNextFile();
-  while (file) {
-    String name = String(file.name());
-    file.close();
-    
-    if (LittleFS.remove(name)) {
-      deletedCount++;
-    }
-    
-    file = root.openNextFile();
-  }
-  
-  return deletedCount;
-}
-
 // ============================================================================
 // WEBSOCKET RELAY METHODS
 // ============================================================================
@@ -571,44 +548,6 @@ const char* UtilityEngine::getLevelPrefix(LogLevel level) const {
   }
 }
 
-String UtilityEngine::escapeJsonString(const String& input) const {
-  String output;
-  output.reserve(input.length() + 20);
-  
-  for (unsigned int i = 0; i < input.length(); i++) {
-    char c = input[i];
-    switch(c) {
-      case '\\': output += "\\\\"; break;
-      case '\"': output += "\\\""; break;
-      case '\n': output += "\\n"; break;
-      case '\r': output += "\\r"; break;
-      case '\t': output += "\\t"; break;
-      default: output += c;
-    }
-  }
-  return output;
-}
-
-void UtilityEngine::listDirectoryContents(const String& path) const {
-  if (!littleFsMounted) return;
-  
-  File dir = LittleFS.open(path);
-  if (!dir || !dir.isDirectory()) return;
-  
-  Serial.println("[UtilityEngine] Contents of " + path + ":");
-  
-  File file = dir.openNextFile();
-  while (file) {
-    Serial.print("[UtilityEngine]   - ");
-    Serial.print(file.name());
-    Serial.print(" (");
-    Serial.print(file.size());
-    Serial.println(" bytes)");
-    
-    file = dir.openNextFile();
-  }
-}
-
 // ============================================================================
 // JSON HELPERS
 // ============================================================================
@@ -689,44 +628,6 @@ bool UtilityEngine::saveJsonFile(const String& path, const JsonDocument& doc) {
   
   info("✅ Saved JSON to: " + path + " (" + String(bytesWritten) + " bytes)");
   return true;
-}
-
-/**
- * Validate JSON schema (basic key presence check)
- */
-bool UtilityEngine::validateJsonSchema(const JsonDocument& doc, const String& requiredKeys) {
-  // Parse the required keys string (space or comma separated)
-  String keys = requiredKeys;
-  keys.replace(',', ' ');  // Normalize comma to space
-  
-  int startIdx = 0;
-  bool allPresent = true;
-  
-  while (startIdx < keys.length()) {
-    // Skip whitespace
-    while (startIdx < keys.length() && (keys[startIdx] == ' ' || keys[startIdx] == '\t')) {
-      startIdx++;
-    }
-    
-    if (startIdx >= keys.length()) break;
-    
-    // Find end of key
-    int endIdx = startIdx;
-    while (endIdx < keys.length() && keys[endIdx] != ' ' && keys[endIdx] != '\t') {
-      endIdx++;
-    }
-    
-  // Extract and check key
-    String key = keys.substring(startIdx, endIdx);
-    if (!doc[key].is<JsonVariant>() || doc[key].isNull()) {
-      warn("Missing required JSON key: " + key);
-      allPresent = false;
-    }
-    
-    startIdx = endIdx;
-  }
-  
-  return allPresent;
 }
 
 // ============================================================================

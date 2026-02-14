@@ -256,10 +256,6 @@ float BaseMovementControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
     return cpm;
 }
 
-float BaseMovementControllerClass::cyclesPerMinToSpeedLevel(float cpm) {
-    return cpm / 10.0;
-}
-
 // ============================================================================
 // ZONE EFFECT METHODS (Speed Effect + Special Effects)
 // ============================================================================

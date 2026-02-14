@@ -21,7 +21,6 @@ public:
     bool isStartActive();       // true if START opto blocked (HIGH)
     bool isEndActive();         // true if END opto blocked (HIGH)
     bool isStartClear();        // true if START opto clear (LOW)
-    bool isEndClear();          // true if END opto clear (LOW)
     bool isActive(uint8_t pin); // Generic: true if pin is HIGH (blocked)
     bool isClear(uint8_t pin);  // Generic: true if pin is LOW (clear)
     

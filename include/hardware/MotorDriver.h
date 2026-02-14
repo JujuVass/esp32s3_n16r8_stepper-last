@@ -97,13 +97,6 @@ public:
     bool isPositionReached() const;
     
     /**
-     * Get time since last position reached (PEND went HIGH)
-     * Useful for detecting motor lag/load
-     * @return milliseconds since PEND was last HIGH, or 0 if currently at position
-     */
-    unsigned long getPositionLagMs() const;
-    
-    /**
      * Update PEND tracking (call from motorTask loop)
      * Tracks timing for position lag calculation
      */
@@ -121,11 +114,6 @@ public:
      * @return total number of PEND transitions detected by ISR
      */
     unsigned long getPendInterruptCount() const;
-    
-    /**
-     * Reset PEND interrupt counter
-     */
-    void resetPendInterruptCount();
 
 private:
     // Singleton pattern - prevent external construction

@@ -315,16 +315,6 @@ function enableAllPatterns() {
 }
 
 /**
- * Disable all patterns
- */
-function disableAllPatterns() {
-  CHAOS_PATTERNS.forEach(id => {
-    document.getElementById(id).checked = false;
-  });
-  updatePatternToggleButton();
-}
-
-/**
  * Toggle all patterns (if all checked → uncheck all, otherwise check all)
  */
 function toggleAllPatterns() {
@@ -526,6 +516,6 @@ function initChaosListeners() {
 // - updatePatternToggleButton()
 // - updateChaosUI(data)
 // - startChaos(), stopChaos(), pauseChaos()
-// - enableAllPatterns(), disableAllPatterns(), toggleAllPatterns()
+// - enableAllPatterns(), toggleAllPatterns()
 // - enableSoftPatterns(), enableDynamicPatterns()
 // - initChaosListeners()

@@ -62,11 +62,6 @@ bool ContactSensors::isStartClear() {
     return digitalRead(pin) == LOW;
 }
 
-bool ContactSensors::isEndClear() {
-    uint8_t pin = sensorsInverted ? PIN_START_CONTACT : PIN_END_CONTACT;
-    return digitalRead(pin) == LOW;
-}
-
 bool ContactSensors::isActive(uint8_t pin) {
     // Generic method - apply inversion if using standard pins
     if (sensorsInverted) {

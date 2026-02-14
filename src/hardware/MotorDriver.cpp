@@ -153,13 +153,6 @@ bool MotorDriver::isPositionReached() const {
     return digitalRead(PIN_PEND) == HIGH;  // Enable when wiring confirmed
 }
 
-unsigned long MotorDriver::getPositionLagMs() const {
-    if (isPositionReached()) {
-        return 0;  // Currently at position, no lag
-    }
-    return millis() - m_lastPendHighMs;
-}
-
 void MotorDriver::updatePendTracking() {
     bool currentPend = isPositionReached();
     
@@ -178,8 +171,4 @@ void MotorDriver::resetPendTracking() {
 
 unsigned long MotorDriver::getPendInterruptCount() const {
     return pendInterruptCount;
-}
-
-void MotorDriver::resetPendInterruptCount() {
-    pendInterruptCount = 0;
 }
