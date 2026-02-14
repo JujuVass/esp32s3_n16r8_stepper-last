@@ -841,6 +841,7 @@ void BaseMovementControllerClass::process() {
         float currentPositionMM = (currentStep - startStep) / STEPS_PER_MM;
         
         // Mirror mode: swap enableStart/enableEnd on return trip
+        // ONLY affects speed effect curve - turnback and pause use physical flags
         // Effect follows destination instead of being fixed to physical position
         bool effectiveEnableStart = zoneEffect.enableStart;
         bool effectiveEnableEnd = zoneEffect.enableEnd;
@@ -865,7 +866,9 @@ void BaseMovementControllerClass::process() {
         float distanceFromEnd = abs(movementEndMM - currentPositionMM);
         
         // Check for random turnback in START zone (when moving backward)
-        if (!movingForward && effectiveEnableStart && distanceFromEnd <= zoneEffect.zoneMM) {
+        // Note: random turnback uses PHYSICAL zone flags (no mirror swap)
+        // Mirror only affects speed effect curve, not turnback/pause triggers
+        if (!movingForward && zoneEffect.enableStart && distanceFromEnd <= zoneEffect.zoneMM) {
             float distanceIntoZone = zoneEffect.zoneMM - distanceFromEnd;
             checkAndTriggerRandomTurnback(distanceIntoZone, false);
             // If pause was triggered, exit early
@@ -875,7 +878,8 @@ void BaseMovementControllerClass::process() {
         }
         
         // Check for random turnback in END zone (when moving forward)
-        if (movingForward && effectiveEnableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
+        // Note: random turnback uses PHYSICAL zone flags (no mirror swap)
+        if (movingForward && zoneEffect.enableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
             float distanceIntoZone = zoneEffect.zoneMM - distanceFromEnd;
             checkAndTriggerRandomTurnback(distanceIntoZone, true);
             // If pause was triggered, exit early
@@ -933,7 +937,7 @@ void BaseMovementControllerClass::doStep() {
             engine->debug("🎯 Reached targetStep=" + String(targetStep) + " (currentStep=" + 
                   String(currentStep) + ", pos=" + String(currentStep / STEPS_PER_MM, 1) + "mm)");
             // Trigger end pause if enabled (at END extremity)
-            // Forward trip: no mirror swap needed, always use original enableEnd
+            // Note: end pause uses PHYSICAL zone flags (no mirror swap)
             if (zoneEffect.enabled && zoneEffect.endPauseEnabled && zoneEffect.enableEnd) {
                 triggerEndPause();
             }
@@ -989,12 +993,9 @@ void BaseMovementControllerClass::doStep() {
             engine->debug("🏠 Reached startStep=" + String(startStep) + " (currentStep=" + 
                   String(currentStep) + ", pos=" + String(currentStep / STEPS_PER_MM, 1) + "mm)");
             // Trigger end pause if enabled (at START extremity)
-            // Mirror mode: when going backward to START, swap: use enableEnd instead of enableStart
-            bool effectiveEnableStart = zoneEffect.enableStart;
-            if (zoneEffect.mirrorOnReturn) {
-                effectiveEnableStart = zoneEffect.enableEnd;
-            }
-            if (zoneEffect.enabled && zoneEffect.endPauseEnabled && effectiveEnableStart) {
+            // Note: end pause uses PHYSICAL zone flags (no mirror swap)
+            // Mirror only affects speed effect curve, not pause triggers
+            if (zoneEffect.enabled && zoneEffect.endPauseEnabled && zoneEffect.enableStart) {
                 triggerEndPause();
             }
             resetRandomTurnback();  // Reset turnback state on direction change
