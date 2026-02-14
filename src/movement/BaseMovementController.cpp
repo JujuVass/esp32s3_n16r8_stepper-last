@@ -405,9 +405,13 @@ void BaseMovementControllerClass::checkAndTriggerRandomTurnback(float distanceIn
             // Execute turnback - first trigger pause if enabled
             if (zoneEffect.endPauseEnabled) {
                 triggerEndPause();
-                engine->debug("🔄⏸️ Random turnback + pause at " + String(distanceIntoZone, 1) + "mm");
+                if (engine->isDebugEnabled()) {
+                    engine->debug("🔄⏸️ Random turnback + pause at " + String(distanceIntoZone, 1) + "mm");
+                }
             } else {
-                engine->debug("🔄 Random turnback executed at " + String(distanceIntoZone, 1) + "mm into zone");
+                if (engine->isDebugEnabled()) {
+                    engine->debug("🔄 Random turnback executed at " + String(distanceIntoZone, 1) + "mm into zone");
+                }
             }
             movingForward = !movingForward;
             zoneEffectState.hasPendingTurnback = false;
@@ -435,9 +439,13 @@ void BaseMovementControllerClass::checkAndTriggerRandomTurnback(float distanceIn
             float maxTurnback = zoneEffect.zoneMM * 0.9;
             zoneEffectState.turnbackPointMM = minTurnback + (random(0, 1000) / 1000.0) * (maxTurnback - minTurnback);
             zoneEffectState.hasPendingTurnback = true;
-            engine->debug("🔄 Random turnback planned at " + String(zoneEffectState.turnbackPointMM, 1) + "mm (roll=" + String(roll) + " < " + String(zoneEffect.turnbackChance) + "%)");
+            if (engine->isDebugEnabled()) {
+                engine->debug("🔄 Random turnback planned at " + String(zoneEffectState.turnbackPointMM, 1) + "mm (roll=" + String(roll) + " < " + String(zoneEffect.turnbackChance) + "%)");
+            }
         } else {
-            engine->debug("🎲 No turnback (roll=" + String(roll) + " >= " + String(zoneEffect.turnbackChance) + "%)");
+            if (engine->isDebugEnabled()) {
+                engine->debug("🎲 No turnback (roll=" + String(roll) + " >= " + String(zoneEffect.turnbackChance) + "%)");
+            }
         }
     }
 }
@@ -463,7 +471,9 @@ bool BaseMovementControllerClass::checkAndHandleEndPause() {
     if (elapsed >= zoneEffectState.pauseDurationMs) {
         // Pause complete
         zoneEffectState.isPausing = false;
-        engine->debug("⏸️ End pause complete (" + String(zoneEffectState.pauseDurationMs) + "ms)");
+        if (engine->isDebugEnabled()) {
+            engine->debug("⏸️ End pause complete (" + String(zoneEffectState.pauseDurationMs) + "ms)");
+        }
         return false;
     }
     
@@ -487,7 +497,9 @@ void BaseMovementControllerClass::triggerEndPause() {
     
     zoneEffectState.isPausing = true;
     zoneEffectState.pauseStartMs = millis();
-    engine->debug("⏸️ End pause: " + String(zoneEffectState.pauseDurationMs) + "ms");
+    if (engine->isDebugEnabled()) {
+        engine->debug("⏸️ End pause: " + String(zoneEffectState.pauseDurationMs) + "ms");
+    }
 }
 
 // ============================================================================
@@ -560,9 +572,11 @@ void BaseMovementControllerClass::applyPendingChanges() {
     
     if (!pendingMotion.hasChanges) return;
     
-    engine->debug(String("🔄 Applying pending config: ") + String(pendingMotion.distanceMM, 1) + 
-          "mm @ F" + String(pendingMotion.speedLevelForward, 1) + 
-          "/B" + String(pendingMotion.speedLevelBackward, 1));
+    if (engine->isDebugEnabled()) {
+        engine->debug(String("🔄 Applying pending config: ") + String(pendingMotion.distanceMM, 1) + 
+              "mm @ F" + String(pendingMotion.speedLevelForward, 1) + 
+              "/B" + String(pendingMotion.speedLevelBackward, 1));
+    }
     
     motion.startPositionMM = pendingMotion.startPositionMM;
     motion.targetDistanceMM = pendingMotion.distanceMM;
@@ -1076,7 +1090,7 @@ void BaseMovementControllerClass::measureCycleTime() {
         float diffPercent = ((measuredCyclesPerMinute - avgTargetCPM) / avgTargetCPM) * 100.0;
         
         // Only log if difference is significant (> 15% after compensation)
-        if (abs(diffPercent) > 15.0) {
+        if (abs(diffPercent) > 15.0 && engine->isDebugEnabled()) {
             engine->debug(String("⏱️  Cycle timing: ") + String(cycleTimeMillis) + 
                   " ms | Target: " + String(avgSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
                   String(avgTargetCPM, 0) + " c/min) | Actual: " + 

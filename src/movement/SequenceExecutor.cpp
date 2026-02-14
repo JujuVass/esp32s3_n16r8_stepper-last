@@ -286,55 +286,101 @@ void SequenceExecutor::positionForNextLine() {
         
         long targetStepPos = (long)(targetPositionMM * STEPS_PER_MM);
         
-        // Set direction for repositioning
-        bool moveForward = (targetStepPos > currentStep);
-        Motor.setDirection(moveForward);
-        
-        // CRITICAL: Keep motor ENABLED during repositioning - HSS loses position if disabled!
-        // Blocking move to target position at moderate speed (990 µs = speed 5.0)
-        unsigned long positioningStart = millis();
-        unsigned long lastStepTime = micros();
-        unsigned long lastWsService = millis();
-        unsigned long lastStatusUpdate = millis();
-        const unsigned long stepDelay = 990;  // Same speed as normal VAET (5.0)
-        
-        while (currentStep != targetStepPos && (millis() - positioningStart < 30000)) {  // 30s timeout
-            unsigned long now = micros();
-            if (now - lastStepTime >= stepDelay) {
-                // Simple step without calling doStep() to avoid triggering cycle detection
-                if (moveForward) {
-                    Motor.step();
-                    currentStep++;
-                } else {
-                    Motor.step();
-                    currentStep--;
-                }
-                lastStepTime = now;
-            }
-            yield();  // Allow ESP32 to handle other tasks
-            
-            // Service network + send periodic status feedback
-            unsigned long nowMs = millis();
-            if (nowMs - lastWsService >= 10) {
-                if (_webSocket) _webSocket->loop();
-                server.handleClient();
-                lastWsService = nowMs;
-            }
-            if (nowMs - lastStatusUpdate >= 250) {
-                Status.send();
-                lastStatusUpdate = nowMs;
-            }
-        }
-        
-        // Note: Do NOT set config.currentState here — caller (startNextLine) 
-        // will immediately set STATE_RUNNING, avoiding a visible READY→RUNNING flip-flop
-        
-        if (currentStep != targetStepPos) {
+        // Blocking move to target position (D4: uses shared helper)
+        if (!blockingMoveToStep(targetStepPos)) {
             engine->warn("⚠️ Repositioning timeout - position: " + String(currentStep / (float)STEPS_PER_MM, 1) + "mm");
         } else {
             engine->info("✅ Repositioning complete");
         }
     }
+}
+
+// ============================================================================
+// BLOCKING MOVE HELPER (D4: shared by positionForNextLine + completeSequence)
+// ============================================================================
+
+bool SequenceExecutor::blockingMoveToStep(long targetStepPos, unsigned long timeoutMs) {
+    if (currentStep == targetStepPos) return true;
+    
+    bool moveForward = (targetStepPos > currentStep);
+    Motor.setDirection(moveForward);
+    
+    unsigned long moveStart = millis();
+    unsigned long lastStepTime = micros();
+    unsigned long lastWsService = millis();
+    unsigned long lastStatusUpdate = millis();
+    const unsigned long stepDelay = 990;  // Speed 5.0
+    
+    while (currentStep != targetStepPos && (millis() - moveStart < timeoutMs)) {
+        unsigned long now = micros();
+        if (now - lastStepTime >= stepDelay) {
+            Motor.step();
+            if (moveForward) {
+                currentStep++;
+            } else {
+                currentStep--;
+            }
+            lastStepTime = now;
+        }
+        yield();
+        
+        unsigned long nowMs = millis();
+        if (nowMs - lastWsService >= 10) {
+            if (_webSocket) _webSocket->loop();
+            server.handleClient();
+            lastWsService = nowMs;
+        }
+        if (nowMs - lastStatusUpdate >= 250) {
+            Status.send();
+            lastStatusUpdate = nowMs;
+        }
+    }
+    
+    return (currentStep == targetStepPos);
+}
+
+// ============================================================================
+// SEQUENCE COMPLETION (B4: unified end-of-sequence logic)
+// ============================================================================
+
+void SequenceExecutor::completeSequence(bool autoReturnToStart) {
+    unsigned long elapsedSec = (millis() - seqState.sequenceStartTime) / 1000;
+    
+    engine->info("═══════════════════════════════════════════");
+    engine->info("✅ SEQUENCE COMPLETE (SINGLE PLAY)!");
+    engine->info("   Lines executed: " + String(sequenceLineCount));
+    engine->info("   Total duration: " + String(elapsedSec) + "s");
+    engine->info("═══════════════════════════════════════════");
+    
+    seqState.isRunning = false;
+    config.executionContext = CONTEXT_STANDALONE;
+    
+    // Stop current movement
+    stopMovement();
+    
+    // Auto-return to START (position 0.0mm) if requested and not already there
+    if (autoReturnToStart && currentStep != 0) {
+        engine->info("🏠 Auto-return to START contact...");
+        float startPosMM = currentStep / (float)STEPS_PER_MM;
+        
+        if (blockingMoveToStep(0)) {
+            engine->info("✓ Return complete: " + String(startPosMM, 1) + "mm → Position 0.0mm");
+        } else {
+            engine->warn("⚠️ Return timeout at " + String(currentStep / (float)STEPS_PER_MM, 1) + "mm");
+        }
+    }
+    
+    // Full cleanup
+    currentStep = 0;
+    startStep = 0;
+    targetStep = 0;
+    movingForward = true;
+    hasReachedStartStep = false;
+    config.currentState = STATE_READY;
+    
+    engine->info("✓ System ready for next cycle");
+    sendStatus();
+    ::sendStatus();
 }
 
 // ============================================================================
@@ -362,57 +408,9 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
             engine->info("🔁 Loop #" + String(seqState.loopCount) + " complete - Restarting...");
             engine->info("───────────────────────────────────────────");
         }
-        // Single read mode: stop
+        // Single play mode: stop with auto-return (B4: unified path)
         else {
-            unsigned long elapsedSec = (millis() - seqState.sequenceStartTime) / 1000;
-            
-            engine->info("═══════════════════════════════════════════");
-            engine->info("✅ SEQUENCE COMPLETE (SINGLE PLAY)!");
-            engine->info("   Lines executed: " + String(sequenceLineCount));
-            engine->info("   Total duration: " + String(elapsedSec) + "s");
-            engine->info("   Mode: " + String(seqState.isLoopMode ? "LOOP" : "SINGLE"));
-            engine->info("═══════════════════════════════════════════");
-            
-            // NEW ARCHITECTURE: Auto-return to 0.0mm and full cleanup
-            seqState.isRunning = false;
-            config.executionContext = CONTEXT_STANDALONE;
-            
-            // Return to START contact (position 0.0mm) if not already there
-            if (currentStep != 0) {
-                engine->info("🏠 Auto-return to START contact...");
-                long startReturnStep = currentStep;
-                
-                Motor.setDirection(false);  // Backward to START
-                unsigned long returnStart = millis();
-                unsigned long lastStepTime = micros();
-                const unsigned long stepDelay = 990;  // Speed 5.0
-                
-                while (currentStep > 0 && (millis() - returnStart < 30000)) {
-                    unsigned long now = micros();
-                    if (now - lastStepTime >= stepDelay) {
-                        Motor.step();
-                        currentStep--;
-                        lastStepTime = now;
-                    }
-                    yield();  // Allow ESP32 to handle other tasks
-                    if (_webSocket) _webSocket->loop();  // Keep WebSocket alive
-                }
-                
-                float returnedMM = (startReturnStep - currentStep) / STEPS_PER_MM;
-                engine->info("✓ Return complete: " + String(returnedMM, 1) + "mm → Position 0.0mm");
-            }
-            
-            // Full cleanup of variables
-            currentStep = 0;
-            startStep = 0;
-            targetStep = 0;
-            movingForward = true;
-            hasReachedStartStep = false;
-            config.currentState = STATE_READY;
-            
-            engine->info("✓ System ready for next cycle");
-            sendStatus();           // Send sequenceStatus (isRunning=false)
-            ::sendStatus();         // Send global status (canStart=true) to re-enable buttons
+            completeSequence(true);  // Auto-return to start
             return false;  // Sequence ended
         }
     }
@@ -427,7 +425,7 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
     engine->debug("🔍 After skip: lineIndex=" + String(seqState.currentLineIndex) + 
                   " / lineCount=" + String(sequenceLineCount));
     
-    // Check again if we've reached the end after skipping
+    // Check again if we've reached the end after skipping (B4: same unified path)
     if (seqState.currentLineIndex >= sequenceLineCount) {
         engine->info("🎯 End condition met after skip - triggering sequence end");
         if (seqState.isLoopMode) {
@@ -435,19 +433,7 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
             seqState.loopCount++;
             engine->info("🔁 Loop #" + String(seqState.loopCount) + " - Restarting...");
         } else {
-            seqState.isRunning = false;
-            engine->info("📡 Setting isRunning=false, sending status updates...");
-            
-            // CRITICAL: Stop motor and reset execution context
-            stopMovement();
-            config.executionContext = CONTEXT_STANDALONE;
-            config.currentState = STATE_READY;
-            
-            engine->info("📡 Sending sequenceStatus (isRunning=false)...");
-            sendStatus();           // Send sequenceStatus (isRunning=false)
-            engine->info("📡 Sending global status (canStart=true)...");
-            ::sendStatus();         // Send global status (canStart=true) to re-enable buttons
-            engine->info("✅ Both status messages sent!");
+            completeSequence(true);  // Auto-return to start (was missing before!)
             return false;  // Sequence ended
         }
     }
@@ -479,12 +465,8 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     zoneEffect = line->vaetZoneEffect;
     zoneEffectState = ZoneEffectState();  // Reset all runtime state
     
-    // Apply cycle pause configuration from sequence line
-    motion.cyclePause.enabled = line->vaetCyclePauseEnabled;
-    motion.cyclePause.isRandom = line->vaetCyclePauseIsRandom;
-    motion.cyclePause.pauseDurationSec = line->vaetCyclePauseDurationSec;
-    motion.cyclePause.minPauseSec = line->vaetCyclePauseMinSec;
-    motion.cyclePause.maxPauseSec = line->vaetCyclePauseMaxSec;
+    // Apply cycle pause configuration from sequence line (DRY: direct struct copy)
+    motion.cyclePause = line->vaetCyclePause;
     
     // Validate configuration
     BaseMovement.validateZoneEffect();
@@ -547,12 +529,8 @@ void SequenceExecutor::startOscillationLine(SequenceLine* line) {
     oscillation.cycleCount = line->cycleCount;  // Oscillation will execute THIS many cycles
     oscillation.returnToCenter = false;  // Don't return to center in sequencer (continue to next line)
     
-    // Apply cycle pause configuration from sequence line
-    oscillation.cyclePause.enabled = line->oscCyclePauseEnabled;
-    oscillation.cyclePause.isRandom = line->oscCyclePauseIsRandom;
-    oscillation.cyclePause.pauseDurationSec = line->oscCyclePauseDurationSec;
-    oscillation.cyclePause.minPauseSec = line->oscCyclePauseMinSec;
-    oscillation.cyclePause.maxPauseSec = line->oscCyclePauseMaxSec;
+    // Apply cycle pause configuration from sequence line (DRY: direct struct copy)
+    oscillation.cyclePause = line->oscCyclePause;
     
     seqState.lineStartTime = millis();
     

@@ -131,6 +131,20 @@ private:
     void positionForNextLine();
     
     /**
+     * Blocking move to a specific step position with WS servicing
+     * @param targetStepPos Target step position to reach
+     * @param timeoutMs Maximum time allowed for the move (default 30s)
+     * @return true if position reached, false if timeout
+     */
+    bool blockingMoveToStep(long targetStepPos, unsigned long timeoutMs = 30000);
+    
+    /**
+     * Complete sequence execution (cleanup, optional return to start)
+     * @param autoReturnToStart If true, motor returns to position 0 before cleanup
+     */
+    void completeSequence(bool autoReturnToStart);
+    
+    /**
      * Check and handle sequence end logic
      * @return true if sequence continues, false if ended
      */

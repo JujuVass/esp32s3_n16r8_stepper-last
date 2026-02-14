@@ -516,12 +516,8 @@ struct SequenceLine {
   // Runtime state is managed separately by zoneEffectState global
   ZoneEffectConfig vaetZoneEffect;
   
-  // VA-ET-VIENT cycle pause
-  bool vaetCyclePauseEnabled;
-  bool vaetCyclePauseIsRandom;
-  float vaetCyclePauseDurationSec;
-  float vaetCyclePauseMinSec;
-  float vaetCyclePauseMaxSec;
+  // VA-ET-VIENT cycle pause (DRY: uses CyclePauseConfig struct)
+  CyclePauseConfig vaetCyclePause;
   
   // OSCILLATION parameters
   float oscCenterPositionMM;
@@ -533,12 +529,8 @@ struct SequenceLine {
   float oscRampInDurationMs;
   float oscRampOutDurationMs;
   
-  // OSCILLATION cycle pause
-  bool oscCyclePauseEnabled;
-  bool oscCyclePauseIsRandom;
-  float oscCyclePauseDurationSec;
-  float oscCyclePauseMinSec;
-  float oscCyclePauseMaxSec;
+  // OSCILLATION cycle pause (DRY: uses CyclePauseConfig struct)
+  CyclePauseConfig oscCyclePause;
   
   // CHAOS parameters
   float chaosCenterPositionMM;
@@ -562,11 +554,7 @@ struct SequenceLine {
     speedForward(5.0),
     speedBackward(5.0),
     vaetZoneEffect(),  // Uses ZoneEffectConfig default constructor
-    vaetCyclePauseEnabled(false),
-    vaetCyclePauseIsRandom(false),
-    vaetCyclePauseDurationSec(0.0),
-    vaetCyclePauseMinSec(0.5),
-    vaetCyclePauseMaxSec(3.0),
+    vaetCyclePause(),  // Uses CyclePauseConfig default constructor
     oscCenterPositionMM(100.0),
     oscAmplitudeMM(50.0),
     oscWaveform(OSC_SINE),
@@ -575,11 +563,7 @@ struct SequenceLine {
     oscEnableRampOut(false),
     oscRampInDurationMs(1000.0),
     oscRampOutDurationMs(1000.0),
-    oscCyclePauseEnabled(false),
-    oscCyclePauseIsRandom(false),
-    oscCyclePauseDurationSec(0.0),
-    oscCyclePauseMinSec(0.5),
-    oscCyclePauseMaxSec(3.0),
+    oscCyclePause(),  // Uses CyclePauseConfig default constructor
     chaosCenterPositionMM(110.0),
     chaosAmplitudeMM(50.0),
     chaosMaxSpeedLevel(10.0),

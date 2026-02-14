@@ -124,8 +124,10 @@ bool ChaosController::checkLimits() {
         float effectiveMinLimit = max(chaos.centerPositionMM - chaos.amplitudeMM, 0.0f);
         
         if (nextPosMM < effectiveMinLimit) {
-            engine->debug(String("🛡️ CHAOS: Hit lower limit! Current: ") + 
-                  String(currentPosMM, 1) + "mm | Limit: " + String(effectiveMinLimit, 1) + "mm");
+            if (engine->isDebugEnabled()) {
+                engine->debug(String("🛡️ CHAOS: Hit lower limit! Current: ") + 
+                      String(currentPosMM, 1) + "mm | Limit: " + String(effectiveMinLimit, 1) + "mm");
+            }
             targetStep = currentStep;
             movingForward = true;
             return false;
@@ -320,9 +322,11 @@ void ChaosController::handlePulse(float craziness, float effectiveMinLimit, floa
         effectiveMaxLimit
     );
     
-    engine->debug("💓 PULSE Phase 1 (OUT): from=" + String(chaosState.pulseCenterMM, 1) + 
-          "mm → target=" + String(chaosState.targetPositionMM, 1) + 
-          "mm (will return to " + String(chaosState.pulseCenterMM, 1) + "mm)");
+    if (engine->isDebugEnabled()) {
+        engine->debug("💓 PULSE Phase 1 (OUT): from=" + String(chaosState.pulseCenterMM, 1) + 
+              "mm → target=" + String(chaosState.targetPositionMM, 1) + 
+              "mm (will return to " + String(chaosState.pulseCenterMM, 1) + "mm)");
+    }
 }
 
 void ChaosController::handleDrift(float craziness, float effectiveMinLimit, float effectiveMaxLimit,
@@ -385,9 +389,11 @@ void ChaosController::handleWave(float craziness, float effectiveMinLimit, float
     chaosState.patternStartTime = millis();
     chaosState.targetPositionMM = chaos.centerPositionMM;
     
-    engine->debug("🌊 WAVE: amplitude=" + String(chaosState.waveAmplitude, 1) + 
-          "mm, freq=" + String(chaosState.waveFrequency, 3) + 
-          "Hz, duration=" + String(patternDuration) + "ms");
+    if (engine->isDebugEnabled()) {
+        engine->debug("🌊 WAVE: amplitude=" + String(chaosState.waveAmplitude, 1) + 
+              "mm, freq=" + String(chaosState.waveFrequency, 3) + 
+              "Hz, duration=" + String(patternDuration) + "ms");
+    }
 }
 
 void ChaosController::handlePendulum(float craziness, float effectiveMinLimit, float effectiveMaxLimit,
@@ -649,16 +655,18 @@ void ChaosController::generatePattern() {
     chaosState.targetPositionMM = constrain(chaosState.targetPositionMM, effectiveMinLimit, effectiveMaxLimit);
     
     // Debug output
-    float currentPos = currentStep / (float)STEPS_PER_MM;
-    engine->debug(String("🎲 Chaos #") + String(chaosState.patternsExecuted) + ": " + 
-          PATTERN_NAMES[chaosState.currentPattern] + 
-          " | Config: center=" + String(chaos.centerPositionMM, 1) + 
-          "mm amplitude=" + String(chaos.amplitudeMM, 1) + "mm" +
-          " | Current: " + String(currentPos, 1) + "mm" +
-          " | Target: " + String(chaosState.targetPositionMM, 1) + "mm" +
-          " | Limits: [" + String(effectiveMinLimit, 1) + " - " + String(effectiveMaxLimit, 1) + "]" +
-          " | Speed: " + String(chaosState.currentSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) +
-          " | Duration: " + String(patternDuration) + "ms");
+    if (engine->isDebugEnabled()) {
+        float currentPos = currentStep / (float)STEPS_PER_MM;
+        engine->debug(String("🎲 Chaos #") + String(chaosState.patternsExecuted) + ": " + 
+              PATTERN_NAMES[chaosState.currentPattern] + 
+              " | Config: center=" + String(chaos.centerPositionMM, 1) + 
+              "mm amplitude=" + String(chaos.amplitudeMM, 1) + "mm" +
+              " | Current: " + String(currentPos, 1) + "mm" +
+              " | Target: " + String(chaosState.targetPositionMM, 1) + "mm" +
+              " | Limits: [" + String(effectiveMinLimit, 1) + " - " + String(effectiveMaxLimit, 1) + "]" +
+              " | Speed: " + String(chaosState.currentSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) +
+              " | Duration: " + String(patternDuration) + "ms");
+    }
 }
 
 // ============================================================================
@@ -703,7 +711,9 @@ void ChaosController::processCalm(float effectiveMinLimit, float effectiveMaxLim
         chaosState.isInPatternPause = true;
         chaosState.pauseStartTime = millis();
         chaosState.pauseDuration = random(CALM_PAUSE.pauseMin, CALM_PAUSE.pauseMax);
-        engine->debug("😌 CALM: entering pause for " + String(chaosState.pauseDuration) + "ms");
+        if (engine->isDebugEnabled()) {
+            engine->debug("😌 CALM: entering pause for " + String(chaosState.pauseDuration) + "ms");
+        }
     }
 }
 
@@ -719,15 +729,19 @@ void ChaosController::handlePulseAtTarget(float effectiveMinLimit, float effecti
         chaosState.targetPositionMM = chaosState.pulseCenterMM;
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        engine->debug("💓 PULSE Phase 2 (RETURN): from=" + String(currentPos, 1) + 
-              "mm → return to " + String(chaosState.pulseCenterMM, 1) + "mm");
+        if (engine->isDebugEnabled()) {
+            engine->debug("💓 PULSE Phase 2 (RETURN): from=" + String(currentPos, 1) + 
+                  "mm → return to " + String(chaosState.pulseCenterMM, 1) + "mm");
+        }
     } else {
         unsigned long elapsed = millis() - chaosState.patternStartTime;
         const unsigned long MIN_PATTERN_DURATION = 150;
         
         if (elapsed >= MIN_PATTERN_DURATION) {
             chaosState.nextPatternChangeTime = millis();
-            engine->debug("💓 PULSE complete after " + String(elapsed) + "ms → force new pattern");
+            if (engine->isDebugEnabled()) {
+                engine->debug("💓 PULSE complete after " + String(elapsed) + "ms → force new pattern");
+            }
         }
     }
 }
@@ -744,8 +758,10 @@ void ChaosController::handlePendulumAtTarget(float effectiveMinLimit, float effe
     chaosState.targetPositionMM = constrain(chaosState.targetPositionMM, effectiveMinLimit, effectiveMaxLimit);
     targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
     
-    engine->debug("⚖️ PENDULUM alternate: dir=" + String(chaosState.movingForward ? "UP" : "DOWN") + 
-          " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+    if (engine->isDebugEnabled()) {
+        engine->debug("⚖️ PENDULUM alternate: dir=" + String(chaosState.movingForward ? "UP" : "DOWN") + 
+              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+    }
 }
 
 void ChaosController::handleSpiralAtTarget(float effectiveMinLimit, float effectiveMaxLimit, float maxPossibleAmplitude) {
@@ -771,10 +787,12 @@ void ChaosController::handleSpiralAtTarget(float effectiveMinLimit, float effect
     chaosState.targetPositionMM = constrain(chaosState.targetPositionMM, effectiveMinLimit, effectiveMaxLimit);
     targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
     
-    engine->debug("🌀 SPIRAL: progress=" + String(progress * 100, 0) + "%" +
-          " radius=" + String(currentRadius, 1) + "mm" +
-          " dir=" + String(chaosState.movingForward ? "UP" : "DOWN") +
-          " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+    if (engine->isDebugEnabled()) {
+        engine->debug("🌀 SPIRAL: progress=" + String(progress * 100, 0) + "%" +
+              " radius=" + String(currentRadius, 1) + "mm" +
+              " dir=" + String(chaosState.movingForward ? "UP" : "DOWN") +
+              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+    }
 }
 
 void ChaosController::handleSweepAtTarget(float effectiveMinLimit, float effectiveMaxLimit) {
@@ -789,8 +807,10 @@ void ChaosController::handleSweepAtTarget(float effectiveMinLimit, float effecti
     chaosState.targetPositionMM = constrain(chaosState.targetPositionMM, effectiveMinLimit, effectiveMaxLimit);
     targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
     
-    engine->debug("🌊 SWEEP alternate: " + String(chaosState.movingForward ? "UP" : "DOWN") +
-          " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+    if (engine->isDebugEnabled()) {
+        engine->debug("🌊 SWEEP alternate: " + String(chaosState.movingForward ? "UP" : "DOWN") +
+              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+    }
 }
 
 void ChaosController::handleBruteForceAtTarget(float effectiveMinLimit, float effectiveMaxLimit) {
@@ -812,15 +832,19 @@ void ChaosController::handleBruteForceAtTarget(float effectiveMinLimit, float ef
         }
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        engine->debug("🔨 BRUTE_FORCE Phase 1 (slow out): speed=" + String(chaosState.currentSpeedLevel, 1) +
-              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🔨 BRUTE_FORCE Phase 1 (slow out): speed=" + String(chaosState.currentSpeedLevel, 1) +
+                  " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        }
               
     } else if (chaosState.brutePhase == 1) {
         chaosState.brutePhase = 2;
         chaosState.isInPatternPause = true;
         chaosState.pauseStartTime = millis();
         
-        engine->debug("🔨 BRUTE_FORCE Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🔨 BRUTE_FORCE Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
+        }
         
     } else {
         chaosState.brutePhase = 0;
@@ -838,8 +862,10 @@ void ChaosController::handleBruteForceAtTarget(float effectiveMinLimit, float ef
         }
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        engine->debug("🔨 BRUTE_FORCE Phase 0 (fast in): speed=" + String(chaosState.currentSpeedLevel, 1) +
-              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🔨 BRUTE_FORCE Phase 0 (fast in): speed=" + String(chaosState.currentSpeedLevel, 1) +
+                  " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        }
     }
 }
 
@@ -862,15 +888,19 @@ void ChaosController::handleLiberatorAtTarget(float effectiveMinLimit, float eff
         }
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        engine->debug("🔓 LIBERATOR Phase 1 (fast out): speed=" + String(chaosState.currentSpeedLevel, 1) +
-              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🔓 LIBERATOR Phase 1 (fast out): speed=" + String(chaosState.currentSpeedLevel, 1) +
+                  " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        }
               
     } else if (chaosState.liberatorPhase == 1) {
         chaosState.liberatorPhase = 2;
         chaosState.isInPatternPause = true;
         chaosState.pauseStartTime = millis();
         
-        engine->debug("🔓 LIBERATOR Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🔓 LIBERATOR Phase 2 (pause): " + String(chaosState.pauseDuration) + "ms");
+        }
         
     } else {
         chaosState.liberatorPhase = 0;
@@ -888,8 +918,10 @@ void ChaosController::handleLiberatorAtTarget(float effectiveMinLimit, float eff
         }
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        engine->debug("🔓 LIBERATOR Phase 0 (slow in): speed=" + String(chaosState.currentSpeedLevel, 1) +
-              " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🔓 LIBERATOR Phase 0 (slow in): speed=" + String(chaosState.currentSpeedLevel, 1) +
+                  " target=" + String(chaosState.targetPositionMM, 1) + "mm");
+        }
     }
 }
 
@@ -903,8 +935,10 @@ void ChaosController::handleDiscreteAtTarget() {
     
     if (elapsed >= MIN_PATTERN_DURATION) {
         chaosState.nextPatternChangeTime = millis();
-        engine->debug("🎯 Discrete pattern " + String(PATTERN_NAMES[chaosState.currentPattern]) + 
-              " reached target after " + String(elapsed) + "ms → force new pattern");
+        if (engine->isDebugEnabled()) {
+            engine->debug("🎯 Discrete pattern " + String(PATTERN_NAMES[chaosState.currentPattern]) + 
+                  " reached target after " + String(elapsed) + "ms → force new pattern");
+        }
     }
 }
 
@@ -922,9 +956,11 @@ void ChaosController::process() {
         unsigned long pauseElapsed = millis() - chaosState.pauseStartTime;
         if (pauseElapsed >= chaosState.pauseDuration) {
             chaosState.isInPatternPause = false;
-            String patternName = (chaosState.currentPattern == CHAOS_BRUTE_FORCE) ? "BRUTE_FORCE" : "LIBERATOR";
-            engine->debug(String(chaosState.currentPattern == CHAOS_BRUTE_FORCE ? "🔨" : "🔓") + " " + 
-                  patternName + " pause complete, resuming");
+            if (engine->isDebugEnabled()) {
+                String patternName = (chaosState.currentPattern == CHAOS_BRUTE_FORCE) ? "BRUTE_FORCE" : "LIBERATOR";
+                engine->debug(String(chaosState.currentPattern == CHAOS_BRUTE_FORCE ? "🔨" : "🔓") + " " + 
+                      patternName + " pause complete, resuming");
+            }
         } else {
             return;
         }
@@ -935,8 +971,10 @@ void ChaosController::process() {
         unsigned long elapsed = (millis() - chaosState.startTime) / 1000;
         if (elapsed >= chaos.durationSeconds) {
             engine->info("⏱️ Chaos duration complete: " + String(elapsed) + "s");
-            engine->debug(String("processChaosExecution(): config.executionContext=") + 
-                  executionContextName(config.executionContext) + " seqState.isRunning=" + String(seqState.isRunning));
+            if (engine->isDebugEnabled()) {
+                engine->debug(String("processChaosExecution(): config.executionContext=") + 
+                      executionContextName(config.executionContext) + " seqState.isRunning=" + String(seqState.isRunning));
+            }
             
             if (config.executionContext == CONTEXT_SEQUENCER) {
                 chaosState.isRunning = false;
@@ -954,9 +992,11 @@ void ChaosController::process() {
         calculateStepDelay();
         targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
         
-        engine->debug(String("🎲 Pattern: ") + PATTERN_NAMES[chaosState.currentPattern] + 
-              " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
-              "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
+        if (engine->isDebugEnabled()) {
+            engine->debug(String("🎲 Pattern: ") + PATTERN_NAMES[chaosState.currentPattern] + 
+                  " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
+                  "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
+        }
     }
     
     // Calculate limits
@@ -1139,9 +1179,11 @@ void ChaosController::start() {
     calculateStepDelay();
     targetStep = (long)(chaosState.targetPositionMM * STEPS_PER_MM);
     
-    engine->debug(String("🎲 Pattern: ") + PATTERN_NAMES[chaosState.currentPattern] + 
-          " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
-          "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
+    if (engine->isDebugEnabled()) {
+        engine->debug(String("🎲 Pattern: ") + PATTERN_NAMES[chaosState.currentPattern] + 
+              " | Speed: " + String(chaosState.currentSpeedLevel, 1) + 
+              "/" + String(MAX_SPEED_LEVEL, 0) + " | Delay: " + String(chaosState.stepDelay) + " µs/step");
+    }
     
     // Set running state (config.currentState is single source of truth for user pause)
     config.currentState = STATE_RUNNING;

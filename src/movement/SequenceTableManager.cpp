@@ -314,12 +314,12 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
     line.vaetZoneEffect.endPauseEnabled = false;
   }
   
-  // VA-ET-VIENT cycle pause
-  line.vaetCyclePauseEnabled = obj["vaetCyclePauseEnabled"] | false;
-  line.vaetCyclePauseIsRandom = obj["vaetCyclePauseIsRandom"] | false;
-  line.vaetCyclePauseDurationSec = obj["vaetCyclePauseDurationSec"] | 0.0;
-  line.vaetCyclePauseMinSec = obj["vaetCyclePauseMinSec"] | 0.5;
-  line.vaetCyclePauseMaxSec = obj["vaetCyclePauseMaxSec"] | 3.0;
+  // VA-ET-VIENT cycle pause (DRY: uses CyclePauseConfig struct)
+  line.vaetCyclePause.enabled = obj["vaetCyclePauseEnabled"] | false;
+  line.vaetCyclePause.isRandom = obj["vaetCyclePauseIsRandom"] | false;
+  line.vaetCyclePause.pauseDurationSec = obj["vaetCyclePauseDurationSec"] | 0.0;
+  line.vaetCyclePause.minPauseSec = obj["vaetCyclePauseMinSec"] | 0.5;
+  line.vaetCyclePause.maxPauseSec = obj["vaetCyclePauseMaxSec"] | 3.0;
   
   // OSCILLATION fields
   float effectiveMax = (effectiveMaxDistanceMM > 0) ? effectiveMaxDistanceMM : config.totalDistanceMM;
@@ -332,12 +332,12 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
   line.oscRampInDurationMs = obj["oscRampInDurationMs"] | 1000.0;
   line.oscRampOutDurationMs = obj["oscRampOutDurationMs"] | 1000.0;
   
-  // OSCILLATION cycle pause
-  line.oscCyclePauseEnabled = obj["oscCyclePauseEnabled"] | false;
-  line.oscCyclePauseIsRandom = obj["oscCyclePauseIsRandom"] | false;
-  line.oscCyclePauseDurationSec = obj["oscCyclePauseDurationSec"] | 0.0;
-  line.oscCyclePauseMinSec = obj["oscCyclePauseMinSec"] | 0.5;
-  line.oscCyclePauseMaxSec = obj["oscCyclePauseMaxSec"] | 3.0;
+  // OSCILLATION cycle pause (DRY: uses CyclePauseConfig struct)
+  line.oscCyclePause.enabled = obj["oscCyclePauseEnabled"] | false;
+  line.oscCyclePause.isRandom = obj["oscCyclePauseIsRandom"] | false;
+  line.oscCyclePause.pauseDurationSec = obj["oscCyclePauseDurationSec"] | 0.0;
+  line.oscCyclePause.minPauseSec = obj["oscCyclePauseMinSec"] | 0.5;
+  line.oscCyclePause.maxPauseSec = obj["oscCyclePauseMaxSec"] | 3.0;
   
   // CHAOS fields
   line.chaosCenterPositionMM = obj["chaosCenterPositionMM"] | (effectiveMax / 2.0);
@@ -411,12 +411,12 @@ String SequenceTableManager::exportToJson() {
     ze["endPauseMinSec"] = serialized(String(line->vaetZoneEffect.endPauseMinSec, 1));
     ze["endPauseMaxSec"] = serialized(String(line->vaetZoneEffect.endPauseMaxSec, 1));
     
-    // VA-ET-VIENT cycle pause
-    lineObj["vaetCyclePauseEnabled"] = line->vaetCyclePauseEnabled;
-    lineObj["vaetCyclePauseIsRandom"] = line->vaetCyclePauseIsRandom;
-    lineObj["vaetCyclePauseDurationSec"] = serialized(String(line->vaetCyclePauseDurationSec, 1));
-    lineObj["vaetCyclePauseMinSec"] = serialized(String(line->vaetCyclePauseMinSec, 1));
-    lineObj["vaetCyclePauseMaxSec"] = serialized(String(line->vaetCyclePauseMaxSec, 1));
+    // VA-ET-VIENT cycle pause (JSON keys unchanged for front-end compatibility)
+    lineObj["vaetCyclePauseEnabled"] = line->vaetCyclePause.enabled;
+    lineObj["vaetCyclePauseIsRandom"] = line->vaetCyclePause.isRandom;
+    lineObj["vaetCyclePauseDurationSec"] = serialized(String(line->vaetCyclePause.pauseDurationSec, 1));
+    lineObj["vaetCyclePauseMinSec"] = serialized(String(line->vaetCyclePause.minPauseSec, 1));
+    lineObj["vaetCyclePauseMaxSec"] = serialized(String(line->vaetCyclePause.maxPauseSec, 1));
     
     // OSCILLATION fields
     lineObj["oscCenterPositionMM"] = serialized(String(line->oscCenterPositionMM, 1));
@@ -428,12 +428,12 @@ String SequenceTableManager::exportToJson() {
     lineObj["oscRampInDurationMs"] = serialized(String(line->oscRampInDurationMs, 0));
     lineObj["oscRampOutDurationMs"] = serialized(String(line->oscRampOutDurationMs, 0));
     
-    // OSCILLATION cycle pause
-    lineObj["oscCyclePauseEnabled"] = line->oscCyclePauseEnabled;
-    lineObj["oscCyclePauseIsRandom"] = line->oscCyclePauseIsRandom;
-    lineObj["oscCyclePauseDurationSec"] = serialized(String(line->oscCyclePauseDurationSec, 1));
-    lineObj["oscCyclePauseMinSec"] = serialized(String(line->oscCyclePauseMinSec, 1));
-    lineObj["oscCyclePauseMaxSec"] = serialized(String(line->oscCyclePauseMaxSec, 1));
+    // OSCILLATION cycle pause (JSON keys unchanged for front-end compatibility)
+    lineObj["oscCyclePauseEnabled"] = line->oscCyclePause.enabled;
+    lineObj["oscCyclePauseIsRandom"] = line->oscCyclePause.isRandom;
+    lineObj["oscCyclePauseDurationSec"] = serialized(String(line->oscCyclePause.pauseDurationSec, 1));
+    lineObj["oscCyclePauseMinSec"] = serialized(String(line->oscCyclePause.minPauseSec, 1));
+    lineObj["oscCyclePauseMaxSec"] = serialized(String(line->oscCyclePause.maxPauseSec, 1));
     
     // CHAOS fields
     lineObj["chaosCenterPositionMM"] = serialized(String(line->chaosCenterPositionMM, 1));

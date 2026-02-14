@@ -179,6 +179,11 @@ public:
   LogLevel getLogLevel() const { return currentLogLevel; }
   
   /**
+   * Fast check for hot-path debug guards (avoids String allocation when debug is off)
+   */
+  bool isDebugEnabled() const { return loggingEnabled && currentLogLevel >= LOG_DEBUG; }
+  
+  /**
    * Enable or disable all logging (console + file)
    * @param enabled true = logs active, false = logs disabled
    */
