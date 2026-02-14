@@ -239,7 +239,7 @@ function updateOscillationUI(data) {
   // ===== OSCILLATION STATE DISPLAY =====
   if (data.oscillation && data.oscillationState) {
     DOM.oscCurrentAmplitude.textContent = 
-      data.oscillationState.currentAmplitude.toFixed(2);
+      (data.oscillationState.currentAmplitude ?? data.oscillation.amplitudeMM).toFixed(2);
     DOM.oscCompletedCycles.textContent = 
       data.oscillationState.completedCycles;
     

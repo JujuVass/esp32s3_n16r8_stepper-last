@@ -346,8 +346,9 @@
       
       // AUTO-SWITCH TAB: If movement is running/paused, switch to corresponding tab
       // This handles reconnection scenarios where user returns to find movement in progress
+      // Skip if running from sequencer (executionContext === 1) — stay on sequencer tab
       const isActiveMovement = (data.state === SystemState.RUNNING || data.state === SystemState.PAUSED);
-      if (isActiveMovement && data.movementType !== undefined) {
+      if (isActiveMovement && data.movementType !== undefined && data.executionContext !== 1) {
         const tabFromMovement = {
           0: 'simple',      // MOVEMENT_VAET
           1: 'oscillation', // MOVEMENT_OSC

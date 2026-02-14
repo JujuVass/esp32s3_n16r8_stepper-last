@@ -133,13 +133,16 @@ function updateChaosPresets() {
 function updatePatternToggleButton() {
   const checkedCount = CHAOS_PATTERNS.filter(id => document.getElementById(id).checked).length;
   const btn = document.getElementById('btnEnableAllPatterns');
+  const span = btn.querySelector('span');
   
   if (checkedCount === CHAOS_PATTERNS.length) {
     // All checked → show "Aucun" (next action will uncheck all)
-    btn.textContent = '❌ ' + t('common.none');
+    btn.firstChild.textContent = '❌ ';
+    if (span) span.textContent = t('common.none');
   } else {
     // Some or none checked → show "Tout" (next action will check all)
-    btn.textContent = '✅ ' + t('common.all');
+    btn.firstChild.textContent = '✅ ';
+    if (span) span.textContent = t('common.all');
   }
 }
 
