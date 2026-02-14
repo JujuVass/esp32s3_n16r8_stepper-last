@@ -422,7 +422,7 @@ function updateZoneEffectHeaderText() {
   if (speedEffect === 2) effects.push(t('simple.accel'));
   if (randomTurnback) effects.push('Retour');
   if (endPause) effects.push('Pause');
-  if (mirrorOnReturn) effects.push('�Pos.Phys.');
+  if (mirrorOnReturn) effects.push('📌Pos.Phys.');
   
   if (effects.length === 0) {
     headerText.textContent = t('simple.zoneEffectsNoEffect');
