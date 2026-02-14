@@ -1248,21 +1248,93 @@ function initSequenceSortable() {
     filter: 'input, button',  // Ignore drag on inputs and buttons
     preventOnFilter: false,   // Allow click events on filtered elements
     onStart: function(evt) {
+      // Store dragged line ID for trash zone detection
+      draggedLineId = parseInt(evt.item.dataset.lineId);
+      
+      // Track last known pointer position (dragend may report 0,0 on some browsers)
+      seqState.drag.lastPointerX = 0;
+      seqState.drag.lastPointerY = 0;
+      const trackPointer = function(e) {
+        const touch = e.touches ? e.touches[0] : e;
+        seqState.drag.lastPointerX = touch.clientX;
+        seqState.drag.lastPointerY = touch.clientY;
+      };
+      seqState.drag.trackPointer = trackPointer;
+      document.addEventListener('mousemove', trackPointer, { passive: true });
+      document.addEventListener('touchmove', trackPointer, { passive: true });
+      document.addEventListener('dragover', trackPointer, { passive: true });
+      
       // Show trash zone
       const trashZone = document.getElementById('sequenceTrashDropZone');
       if (trashZone) trashZone.classList.add('drag-active');
     },
     onEnd: function(evt) {
+      // Remove pointer tracking listeners
+      if (seqState.drag.trackPointer) {
+        document.removeEventListener('mousemove', seqState.drag.trackPointer);
+        document.removeEventListener('touchmove', seqState.drag.trackPointer);
+        document.removeEventListener('dragover', seqState.drag.trackPointer);
+        seqState.drag.trackPointer = null;
+      }
+      
       // Hide trash zone
       const trashZone = document.getElementById('sequenceTrashDropZone');
       if (trashZone) trashZone.classList.remove('drag-active');
       
-      // Only send if position changed
-      if (evt.oldIndex !== evt.newIndex) {
+      // Get drop position: prefer originalEvent, fallback to tracked position
+      const origEvt = evt.originalEvent;
+      let dropX = 0, dropY = 0;
+      if (origEvt && (origEvt.clientX || origEvt.clientY)) {
+        dropX = origEvt.clientX;
+        dropY = origEvt.clientY;
+      } else if (origEvt && origEvt.changedTouches && origEvt.changedTouches.length) {
+        dropX = origEvt.changedTouches[0].clientX;
+        dropY = origEvt.changedTouches[0].clientY;
+      } else {
+        // Fallback: use last tracked pointer position
+        dropX = seqState.drag.lastPointerX || 0;
+        dropY = seqState.drag.lastPointerY || 0;
+      }
+      const dropTarget = (dropX || dropY) ? document.elementFromPoint(dropX, dropY) : null;
+      
+      const trashDrop = document.getElementById('sequenceTrashDropZone');
+      const trashBatch = document.getElementById('sequenceTrashZone');
+      const isOnTrash = (trashDrop && trashDrop.contains(dropTarget)) || 
+                        (trashBatch && trashBatch.contains(dropTarget));
+      
+      if (isOnTrash) {
+        // Dropped on trash → delete the line(s)
+        const lineId = parseInt(evt.item.dataset.lineId);
+        const linesToDelete = selectedLineIds.size > 0 ? Array.from(selectedLineIds) : [lineId];
+        const count = linesToDelete.length;
+        const message = count === 1 ? 
+          t('sequencer.deleteSingle') :
+          t('sequencer.deleteMultiple', {count: count});
+        
+        showConfirm(message, {
+          title: t('common.delete'),
+          type: 'danger',
+          confirmText: '🗑️ ' + t('common.delete'),
+          dangerous: true
+        }).then(confirmed => {
+          if (!confirmed) return;
+          
+          console.log(`🗑️ SortableJS trash drop: deleting ${count} line(s)`);
+          const sortedIds = linesToDelete.sort((a, b) => b - a);
+          sortedIds.forEach(id => sendCommand(WS_CMD.DELETE_SEQUENCE_LINE, { lineId: id }));
+          
+          showNotification('✅ ' + t('sequencer.linesDeleted', {count: count}), 'success', 2000);
+          clearSelection();
+        });
+      } else if (evt.oldIndex !== evt.newIndex) {
+        // Normal reorder within table
         const lineId = parseInt(evt.item.dataset.lineId);
         console.log(`🔄 SortableJS: line ${lineId} moved from ${evt.oldIndex} to ${evt.newIndex}`);
         reorderSequenceLine(lineId, evt.newIndex);
       }
+      
+      // Clear drag state
+      draggedLineId = null;
     }
   });
   
