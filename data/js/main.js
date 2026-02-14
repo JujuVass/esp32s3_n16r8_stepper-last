@@ -486,9 +486,9 @@
       // Update max values, presets and button states (delegated to helper function)
       updateControlsState(data);
       
-      // Update deceleration zone configuration from server (delegated to helper function)
+      // Update zone effect configuration from server
       if (data.decelZone) {
-        updateDecelZoneUI(data.decelZone);
+        updateZoneEffectUI(data.decelZone);
       }
       
       // Show pending changes indicator
@@ -521,8 +521,8 @@
       const isReady = (data.state === SystemState.READY);
       if (isReady && AppState.system.canStart && AppState.system.currentMode === 'sequencer') {
         // Reset test mode flag if system is ready (safety cleanup)
-        if (window.isTestingLine) {
-          window.isTestingLine = false;
+        if (AppState.sequence.isTestingLine) {
+          AppState.sequence.isTestingLine = false;
         }
         // Re-enable sequencer buttons
         if (DOM.btnStartSequence && DOM.btnStartSequence.disabled) {

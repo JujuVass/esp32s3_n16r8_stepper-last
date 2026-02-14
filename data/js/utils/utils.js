@@ -415,12 +415,11 @@ function initMainNumericConstraints() {
   const mainNumericInputs = [
     // VA-ET-VIENT (Simple mode)
     'startPosition', 'distance', 'speedUnified', 'speedForward', 'speedBackward',
-    'decelZone', 'decelEffect',
     // OSCILLATION
     'oscCenterPosition', 'oscAmplitude', 'oscFrequency', 'oscSpeed',
     'oscRampInDuration', 'oscRampOutDuration',
     // CHAOS
-    'chaosCenter', 'chaosAmplitude', 'chaosSpeed', 'chaosCraziness',
+    'chaosCenterPos', 'chaosAmplitude', 'chaosSpeed', 'chaosCraziness',
     'chaosDuration', 'chaosSeed'
   ];
   applyNumericConstraints(mainNumericInputs);

@@ -28,44 +28,12 @@
 // These provide shorthand access to AppState.sequence properties
 const seqState = AppState.sequence;
 
-// Helper getters for commonly accessed properties
-function getSequenceLines() { return seqState.lines; }
-function setSequenceLines(lines) { seqState.lines = lines; }
+// Local read alias (array reference — reads go through this, writes use setSequenceLines)
+let sequenceLines = seqState.lines;
 
-// Backward compatibility aliases (will be removed in future refactoring)
-// Using Object.defineProperty to create live references
-Object.defineProperty(window, 'sequenceLines', {
-  get: function() { return seqState.lines; },
-  set: function(val) { seqState.lines = val; }
-});
-Object.defineProperty(window, 'editingLineId', {
-  get: function() { return seqState.editingLineId; },
-  set: function(val) { seqState.editingLineId = val; }
-});
-Object.defineProperty(window, 'isLoadingEditForm', {
-  get: function() { return seqState.isLoadingEditForm; },
-  set: function(val) { seqState.isLoadingEditForm = val; }
-});
-Object.defineProperty(window, 'selectedLineIds', {
-  get: function() { return seqState.selectedIds; },
-  set: function(val) { seqState.selectedIds = val; }
-});
-Object.defineProperty(window, 'lastSelectedIndex', {
-  get: function() { return seqState.lastSelectedIndex; },
-  set: function(val) { seqState.lastSelectedIndex = val; }
-});
-Object.defineProperty(window, 'draggedLineId', {
-  get: function() { return seqState.drag.lineId; },
-  set: function(val) { seqState.drag.lineId = val; }
-});
-Object.defineProperty(window, 'draggedLineIndex', {
-  get: function() { return seqState.drag.lineIndex; },
-  set: function(val) { seqState.drag.lineIndex = val; }
-});
-Object.defineProperty(window, 'lastDragEnterTime', {
-  get: function() { return seqState.drag.lastEnterTime; },
-  set: function(val) { seqState.drag.lastEnterTime = val; }
-});
+// Helper getters/setters for commonly accessed properties
+function getSequenceLines() { return seqState.lines; }
+function setSequenceLines(lines) { seqState.lines = lines; sequenceLines = lines; }
 
 // ========================================================================
 // VALIDATION FUNCTIONS
@@ -286,11 +254,11 @@ function testSequenceLine(lineId) {
     return;
   }
   
-  window.sequenceBackup = sequenceLines.map(l => ({ 
+  seqState.sequenceBackup = sequenceLines.map(l => ({ 
     lineId: l.lineId, enabled: l.enabled, cycleCount: l.cycleCount 
   }));
-  window.testedLineId = lineId;
-  window.isTestingLine = true;
+  seqState.testedLineId = lineId;
+  seqState.isTestingLine = true;
   
   console.log('🧪 Testing line #' + lineId + ' - Temporarily disabling other lines');
   
@@ -341,13 +309,13 @@ function testSequenceLine(lineId) {
 }
 
 function restoreSequenceAfterTest() {
-  console.log('🔄 restoreSequenceAfterTest called, isTestingLine=', window.isTestingLine, 'hasBackup=', !!window.sequenceBackup);
+  console.log('🔄 restoreSequenceAfterTest called, isTestingLine=', seqState.isTestingLine, 'hasBackup=', !!seqState.sequenceBackup);
   
   // Always reset the flag, even if restore fails
-  const wasTestingLine = window.isTestingLine;
-  window.isTestingLine = false;
+  const wasTestingLine = seqState.isTestingLine;
+  seqState.isTestingLine = false;
   
-  if (!wasTestingLine || !window.sequenceBackup) {
+  if (!wasTestingLine || !seqState.sequenceBackup) {
     console.log('⚠️ No restore needed or no backup available');
     // Still enable buttons since test mode is now off
     if (DOM.btnStartSequence) setButtonState(DOM.btnStartSequence, canStartOperation());
@@ -357,7 +325,7 @@ function restoreSequenceAfterTest() {
   
   console.log('🔄 Restoring sequence original state');
   
-  window.sequenceBackup.forEach(backup => {
+  seqState.sequenceBackup.forEach(backup => {
     const line = sequenceLines.find(l => l.lineId === backup.lineId);
     if (line && line.enabled !== backup.enabled) {
       sendCommand(WS_CMD.TOGGLE_SEQUENCE_LINE, { lineId: backup.lineId, enabled: backup.enabled });
@@ -381,8 +349,8 @@ function restoreSequenceAfterTest() {
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
   });
-  window.sequenceBackup = null;
-  window.testedLineId = null;
+  seqState.sequenceBackup = null;
+  seqState.testedLineId = null;
   
   showNotification('✅ ' + t('sequencer.sequenceRestored'), 'success', 2000);
 }
@@ -1029,7 +997,7 @@ function updateSequenceStatus(status) {
 
 function renderSequenceTable(data) {
   if (data && data.lines) {
-    sequenceLines = data.lines;
+    setSequenceLines(data.lines);
   } else if (!sequenceLines || sequenceLines.length === 0) {
     console.error('Invalid sequence data');
     return;
@@ -1362,7 +1330,7 @@ function initSequenceListeners() {
   // ===== PLAYBACK CONTROLS =====
   document.getElementById('btnStartSequence').addEventListener('click', function() {
     // Reset test mode flag in case it was left on from a failed test
-    window.isTestingLine = false;
+    seqState.isTestingLine = false;
     // Disable both start buttons immediately (instant feedback)
     setButtonState(DOM.btnStartSequence, false);
     setButtonState(DOM.btnLoopSequence, false);
@@ -1371,7 +1339,7 @@ function initSequenceListeners() {
   
   document.getElementById('btnLoopSequence').addEventListener('click', function() {
     // Reset test mode flag in case it was left on from a failed test
-    window.isTestingLine = false;
+    seqState.isTestingLine = false;
     // Disable both start buttons immediately (instant feedback)
     setButtonState(DOM.btnStartSequence, false);
     setButtonState(DOM.btnLoopSequence, false);

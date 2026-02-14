@@ -11,7 +11,7 @@
  * 
  * Dependencies: 
  * - DOM, AppState, WS_CMD, sendCommand, showNotification, showStopModal, currentPositionMM
- * - SimpleUtils.js (calculateSlowdownFactorPure, drawDecelPreviewPure, getCyclePauseSection)
+ * - SimpleUtils.js (calculateSlowdownFactorPure, drawZoneEffectPreviewPure, getCyclePauseSection)
  */
 
 // ============================================================================
@@ -149,9 +149,9 @@ function updateSimpleUI(data) {
   if (btnPause) {
     btnPause.disabled = !isRunningOrPaused;
     if (isPaused) {
-      btnPause.innerHTML = '▶ Reprendre';
+      btnPause.innerHTML = '▶ ' + t('common.resume');
     } else {
-      btnPause.innerHTML = '⏸ Pause';
+      btnPause.innerHTML = '⏸ ' + t('common.pause');
     }
   }
   
@@ -777,8 +777,8 @@ function updateZoneEffectUI(zoneEffect) {
     
     // Update header and redraw preview only if config changed
     const zoneConfigKey = `${zoneEffect.enableStart}-${zoneEffect.enableEnd}-${zoneEffect.mirrorOnReturn}-${zoneEffect.speedEffect}-${zoneEffect.speedCurve}-${zoneEffect.speedIntensity}-${zoneEffect.zoneMM}-${zoneEffect.randomTurnbackEnabled}-${zoneEffect.endPauseEnabled}`;
-    if (zoneConfigKey !== window._lastZoneConfigKey) {
-      window._lastZoneConfigKey = zoneConfigKey;
+    if (zoneConfigKey !== AppState.zoneEffect.lastConfigKey) {
+      AppState.zoneEffect.lastConfigKey = zoneConfigKey;
       updateZoneEffectHeaderText();
       drawZoneEffectPreview();
     }
@@ -948,18 +948,6 @@ function initZoneEffectListeners() {
 }
 
 // ============================================================================
-// LEGACY SUPPORT - Map old decel functions to new zone effect functions
-// ============================================================================
-
-// Legacy function names for backward compatibility
-function toggleDecelSection() { toggleZoneEffectSection(); }
-function sendDecelConfig() { sendZoneEffectConfig(); }
-function updateDecelZoneUI(data) { updateZoneEffectUI(data); }
-function drawDecelPreview() { drawZoneEffectPreview(); }
-function initDecelZoneListeners() { /* handled by initZoneEffectListeners */ }
-function getDecelConfigFromDOM() { return getZoneEffectConfigFromDOM(); }
-
-// ============================================================================
 // CYCLE PAUSE - FACTORY FUNCTION (used by Simple and Oscillation modes)
 // Note: getCyclePauseSection() and getCyclePauseOscSection() are in SimpleUtils.js
 // ============================================================================
@@ -1073,8 +1061,4 @@ function initCyclePauseHandlers() {
     radioName: 'cyclePauseModeOsc',
     dataAttrSuffix: '-osc'
   });
-  
-  // Expose for external use if needed
-  window.sendCyclePauseConfig = sendCyclePauseConfig;
-  window.sendCyclePauseConfigOsc = sendCyclePauseConfigOsc;
 }

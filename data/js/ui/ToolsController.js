@@ -214,13 +214,8 @@ function toggleSystemPanel() {
     btn.style.color = 'white';
     
     // Enable system stats in backend (same as Stats panel)
-    if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-      AppState.ws.send(JSON.stringify({
-        cmd: 'requestStats',
-        enable: true
-      }));
-      console.log('📊 System stats requested from backend');
-    }
+    sendCommand(WS_CMD.REQUEST_STATS, { enable: true });
+    console.log('📊 System stats requested from backend');
     
     // Request system status to populate fields
     sendCommand(WS_CMD.GET_STATUS, {});
@@ -245,12 +240,7 @@ function closeSystemPanel() {
   btn.style.color = 'white';
   
   // Disable system stats when closing (optional optimization)
-  if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-    AppState.ws.send(JSON.stringify({
-      cmd: 'requestStats',
-      enable: false
-    }));
-  }
+  sendCommand(WS_CMD.REQUEST_STATS, { enable: false });
 }
 
 /**
@@ -767,7 +757,7 @@ function updateSystemStats(system) {
 /**
  * Global max speed level (must match .ino MAX_SPEED_LEVEL constant)
  */
-let maxSpeedLevel = 35;
+const maxSpeedLevel = 35;
 
 /**
  * Initialize speed input max attributes based on maxSpeedLevel

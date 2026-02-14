@@ -93,32 +93,8 @@ function calculateSlowdownFactorPure(zoneProgress, maxSlowdown, mode) {
 }
 
 // ============================================================================
-// DECELERATION PREVIEW DRAWING
+// ZONE EFFECTS PREVIEW DRAWING
 // ============================================================================
-
-/**
- * Draw deceleration curve preview on canvas
- * Visualizes how speed changes across the movement range
- * 
- * @param {HTMLCanvasElement} canvas - Canvas element to draw on
- * @param {Object} config - Configuration object
- * @param {boolean} config.enabled - Whether deceleration is enabled
- * @param {boolean} config.enableStart - Whether start zone is active
- * @param {boolean} config.enableEnd - Whether end zone is active
- * @param {number} config.zoneMM - Zone size in millimeters
- * @param {number} config.effectPercent - Effect intensity (0-100)
- * @param {number} config.mode - Deceleration curve mode
- * @param {number} [config.movementAmplitude=150] - Total movement range for preview
- */
-function drawDecelPreviewPure(canvas, config) {
-  // Delegate to new unified function
-  drawZoneEffectPreviewPure(canvas, {
-    ...config,
-    speedEffect: 1,  // DECEL
-    speedCurve: config.mode,
-    speedIntensity: config.effectPercent
-  });
-}
 
 /**
  * Draw zone effects preview on a canvas
@@ -334,25 +310,6 @@ function drawZoneEffectPreviewPure(canvas, config) {
   }
 }
 
-/**
- * Get deceleration config from DOM elements
- * Helper to gather config for drawDecelPreviewPure
- * 
- * @returns {Object} Configuration object for drawDecelPreviewPure
- */
-function getDecelConfigFromDOM() {
-  const section = document.getElementById('decelSection');
-  return {
-    enabled: section ? !section.classList.contains('collapsed') : false,
-    enableStart: document.getElementById('decelZoneStart')?.checked ?? true,
-    enableEnd: document.getElementById('decelZoneEnd')?.checked ?? true,
-    zoneMM: parseFloat(document.getElementById('decelZoneMM')?.value) || 50,
-    effectPercent: parseFloat(document.getElementById('decelEffectPercent')?.value) || 75,
-    mode: parseInt(document.getElementById('decelModeSelect')?.value) || 1,
-    movementAmplitude: 150  // Default preview range
-  };
-}
-
 // ============================================================================
 // CYCLE PAUSE SECTION HELPERS
 // ============================================================================
@@ -375,4 +332,4 @@ function getCyclePauseOscSection() {
   return header ? header.closest('.section-collapsible') : null;
 }
 
-console.log('✅ SimpleUtils.js loaded - Deceleration utilities and helpers');
+console.log('✅ SimpleUtils.js loaded - Zone effects utilities and helpers');

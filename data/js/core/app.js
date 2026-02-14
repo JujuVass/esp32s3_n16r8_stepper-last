@@ -55,6 +55,9 @@ const AppState = {
     isLoadingEditForm: false, // Loading edit form flag
     selectedIds: null,     // Set of selected line IDs (initialized as Set)
     lastSelectedIndex: null, // Last selected index for shift-click
+    isTestingLine: false,  // Line test in progress flag
+    testedLineId: null,    // ID of line being tested
+    sequenceBackup: null,  // Backup of sequence state during test
     drag: {
       lineId: null,        // Currently dragged line ID
       lineIndex: null,     // Currently dragged line index
@@ -64,7 +67,8 @@ const AppState = {
   
   // Stats state
   stats: {
-    chart: null            // Chart.js instance reference
+    chart: null,            // Chart.js instance reference
+    isEditingRecording: false // Prevent status updates from overwriting user toggle
   },
   
   // System state
@@ -79,6 +83,11 @@ const AppState = {
   flags: {
     patternsInitialized: false,  // Chaos pattern checkboxes initialized
     domCacheReady: false          // DOM cache initialized
+  },
+  
+  // Zone effect cache (Simple mode)
+  zoneEffect: {
+    lastConfigKey: null    // Last zone config key for change detection
   },
   
   // Milestone tracking
@@ -192,7 +201,8 @@ const WS_CMD = Object.freeze({
   // === Status & Stats ===
   GET_STATUS: 'getStatus',
   SAVE_STATS: 'saveStats',
-  SET_STATS_RECORDING: 'setStatsRecording'
+  SET_STATS_RECORDING: 'setStatsRecording',
+  REQUEST_STATS: 'requestStats'
 });
 
 // ============================================================================

@@ -393,13 +393,8 @@ function toggleStatsPanel() {
     AppState.statsPanel.lastToggle = Date.now();
     
     // Send WebSocket command to backend (enable stats sending)
-    if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-      AppState.ws.send(JSON.stringify({
-        cmd: 'requestStats',
-        enable: true
-      }));
-      console.log('📊 Stats requested from backend');
-    }
+    sendCommand(WS_CMD.REQUEST_STATS, { enable: true });
+    console.log('📊 Stats requested from backend');
     
     // Load stats data
     loadStatsData();
@@ -425,13 +420,8 @@ function closeStatsPanel() {
   AppState.statsPanel.lastToggle = Date.now();
   
   // Send WebSocket command to backend (disable stats sending)
-  if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-    AppState.ws.send(JSON.stringify({
-      cmd: 'requestStats',
-      enable: false
-    }));
-    console.log('📊 Stats panel closed');
-  }
+  sendCommand(WS_CMD.REQUEST_STATS, { enable: false });
+  console.log('📊 Stats panel closed');
 }
 
 /**
@@ -663,9 +653,6 @@ function updateMilestones(totalTraveledMM) {
 // STATS RECORDING TOGGLE
 // ============================================================================
 
-// Flag to prevent status updates from overwriting user input
-let isEditingStatsRecording = false;
-
 /**
  * Toggle stats recording on/off (persisted to EEPROM)
  */
@@ -677,14 +664,14 @@ function toggleStatsRecording() {
   console.log(`📊 Stats recording toggle: ${enabled ? 'ENABLED' : 'DISABLED'}`);
   
   // Set flag to prevent status updates from reverting the checkbox
-  isEditingStatsRecording = true;
+  AppState.stats.isEditingRecording = true;
   
   // Send command via WebSocket
   sendCommand(WS_CMD.SET_STATS_RECORDING, { enabled: enabled });
   
   // Clear flag after server has time to process and send updated status
   setTimeout(() => {
-    isEditingStatsRecording = false;
+    AppState.stats.isEditingRecording = false;
   }, 500);
 }
 
@@ -694,7 +681,7 @@ function toggleStatsRecording() {
  */
 function updateStatsRecordingUI(enabled) {
   // Don't update if user is currently editing
-  if (isEditingStatsRecording) return;
+  if (AppState.stats.isEditingRecording) return;
   
   const checkbox = document.getElementById('statsRecordingEnabled');
   const warning = document.getElementById('statsRecordingWarning');

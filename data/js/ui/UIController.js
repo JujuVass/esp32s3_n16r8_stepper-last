@@ -271,60 +271,25 @@ function confirmStopModal() {
   const shouldReturnToStart = document.getElementById('returnToStartCheckbox').checked;
   document.getElementById('stopModal').classList.remove('active');
   
-  // CRITICAL FIX: Detect current mode and send mode-specific stop command
+  // Mode-specific stop command lookup
+  const STOP_COMMANDS = {
+    tableau: WS_CMD.STOP_SEQUENCE,
+    chaos: WS_CMD.STOP_CHAOS,
+    oscillation: WS_CMD.STOP_OSCILLATION
+  };
+  
   const currentMode = AppState.system.currentMode;
+  const stopCmd = STOP_COMMANDS[currentMode] || WS_CMD.STOP;
   
-  if (currentMode === 'tableau') {  // 'tableau' is the sequencer tab name
-    // SEQUENCER MODE FIX: Send stopSequence command
-    console.log('Stop confirmed (Sequencer mode): Stopping sequence');
-    sendCommand(WS_CMD.STOP_SEQUENCE, {});
-    
-    // Return to start if requested (same as other modes)
-    if (shouldReturnToStart) {
-      setTimeout(function() {
-        console.log('Stop confirmed: Returning to start position');
-        sendCommand(WS_CMD.RETURN_TO_START, {});
-      }, 500);
-    }
-  } else if (currentMode === 'chaos') {
-    // Chaos mode: send stopChaos command
-    console.log('Stop confirmed (Chaos mode): Stopping chaos movement');
-    sendCommand(WS_CMD.STOP_CHAOS, {});
-    
-    // Return to start if requested
-    if (shouldReturnToStart) {
-      setTimeout(function() {
-        console.log('Stop confirmed: Returning to start position');
-        sendCommand(WS_CMD.RETURN_TO_START, {});
-      }, 500);
-    }
-  } else if (currentMode === 'oscillation') {
-    // Oscillation mode: send stopOscillation command
-    console.log('Stop confirmed (Oscillation mode): Stopping oscillation');
-    sendCommand(WS_CMD.STOP_OSCILLATION, {});
-    
-    // Return to start if requested
-    if (shouldReturnToStart) {
-      setTimeout(function() {
-        console.log('Stop confirmed: Returning to start position');
-        sendCommand(WS_CMD.RETURN_TO_START, {});
-      }, 500);
-    }
+  console.log('Stop confirmed (' + currentMode + '): Sending ' + stopCmd);
+  sendCommand(stopCmd, {});
+  
+  if (shouldReturnToStart) {
+    setTimeout(function() {
+      console.log('Stop confirmed: Returning to start position');
+      sendCommand(WS_CMD.RETURN_TO_START, {});
+    }, 500);
   } else {
-    // Simple mode or others: send generic stop
-    console.log('Stop confirmed: Stopping movement');
-    sendCommand(WS_CMD.STOP, {});
-    
-    // Return to start if requested
-    if (shouldReturnToStart) {
-      setTimeout(function() {
-        console.log('Stop confirmed: Returning to start position');
-        sendCommand(WS_CMD.RETURN_TO_START, {});
-      }, 500);
-    }
-  }
-  
-  if (!shouldReturnToStart) {
     console.log('Stop confirmed: Staying at current position');
   }
   

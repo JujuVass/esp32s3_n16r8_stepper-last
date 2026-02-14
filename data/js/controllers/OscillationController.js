@@ -496,9 +496,9 @@ function updateOscillationUI(data) {
   if (btnPauseOsc) {
     btnPauseOsc.disabled = !isRunningOrPaused;
     if (isPaused) {
-      btnPauseOsc.innerHTML = '▶ Reprendre';
+      btnPauseOsc.innerHTML = '▶ ' + t('common.resume');
     } else {
-      btnPauseOsc.innerHTML = '⏸ Pause';
+      btnPauseOsc.innerHTML = '⏸ ' + t('common.pause');
     }
   }
   
