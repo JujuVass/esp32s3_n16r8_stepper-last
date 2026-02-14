@@ -56,6 +56,14 @@ function toggleChaosHelp() {
 }
 
 /**
+ * Toggle chaos advanced options section (patterns, seed)
+ */
+function toggleChaosAdvancedSection() {
+  const section = document.getElementById('chaosAdvancedSection');
+  section.classList.toggle('collapsed');
+}
+
+/**
  * Send chaos configuration to backend
  */
 function sendChaosConfig() {
@@ -512,7 +520,7 @@ function initChaosListeners() {
 // EXPOSED API
 // ============================================================================
 // Functions available globally:
-// - toggleChaosHelp()
+// - toggleChaosHelp(), toggleChaosAdvancedSection()
 // - sendChaosConfig()
 // - validateChaosLimits()
 // - updateChaosPresets()

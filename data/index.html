@@ -1331,11 +1331,14 @@
         <div class="divider"></div>
 
         <!-- Accordion: Options avancées -->
-        <details style="margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f9f9f9;">
-          <summary style="cursor: pointer; font-weight: bold; font-size: 13px; color: #333;">▼ <span data-i18n="chaos.advancedOptions">Options avancées</span></summary>
+        <div class="section-collapsible collapsed" id="chaosAdvancedSection">
+          <div class="section-collapsible-header" onclick="toggleChaosAdvancedSection()">
+            <span class="collapse-icon">▼</span> <span id="chaosAdvancedHeaderText" data-i18n="chaos.advancedOptions">⚙️ Options avancées</span>
+          </div>
+          <div class="section-collapsible-content">
           
           <!-- Patterns actifs -->
-          <div style="margin-top: 10px; padding: 10px; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
+          <div style="padding: 10px; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
             <label style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 8px;">✅ <span data-i18n="chaos.activePatterns">Patterns actifs:</span></label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;">
               <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
@@ -1396,7 +1399,8 @@
             <input type="number" id="chaosSeed" min="0" step="1" value="0" class="input-compact" style="width: 90px;">
             <span class="unit-label" style="font-size: 11px;" data-i18n="chaos.seedHint">(0=aléatoire)</span>
           </div>
-        </details>
+          </div>
+        </div>
 
         <!-- Séparateur -->
         <div class="divider"></div>
