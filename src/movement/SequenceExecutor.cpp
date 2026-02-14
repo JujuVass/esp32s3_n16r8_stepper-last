@@ -276,10 +276,13 @@ void SequenceExecutor::positionForNextLine() {
     engine->info("🎯 Repositioning: " + String(currentPosMM, 1) + "mm → " + String(targetPositionMM, 1) + "mm");
         
         // CRITICAL: Stop previous movement completely before repositioning
-        chaosState.isRunning = false;
-        oscillationState.isRampingIn = false;
-        oscillationState.isRampingOut = false;
-        currentMovement = MOVEMENT_VAET;  // Force back to VAET
+        {
+            MutexGuard guard(motionMutex);
+            chaosState.isRunning = false;
+            oscillationState.isRampingIn = false;
+            oscillationState.isRampingOut = false;
+            currentMovement = MOVEMENT_VAET;  // Force back to VAET
+        }
         
         long targetStepPos = (long)(targetPositionMM * STEPS_PER_MM);
         
@@ -608,8 +611,8 @@ void SequenceExecutor::startChaosLine(SequenceLine* line) {
     chaos.durationSeconds = line->chaosDurationSeconds;
     chaos.seed = line->chaosSeed;
     
-    // Copy patterns enabled array (11 patterns)
-    for (int i = 0; i < 11; i++) {
+    // Copy patterns enabled array
+    for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
         chaos.patternsEnabled[i] = line->chaosPatternsEnabled[i];
     }
     

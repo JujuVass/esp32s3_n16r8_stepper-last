@@ -158,14 +158,6 @@ public:
      */
     void validateZoneEffect();
     
-    /**
-     * Legacy alias for validateZoneEffect
-     */
-    void validateDecelZone();
-    
-    // Legacy alias for calculateSpeedFactor (backward compatibility)
-    float calculateSlowdownFactor(float zoneProgress) { return calculateSpeedFactor(zoneProgress); }
-    
     // ========================================================================
     // PENDING CHANGES MANAGEMENT
     // ========================================================================

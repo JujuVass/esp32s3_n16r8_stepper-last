@@ -314,7 +314,7 @@ void StatusBroadcaster::addChaosFields(JsonDocument& doc) {
     chaosObj["seed"] = chaos.seed;
     
     JsonArray patternsArray = chaosObj["patternsEnabled"].to<JsonArray>();
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
         patternsArray.add(chaos.patternsEnabled[i]);
     }
     

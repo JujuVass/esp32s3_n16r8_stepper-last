@@ -227,7 +227,7 @@ constexpr float SPEED_LEVEL_TO_MM_S = 10.0f;            // speedLevel * 10 = mm/
 // ============================================================================
 // CONFIGURATION - Chaos Mode Defaults
 // ============================================================================
-constexpr uint8_t CHAOS_PATTERN_COUNT = 11;             // Number of chaos patterns
+// CHAOS_PATTERN_COUNT is defined in Types.h (used by structs there)
 constexpr float CHAOS_DEFAULT_CENTER_MM = 100.0f;       // Default center position
 constexpr float CHAOS_DEFAULT_AMPLITUDE_MM = 40.0f;     // Default amplitude
 constexpr float CHAOS_MIN_AMPLITUDE_MM = 5.0f;          // Minimum safe amplitude
@@ -249,10 +249,7 @@ constexpr uint8_t MAX_PLAYLISTS_PER_MODE = 20;          // Max saved presets per
 // ============================================================================
 constexpr float DECEL_DEFAULT_ZONE_MM = 20.0f;          // Default decel zone size
 constexpr uint8_t DECEL_DEFAULT_EFFECT_PERCENT = 50;    // Default decel effect
-constexpr uint8_t DECEL_MODE_LINEAR = 0;                // Linear deceleration curve
-constexpr uint8_t DECEL_MODE_SINE = 1;                  // Sine deceleration curve
-constexpr uint8_t DECEL_MODE_TRIANGLE_INV = 2;          // Inverse triangle curve
-constexpr uint8_t DECEL_MODE_SINE_INV = 3;              // Inverse sine curve
+// Decel mode constants removed — use CURVE_LINEAR/CURVE_SINE/etc. from Types.h
 
 // ============================================================================
 // CONFIGURATION - Cycle Pause Defaults

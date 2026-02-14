@@ -35,6 +35,13 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <cstdint>  // For uint8_t
+
+// ============================================================================
+// CHAOS PATTERN COUNT (used by structs below and all chaos-related code)
+// ============================================================================
+constexpr uint8_t CHAOS_PATTERN_COUNT = 11;
+
 // ============================================================================
 // SYSTEM STATE ENUMS
 // ============================================================================
@@ -191,13 +198,6 @@ enum SpeedCurve {
   CURVE_SINE_INV = 3          // Sine inverted: weak at start, strong at end
 };
 
-// Legacy alias for backward compatibility
-typedef SpeedCurve DecelMode;
-#define DECEL_LINEAR CURVE_LINEAR
-#define DECEL_SINE CURVE_SINE
-#define DECEL_TRIANGLE_INV CURVE_TRIANGLE_INV
-#define DECEL_SINE_INV CURVE_SINE_INV
-
 struct ZoneEffectConfig {
   // === Zone Settings ===
   bool enabled;               // Master enable for zone effects
@@ -238,14 +238,6 @@ struct ZoneEffectConfig {
     endPauseDurationSec(1.0),
     endPauseMinSec(0.5),
     endPauseMaxSec(2.0) {}
-    
-  // Legacy getter for backward compatibility (effectPercent)
-  float getEffectPercent() const { return speedIntensity; }
-  void setEffectPercent(float val) { speedIntensity = val; }
-  
-  // Legacy getter for mode (maps to speedCurve when speedEffect is DECEL)
-  SpeedCurve getMode() const { return speedCurve; }
-  void setMode(SpeedCurve m) { speedCurve = m; }
 };
 
 // Runtime state for zone effects (separated from config for clean copy semantics)
@@ -266,9 +258,6 @@ struct ZoneEffectState {
     pauseStartMs(0),
     pauseDurationMs(0) {}
 };
-
-// Legacy alias
-typedef ZoneEffectConfig DecelZoneConfig;
 
 // ============================================================================
 // PURSUIT MODE
@@ -424,7 +413,7 @@ struct ChaosRuntimeConfig {
   unsigned long durationSeconds; // Total duration (0 = infinite)
   unsigned long seed;          // Random seed (0 = use micros())
   float crazinessPercent;      // Degree of madness 0-100% (affects speed, duration, jump size)
-  bool patternsEnabled[11];    // Enable/disable each pattern (ZIGZAG, SWEEP, PULSE, DRIFT, BURST, WAVE, PENDULUM, SPIRAL, CALM, BRUTE_FORCE, LIBERATOR)
+  bool patternsEnabled[CHAOS_PATTERN_COUNT];    // Enable/disable each pattern (ZIGZAG, SWEEP, PULSE, DRIFT, BURST, WAVE, PENDULUM, SPIRAL, CALM, BRUTE_FORCE, LIBERATOR)
   
   ChaosRuntimeConfig() : 
     centerPositionMM(110.0), 
@@ -434,7 +423,7 @@ struct ChaosRuntimeConfig {
     seed(0),
     crazinessPercent(50.0) {
       // Enable all patterns by default
-      for (int i = 0; i < 11; i++) {
+      for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
         patternsEnabled[i] = true;
       }
     }
@@ -558,7 +547,7 @@ struct SequenceLine {
   float chaosCrazinessPercent;
   unsigned long chaosDurationSeconds;
   unsigned long chaosSeed;
-  bool chaosPatternsEnabled[11];  // ZIGZAG, SWEEP, PULSE, DRIFT, BURST, WAVE, PENDULUM, SPIRAL, CALM, BRUTE_FORCE, LIBERATOR
+  bool chaosPatternsEnabled[CHAOS_PATTERN_COUNT];  // ZIGZAG, SWEEP, PULSE, DRIFT, BURST, WAVE, PENDULUM, SPIRAL, CALM, BRUTE_FORCE, LIBERATOR
   
   // COMMON parameters
   int cycleCount;
@@ -600,8 +589,8 @@ struct SequenceLine {
     cycleCount(1),
     pauseAfterMs(0),
     lineId(0) {
-      // Initialize all chaos patterns to enabled (11 patterns)
-      for (int i = 0; i < 11; i++) {
+      // Initialize all chaos patterns to enabled
+      for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
         chaosPatternsEnabled[i] = true;
       }
     }

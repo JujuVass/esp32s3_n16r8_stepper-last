@@ -557,12 +557,12 @@ void ChaosController::handleLiberator(float craziness, float effectiveMinLimit, 
 
 void ChaosController::generatePattern() {
     // Build list of enabled patterns with weights
-    int enabledPatterns[11];
-    int weights[11] = {12, 12, 8, 8, 5, 10, 12, 8, 15, 10, 10};
+    int enabledPatterns[CHAOS_PATTERN_COUNT];
+    int weights[CHAOS_PATTERN_COUNT] = {12, 12, 8, 8, 5, 10, 12, 8, 15, 10, 10};
     int totalWeight = 0;
     int enabledCount = 0;
     
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
         if (chaos.patternsEnabled[i]) {
             enabledPatterns[enabledCount] = i;
             totalWeight += weights[i];
@@ -572,12 +572,12 @@ void ChaosController::generatePattern() {
     
     if (enabledCount == 0) {
         engine->warn("⚠️ No patterns enabled, enabling all");
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
             chaos.patternsEnabled[i] = true;
             enabledPatterns[i] = i;
             totalWeight += weights[i];
         }
-        enabledCount = 11;
+        enabledCount = CHAOS_PATTERN_COUNT;
     }
     
     float effectiveMinLimit, effectiveMaxLimit;

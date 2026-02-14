@@ -571,7 +571,7 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
         if (patternsArray) {
             int idx = 0;
             for (JsonVariant v : patternsArray) {
-                if (idx < 11) {
+                if (idx < CHAOS_PATTERN_COUNT) {
                     chaos.patternsEnabled[idx] = v.as<bool>();
                     idx++;
                 }
@@ -615,7 +615,7 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
         if (patternsArray) {
             int idx = 0;
             for (JsonVariant v : patternsArray) {
-                if (idx < 11) {
+                if (idx < CHAOS_PATTERN_COUNT) {
                     chaos.patternsEnabled[idx] = v.as<bool>();
                     idx++;
                 }

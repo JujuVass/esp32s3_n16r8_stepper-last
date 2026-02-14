@@ -250,10 +250,6 @@ void BaseMovementControllerClass::calculateStepDelay() {
               String(cyclesPerMinuteBackward, 0) + " c/min)");
     }
     
-    float avgCyclesPerMin = (cyclesPerMinuteForward + cyclesPerMinuteBackward) / 2.0;
-    float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
-    float totalCycleTime = (60000.0 / cyclesPerMinuteForward / 2.0) + (60000.0 / cyclesPerMinuteBackward / 2.0);
-    
     engine->info("⚙️ CALC: dist=" + String(motion.targetDistanceMM, 1) + "mm → " + 
           String(stepsPerDirection) + " steps | speed=" + String(motion.speedLevelForward, 1) + 
           " → " + String(cyclesPerMinuteForward, 0) + " c/min | halfCycle=" + 
@@ -549,11 +545,6 @@ void BaseMovementControllerClass::validateZoneEffect() {
         zoneEffect.endPauseMaxSec = zoneEffect.endPauseMinSec + 0.5;
     }
     if (zoneEffect.endPauseDurationSec < 0.1) zoneEffect.endPauseDurationSec = 0.1;
-}
-
-// Legacy alias for backward compatibility
-void BaseMovementControllerClass::validateDecelZone() {
-    validateZoneEffect();
 }
 
 // ============================================================================

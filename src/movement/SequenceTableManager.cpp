@@ -353,11 +353,11 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
     JsonArrayConst patterns = patternsVar.as<JsonArrayConst>();
     int idx = 0;
     for (JsonVariantConst val : patterns) {
-      if (idx < 11) line.chaosPatternsEnabled[idx++] = val.as<bool>();
+      if (idx < CHAOS_PATTERN_COUNT) line.chaosPatternsEnabled[idx++] = val.as<bool>();
     }
   } else {
     // Default: all patterns enabled
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < CHAOS_PATTERN_COUNT; i++) {
       line.chaosPatternsEnabled[i] = true;
     }
   }
@@ -444,7 +444,7 @@ String SequenceTableManager::exportToJson() {
     lineObj["chaosSeed"] = line->chaosSeed;
     
     JsonArray patternsArray = lineObj["chaosPatternsEnabled"].to<JsonArray>();
-    for (int p = 0; p < 11; p++) {
+    for (int p = 0; p < CHAOS_PATTERN_COUNT; p++) {
       patternsArray.add(line->chaosPatternsEnabled[p]);
     }
     

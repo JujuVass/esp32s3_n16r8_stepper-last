@@ -188,6 +188,9 @@ bool CalibrationManager::startCalibration() {
         return false;
     }
     
+    // Loop for retries (replaces recursive calls to avoid stack overflow on Core 1)
+    while (true) {
+    
     engine->info(m_attemptCount == 0 ? "Starting calibration..." : "Retry calibration...");
     config.currentState = STATE_CALIBRATING;
     
@@ -249,7 +252,7 @@ bool CalibrationManager::startCalibration() {
         
         engine->warn("⚠️ Distance too short - Retry " + String(m_attemptCount));
         serviceWebSocket(500);
-        return startCalibration();  // Recursive retry
+        continue;  // Retry via loop (was recursive call)
     }
     
     if (m_totalDistanceMM > HARD_MAX_DISTANCE_MM) {
@@ -288,7 +291,7 @@ bool CalibrationManager::startCalibration() {
         
         engine->warn("⚠️ Error too large - Retry");
         serviceWebSocket(500);
-        return startCalibration();
+        continue;  // Retry via loop (was recursive call)
     }
     
     // ========================================
@@ -335,6 +338,8 @@ bool CalibrationManager::startCalibration() {
     }
     
     return true;
+    
+    } // end while(true) retry loop
 }
 
 bool CalibrationManager::returnToStart() {
