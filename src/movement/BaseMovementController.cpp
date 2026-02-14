@@ -841,8 +841,8 @@ void BaseMovementControllerClass::process() {
         float currentPositionMM = (currentStep - startStep) / STEPS_PER_MM;
         
         // Mirror mode: swap enableStart/enableEnd on return trip
-        // ONLY affects speed effect curve - turnback and pause use physical flags
-        // Effect follows destination instead of being fixed to physical position
+        // Affects SPATIAL zone effects (speed curve + random turnback)
+        // Does NOT affect endpoint effects (endPause uses physical flags in doStep)
         bool effectiveEnableStart = zoneEffect.enableStart;
         bool effectiveEnableEnd = zoneEffect.enableEnd;
         if (zoneEffect.mirrorOnReturn && !movingForward) {
@@ -866,9 +866,8 @@ void BaseMovementControllerClass::process() {
         float distanceFromEnd = abs(movementEndMM - currentPositionMM);
         
         // Check for random turnback in START zone (when moving backward)
-        // Note: random turnback uses PHYSICAL zone flags (no mirror swap)
-        // Mirror only affects speed effect curve, not turnback/pause triggers
-        if (!movingForward && zoneEffect.enableStart && distanceFromEnd <= zoneEffect.zoneMM) {
+        // Uses effective (mirrored) flags - turnback is a spatial zone effect
+        if (!movingForward && effectiveEnableStart && distanceFromEnd <= zoneEffect.zoneMM) {
             float distanceIntoZone = zoneEffect.zoneMM - distanceFromEnd;
             checkAndTriggerRandomTurnback(distanceIntoZone, false);
             // If pause was triggered, exit early
@@ -878,8 +877,8 @@ void BaseMovementControllerClass::process() {
         }
         
         // Check for random turnback in END zone (when moving forward)
-        // Note: random turnback uses PHYSICAL zone flags (no mirror swap)
-        if (movingForward && zoneEffect.enableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
+        // Uses effective (mirrored) flags - turnback is a spatial zone effect
+        if (movingForward && effectiveEnableEnd && distanceFromEnd <= zoneEffect.zoneMM) {
             float distanceIntoZone = zoneEffect.zoneMM - distanceFromEnd;
             checkAndTriggerRandomTurnback(distanceIntoZone, true);
             // If pause was triggered, exit early

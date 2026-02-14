@@ -214,7 +214,7 @@ struct ZoneEffectConfig {
   bool enabled;               // Master enable for zone effects
   bool enableStart;           // Apply effects at start position
   bool enableEnd;             // Apply effects at end position
-  bool mirrorOnReturn;        // Mirror zones on return (effect follows destination)
+  bool mirrorOnReturn;        // Physical position mode: zones stay at physical position regardless of direction
   float zoneMM;               // Zone size in mm (10-200)
   
   // === Speed Effect ===

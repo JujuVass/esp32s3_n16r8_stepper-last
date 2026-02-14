@@ -125,7 +125,7 @@ function getDecelSummary(line, movementType) {
   const posIndicator = [];
   if (ze.enableStart) posIndicator.push('D');
   if (ze.enableEnd) posIndicator.push('F');
-  if (ze.mirrorOnReturn) posIndicator.push('🔀');
+  if (ze.mirrorOnReturn) posIndicator.push('�');
   
   // Speed effect
   let effectLine = '';
