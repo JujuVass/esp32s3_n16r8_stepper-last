@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // API ROUTES MANAGER - Implementation
 // ============================================================================
 // HTTP server routes for ESP32 Stepper Controller
@@ -147,13 +147,9 @@ void sendJsonSuccessWithId(int id) {
   server.send(200, "application/json", json);
 }
 
-void sendJsonApiError(int code, const String& message) {
-  sendJsonError(code, message);
-}
-
 void sendEmptyPlaylistStructure() {
   JsonDocument doc;
-  doc["vaet"] = JsonArray();
+  doc["simple"] = JsonArray();
   doc["oscillation"] = JsonArray();
   doc["chaos"] = JsonArray();
   doc["pursuit"] = JsonArray();
@@ -182,6 +178,87 @@ void ensureFileExists(const char* path, const char* defaultContent) {
       file.close();
     }
   }
+}
+
+// ============================================================================
+// PLAYLIST FILE HELPERS (DRY)
+// ============================================================================
+
+/**
+ * Load and parse the playlist JSON file.
+ * Sends appropriate error responses on failure.
+ * @return true if playlistDoc is populated and ready to use
+ */
+bool loadPlaylistDoc(JsonDocument& playlistDoc) {
+  if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
+    sendJsonError(404, "No playlists found");
+    return false;
+  }
+  
+  File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
+  if (!file) {
+    sendJsonError(500, "Failed to read playlists");
+    return false;
+  }
+  
+  deserializeJson(playlistDoc, file);
+  file.close();
+  return true;
+}
+
+/**
+ * Find a preset by mode and id in a loaded playlist document.
+ * Sends 404 error if mode or preset not found.
+ * @param outArray  Populated with the mode's JsonArray on success
+ * @param outIndex  Set to the index of the found preset (-1 if not applicable)
+ * @return true if the preset was found
+ */
+bool findPresetInMode(JsonDocument& playlistDoc, const char* mode, int id, 
+                      JsonArray& outArray, int& outIndex) {
+  if (!playlistDoc[mode].is<JsonArray>()) {
+    sendJsonError(404, "Mode not found");
+    return false;
+  }
+  
+  outArray = playlistDoc[mode].as<JsonArray>();
+  
+  for (size_t i = 0; i < outArray.size(); i++) {
+    JsonObject preset = outArray[i];
+    if (preset["id"] == id) {
+      outIndex = (int)i;
+      return true;
+    }
+  }
+  
+  sendJsonError(404, "Preset not found");
+  return false;
+}
+
+// ============================================================================
+// STATS FILE HELPERS (DRY)
+// ============================================================================
+
+/**
+ * Read stats from /stats.json, detecting old format (direct array) vs new format.
+ * @param statsDoc  Document to hold the parsed JSON (caller must keep alive)
+ * @param outArray  Populated with the stats JsonArray on success
+ * @return true if stats were loaded successfully
+ */
+bool readStatsArray(JsonDocument& statsDoc, JsonArray& outArray) {
+  if (!engine->loadJsonFile("/stats.json", statsDoc)) return false;
+  
+  if (statsDoc.is<JsonArray>()) {
+    // OLD FORMAT: Direct array [{"date":"...","distanceMM":...}, ...]
+    engine->debug("📥 Detected OLD stats format (direct array)");
+    outArray = statsDoc.as<JsonArray>();
+    return true;
+  } else if (statsDoc["stats"].is<JsonArray>()) {
+    // NEW FORMAT: {"stats": [...]}
+    outArray = statsDoc["stats"].as<JsonArray>();
+    return true;
+  }
+  
+  return false;
 }
 
 // ============================================================================
@@ -232,28 +309,18 @@ void setupAPIRoutes() {
       return;
     }
     
-    File file = LittleFS.open("/stats.json", "r");
-    if (!file) {
-      sendJsonError(500, "Failed to open stats file");
-      return;
-    }
-    
-    String content = file.readString();
-    file.close();
-    
-    // Parse to detect format
+    // Load via facade (consistent error handling + logging)
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, content);
-    if (error) {
-      sendJsonError(500, "Stats file corrupted");
+    if (!engine->loadJsonFile("/stats.json", doc)) {
+      sendJsonError(500, "Failed to read stats file");
       return;
     }
     
     // Normalize to old format (direct array) for frontend compatibility
     String response;
     if (doc.is<JsonArray>()) {
-      // Already old format - send as-is
-      response = content;
+      // Already old format - serialize directly
+      serializeJson(doc, response);
     } else if (doc["stats"].is<JsonArray>()) {
       // New format - extract stats array and send only that
       JsonArray statsArray = doc["stats"].as<JsonArray>();
@@ -371,7 +438,7 @@ void setupAPIRoutes() {
       JsonDocument doc;
       doc["exportDate"] = getFormattedDate();
       doc["totalDistanceMM"] = 0;
-      JsonArray statsArray = doc["stats"].to<JsonArray>();
+      doc["stats"].to<JsonArray>();
       
       String json;
       serializeJson(doc, json);
@@ -380,20 +447,11 @@ void setupAPIRoutes() {
       return;
     }
     
-    File file = LittleFS.open("/stats.json", "r");
-    if (!file) {
-      sendJsonError(500, "Failed to open stats file");
-      return;
-    }
-    
-    // Read existing stats
-    String content = file.readString();
-    file.close();
-    
+    // Read stats using shared helper (handles old/new format)
     JsonDocument statsDoc;
-    DeserializationError error = deserializeJson(statsDoc, content);
-    if (error) {
-      sendJsonError(500, "Stats file corrupted");
+    JsonArray sourceStats;
+    if (!readStatsArray(statsDoc, sourceStats)) {
+      sendJsonError(500, "Stats file corrupted or invalid structure");
       return;
     }
     
@@ -403,23 +461,7 @@ void setupAPIRoutes() {
     exportDoc["exportTime"] = getFormattedTime();
     exportDoc["version"] = "1.0";
     
-    // Copy stats array - Handle both old format (direct array) and new format (object with "stats" key)
     JsonArray statsArray = exportDoc["stats"].to<JsonArray>();
-    JsonArray sourceStats;
-    
-    // Check if old format (direct array) or new format (object with "stats")
-    if (statsDoc.is<JsonArray>()) {
-      // OLD FORMAT: Direct array [{"date":"2025-11-02","distanceMM":15489.83}, ...]
-      engine->debug("📥 Detected OLD stats format (direct array) - migrating...");
-      sourceStats = statsDoc.as<JsonArray>();
-    } else if (statsDoc["stats"].is<JsonArray>()) {
-      // NEW FORMAT: {"stats": [...]}
-      sourceStats = statsDoc["stats"].as<JsonArray>();
-    } else {
-      sendJsonError(500, "Invalid stats file structure");
-      return;
-    }
-    
     float totalMM = 0;
     for (JsonVariant entry : sourceStats) {
       statsArray.add(entry);
@@ -445,7 +487,7 @@ void setupAPIRoutes() {
     
     if (body.length() == 0) {
       engine->error("❌ Empty body received for stats import");
-      sendJsonApiError(400, "Empty request body");
+      sendJsonError(400, "Empty request body");
       return;
     }
     
@@ -453,26 +495,26 @@ void setupAPIRoutes() {
     DeserializationError error = deserializeJson(importDoc, body);
     
     if (error) {
-      sendJsonApiError(400, "Invalid JSON format");
+      sendJsonError(400, "Invalid JSON format");
       return;
     }
     
     // Validate structure
     if (!importDoc["stats"].is<JsonArray>()) {
-      sendJsonApiError(400, "Missing or invalid 'stats' array in import data");
+      sendJsonError(400, "Missing or invalid 'stats' array in import data");
       return;
     }
     
     JsonArray importStats = importDoc["stats"].as<JsonArray>();
     if (importStats.size() == 0) {
-      sendJsonApiError(400, "No stats to import");
+      sendJsonError(400, "No stats to import");
       return;
     }
     
     // Validate each entry has required fields
     for (JsonVariant entry : importStats) {
       if (!entry["date"].is<const char*>() || !entry["distanceMM"].is<float>()) {
-        sendJsonApiError(400, "Invalid entry format (missing date or distanceMM)");
+        sendJsonError(400, "Invalid entry format (missing date or distanceMM)");
         return;
       }
     }
@@ -491,15 +533,11 @@ void setupAPIRoutes() {
       totalMM += entry["distanceMM"].as<float>();
     }
     
-    // Save to file
-    File file = LittleFS.open("/stats.json", "w");
-    if (!file) {
-      sendJsonApiError(500, "Failed to create stats file");
+    // Save via facade (consistent flush + verification)
+    if (!engine->saveJsonFile("/stats.json", saveDoc)) {
+      sendJsonError(500, "Failed to create stats file");
       return;
     }
-    
-    serializeJson(saveDoc, file);
-    file.close();
     
     engine->info("📤 Stats imported: " + String(saveArray.size()) + " entries, " + 
                  String(totalMM / 1000000.0, 3) + " km total");
@@ -530,7 +568,7 @@ void setupAPIRoutes() {
     
     if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
       // Create empty playlists file
-      const char* emptyPlaylists = "{\"vaet\":[],\"oscillation\":[],\"chaos\":[],\"pursuit\":[]}";
+      const char* emptyPlaylists = "{\"simple\":[],\"oscillation\":[],\"chaos\":[],\"pursuit\":[]}";
       ensureFileExists(PLAYLIST_FILE_PATH, emptyPlaylists);
       sendEmptyPlaylistStructure();
       return;
@@ -577,7 +615,7 @@ void setupAPIRoutes() {
   // POST /api/playlists/add - Add a preset to playlist
   server.on("/api/playlists/add", HTTP_POST, []() {
     if (!engine || !engine->isFilesystemReady()) {
-      sendJsonApiError(500, "LittleFS not mounted");
+      sendJsonError(500, "LittleFS not mounted");
       return;
     }
     
@@ -586,7 +624,7 @@ void setupAPIRoutes() {
     DeserializationError error = deserializeJson(reqDoc, body);
     
     if (error) {
-      sendJsonApiError(400, "Invalid JSON");
+      sendJsonError(400, "Invalid JSON");
       return;
     }
     
@@ -595,7 +633,7 @@ void setupAPIRoutes() {
     JsonObject configData = reqDoc["config"];
     
     if (!mode || !name || configData.isNull()) {
-      sendJsonApiError(400, "Missing required fields");
+      sendJsonError(400, "Missing required fields");
       return;
     }
     
@@ -603,13 +641,13 @@ void setupAPIRoutes() {
     if (strcmp(mode, "oscillation") == 0) {
       int cycleCount = configData["cycleCount"] | -1;
       if (cycleCount == 0) {
-        sendJsonApiError(400, "Infinite cycles not allowed in playlist");
+        sendJsonError(400, "Infinite cycles not allowed in playlist");
         return;
       }
     } else if (strcmp(mode, "chaos") == 0) {
       int duration = configData["durationSeconds"] | -1;
       if (duration == 0) {
-        sendJsonApiError(400, "Infinite duration not allowed in playlist");
+        sendJsonError(400, "Infinite duration not allowed in playlist");
         return;
       }
     }
@@ -646,7 +684,7 @@ void setupAPIRoutes() {
     
     // Check limit
     if (modeArray.size() >= MAX_PRESETS_PER_MODE) {
-      sendJsonApiError(400, "Maximum 20 presets reached");
+      sendJsonError(400, "Maximum 20 presets reached");
       return;
     }
     
@@ -672,7 +710,7 @@ void setupAPIRoutes() {
     // Save to file
     if (!engine->saveJsonFile(PLAYLIST_FILE_PATH, playlistDoc)) {
       engine->error("❌ Failed to save playlist");
-      sendJsonApiError(500, "Failed to save");
+      sendJsonError(500, "Failed to save");
       return;
     }
     
@@ -683,7 +721,7 @@ void setupAPIRoutes() {
   // POST /api/playlists/delete - Delete a preset
   server.on("/api/playlists/delete", HTTP_POST, []() {
     if (!engine || !engine->isFilesystemReady()) {
-      sendJsonApiError(500, "LittleFS not mounted");
+      sendJsonError(500, "LittleFS not mounted");
       return;
     }
     
@@ -692,7 +730,7 @@ void setupAPIRoutes() {
     DeserializationError error = deserializeJson(reqDoc, body);
     
     if (error) {
-      sendJsonApiError(400, "Invalid JSON");
+      sendJsonError(400, "Invalid JSON");
       return;
     }
     
@@ -700,53 +738,23 @@ void setupAPIRoutes() {
     int id = reqDoc["id"] | 0;
     
     if (!mode || id == 0) {
-      sendJsonApiError(400, "Missing mode or id");
+      sendJsonError(400, "Missing mode or id");
       return;
     }
     
-    // Load existing playlists
-    if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      sendJsonApiError(404, "No playlists found");
-      return;
-    }
-    
-    File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-    if (!file) {
-      sendJsonApiError(500, "Failed to read playlists");
-      return;
-    }
-    
+    // Load and find preset using shared helpers
     JsonDocument playlistDoc;
-    deserializeJson(playlistDoc, file);
-    file.close();
+    if (!loadPlaylistDoc(playlistDoc)) return;
     
-    // Find and remove preset
-    if (!playlistDoc[mode].is<JsonArray>()) {
-      sendJsonApiError(404, "Mode not found");
-      return;
-    }
+    JsonArray modeArray;
+    int index = -1;
+    if (!findPresetInMode(playlistDoc, mode, id, modeArray, index)) return;
     
-    JsonArray modeArray = playlistDoc[mode].as<JsonArray>();
-    bool found = false;
+    modeArray.remove(index);
     
-    for (size_t i = 0; i < modeArray.size(); i++) {
-      JsonObject preset = modeArray[i];
-      if (preset["id"] == id) {
-        modeArray.remove(i);
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      sendJsonApiError(404, "Preset not found");
-      return;
-    }
-    
-    // Save updated playlists using UtilityEngine (ensures proper flush + logs)
     if (!engine->saveJsonFile(PLAYLIST_FILE_PATH, playlistDoc)) {
       engine->error("❌ Failed to save playlist after delete");
-      sendJsonApiError(500, "Failed to save");
+      sendJsonError(500, "Failed to save");
       return;
     }
     
@@ -757,7 +765,7 @@ void setupAPIRoutes() {
   // POST /api/playlists/update - Update (rename) a preset
   server.on("/api/playlists/update", HTTP_POST, []() {
     if (!engine || !engine->isFilesystemReady()) {
-      sendJsonApiError(500, "LittleFS not mounted");
+      sendJsonError(500, "LittleFS not mounted");
       return;
     }
     
@@ -766,7 +774,7 @@ void setupAPIRoutes() {
     DeserializationError error = deserializeJson(reqDoc, body);
     
     if (error) {
-      sendJsonApiError(400, "Invalid JSON");
+      sendJsonError(400, "Invalid JSON");
       return;
     }
     
@@ -775,52 +783,23 @@ void setupAPIRoutes() {
     const char* newName = reqDoc["name"];
     
     if (!mode || id == 0 || !newName) {
-      sendJsonApiError(400, "Missing required fields");
+      sendJsonError(400, "Missing required fields");
       return;
     }
     
-    // Load existing playlists
-    if (!LittleFS.exists(PLAYLIST_FILE_PATH)) {
-      sendJsonApiError(404, "No playlists found");
-      return;
-    }
-    
-    File file = LittleFS.open(PLAYLIST_FILE_PATH, "r");
-    if (!file) {
-      sendJsonApiError(500, "Failed to read playlists");
-      return;
-    }
-    
+    // Load and find preset using shared helpers
     JsonDocument playlistDoc;
-    deserializeJson(playlistDoc, file);
-    file.close();
+    if (!loadPlaylistDoc(playlistDoc)) return;
     
-    // Find and update preset
-    if (!playlistDoc[mode].is<JsonArray>()) {
-      sendJsonApiError(404, "Mode not found");
-      return;
-    }
+    JsonArray modeArray;
+    int index = -1;
+    if (!findPresetInMode(playlistDoc, mode, id, modeArray, index)) return;
     
-    JsonArray modeArray = playlistDoc[mode].as<JsonArray>();
-    bool found = false;
+    modeArray[index]["name"] = newName;
     
-    for (JsonObject preset : modeArray) {
-      if (preset["id"] == id) {
-        preset["name"] = newName;
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      sendJsonApiError(404, "Preset not found");
-      return;
-    }
-    
-    // Save updated playlists using UtilityEngine (ensures proper flush + logs)
     if (!engine->saveJsonFile(PLAYLIST_FILE_PATH, playlistDoc)) {
       engine->error("❌ Failed to save playlist after rename");
-      sendJsonApiError(500, "Failed to save");
+      sendJsonError(500, "Failed to save");
       return;
     }
     

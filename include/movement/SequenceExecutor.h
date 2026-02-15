@@ -5,11 +5,6 @@
  * 
  * Manages the execution of sequence tables: starting, stopping, pausing,
  * advancing through lines, and coordinating with movement controllers.
- * 
- * Extracted from stepper_controller_restructured.ino (~400 lines)
- * 
- * @author Refactored from main file
- * @version 1.0
  */
 
 #ifndef SEQUENCE_EXECUTOR_H
@@ -29,7 +24,7 @@
 
 // Sequencer state - defined in SequenceExecutor.cpp
 extern SequenceExecutionState seqState;
-extern MovementType currentMovement;
+extern volatile MovementType currentMovement;
 
 // ============================================================================
 // SEQUENCE EXECUTOR CLASS

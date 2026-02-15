@@ -61,9 +61,9 @@ SystemConfig config;
 
 // Position tracking
 volatile long currentStep = 0;
-long startStep = 0;
-long targetStep = 0;
-bool movingForward = true;
+volatile long startStep = 0;
+volatile long targetStep = 0;
+volatile bool movingForward = true;
 bool hasReachedStartStep = false;
 
 // Motion configuration
@@ -72,20 +72,20 @@ PendingMotionConfig pendingMotion;
 CyclePauseState motionPauseState;
 
 // Distance limits
-float maxDistanceLimitPercent = 100.0;
-float effectiveMaxDistanceMM = 0.0;
+volatile float maxDistanceLimitPercent = 100.0;
+volatile float effectiveMaxDistanceMM = 0.0;
 
 // Sensor configuration
-bool sensorsInverted = false;  // Loaded from EEPROM
+volatile bool sensorsInverted = false;  // Loaded from EEPROM
 
 // Timing
 unsigned long lastStepMicros = 0;
-unsigned long stepDelayMicrosForward = 1000;
-unsigned long stepDelayMicrosBackward = 1000;
-unsigned long lastStartContactMillis = 0;
-unsigned long cycleTimeMillis = 0;
-float measuredCyclesPerMinute = 0;
-bool wasAtStart = false;
+volatile unsigned long stepDelayMicrosForward = 1000;
+volatile unsigned long stepDelayMicrosBackward = 1000;
+volatile unsigned long lastStartContactMillis = 0;
+volatile unsigned long cycleTimeMillis = 0;
+volatile float measuredCyclesPerMinute = 0;
+volatile bool wasAtStart = false;
 
 // Statistics - encapsulated in StatsTracking struct
 StatsTracking stats;
@@ -104,6 +104,7 @@ TaskHandle_t motorTaskHandle = NULL;
 TaskHandle_t networkTaskHandle = NULL;
 SemaphoreHandle_t motionMutex = NULL;
 SemaphoreHandle_t stateMutex = NULL;
+SemaphoreHandle_t statsMutex = NULL;
 volatile bool emergencyStop = false;
 volatile bool requestCalibration = false;  // Flag to trigger calibration from Core 1
 volatile bool calibrationInProgress = false;  // Cooperative flag: networkTask skips webSocket/server
@@ -171,11 +172,11 @@ void setup() {
   if (Network.isAPSetupMode()) {
     setRgbLed(0, 0, 50);  // Start with BLUE (dimmed) - waiting for config
     engine->info("\n╔════════════════════════════════════════════════════════╗");
-    engine->info("║  MODE AP_SETUP - CONFIGURATION WiFi                    ║");
-    engine->info("║  Accès: http://192.168.4.1                             ║");
-    engine->info("║  Connectez-vous au réseau: " + String(otaHostname) + "-Setup    ║");
-    engine->info("║  LED: Bleu/Rouge clignotant (attente config)           ║");
-    engine->info("║       Vert fixe = config OK, Rouge fixe = échec        ║");
+    engine->info("║  MODE AP_SETUP - WiFi CONFIGURATION                    ║");
+    engine->info("║  Access: http://192.168.4.1                            ║");
+    engine->info("║  Connect to network: " + String(otaHostname) + "-Setup           ║");
+    engine->info("║  LED: Blue/Red blinking (awaiting config)              ║");
+    engine->info("║       Solid Green = config OK, Solid Red = failure     ║");
     engine->info("╚════════════════════════════════════════════════════════╝\n");
     return;  // Skip stepper initialization in AP_SETUP mode
   }
@@ -241,8 +242,9 @@ void setup() {
   // Create mutexes for shared data protection
   motionMutex = xSemaphoreCreateMutex();
   stateMutex = xSemaphoreCreateMutex();
+  statsMutex = xSemaphoreCreateMutex();
   
-  if (motionMutex == NULL || stateMutex == NULL) {
+  if (motionMutex == NULL || stateMutex == NULL || statsMutex == NULL) {
     engine->error("❌ Failed to create FreeRTOS mutexes!");
     return;
   }
@@ -457,10 +459,10 @@ void networkTask(void* param) {
       webSocket.loop();
     
       // ═══════════════════════════════════════════════════════════════════════
-      // STATUS BROADCAST (every 100ms)
+      // STATUS BROADCAST (adaptive rate: 10Hz active, 5Hz calibrating, 1Hz idle)
       // ═══════════════════════════════════════════════════════════════════════
       static unsigned long lastUpdate = 0;
-      if (millis() - lastUpdate > STATUS_UPDATE_INTERVAL_MS) {
+      if (millis() - lastUpdate > Status.getAdaptiveBroadcastInterval()) {
         lastUpdate = millis();
         sendStatus();  // Uses webSocket.broadcastTXT - must not run concurrently with Core 1
       }

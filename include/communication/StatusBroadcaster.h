@@ -5,11 +5,6 @@
  * 
  * Manages the broadcasting of system status via WebSocket.
  * Handles mode-specific JSON construction and optimization.
- * 
- * Extracted from stepper_controller_restructured.ino (~300 lines)
- * 
- * @author Refactored from main file
- * @version 1.0
  */
 
 #ifndef STATUS_BROADCASTER_H
@@ -53,6 +48,13 @@ public:
     void send();
     
     /**
+     * Get adaptive broadcast interval based on current system state.
+     * Returns faster rate during active movement, slower when idle.
+     * @return Interval in milliseconds
+     */
+    unsigned long getAdaptiveBroadcastInterval() const;
+    
+    /**
      * Request system stats to be included in next status broadcast
      * Stats are included on-demand to reduce overhead
      */
@@ -66,11 +68,12 @@ public:
     void sendError(const String& message);
     
 private:
-    StatusBroadcaster() : _webSocket(nullptr) {}
+    StatusBroadcaster() : _webSocket(nullptr), _lastBroadcastHash(0) {}
     StatusBroadcaster(const StatusBroadcaster&) = delete;
     StatusBroadcaster& operator=(const StatusBroadcaster&) = delete;
     
     WebSocketsServer* _webSocket;
+    uint32_t _lastBroadcastHash;  // FNV-1a hash of last broadcast payload (dedup)
     
     // ========================================================================
     // INTERNAL HELPERS

@@ -3,10 +3,7 @@
  * PursuitController.cpp - Real-time Position Tracking Implementation
  * ============================================================================
  * 
- * Extracted from main stepper_controller_restructured.ino
- * Original functions: pursuitMove(), doPursuitStep()
- * 
- * Created: December 2024
+ * Implements pursuit mode: pursuitMove(), doPursuitStep()
  * ============================================================================
  */
 

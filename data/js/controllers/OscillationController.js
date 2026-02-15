@@ -232,7 +232,7 @@ function updateOscillationUI(data) {
       rampStatus = t('oscillation.rampInLabel');
     } else if (data.oscillationState.isRampingOut) {
       rampStatus = '📉 ' + t('oscillation.rampOut');
-    } else if (data.operationMode === 3 && data.state === SystemState.RUNNING) {
+    } else if (data.movementType === 3 && data.state === SystemState.RUNNING) {
       rampStatus = t('oscillation.rampStable');
     }
     DOM.oscRampStatus.textContent = rampStatus;

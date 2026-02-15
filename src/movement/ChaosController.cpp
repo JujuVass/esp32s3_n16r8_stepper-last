@@ -4,10 +4,6 @@
  * ============================================================================
  * 
  * Implements random pattern generation and execution for chaos mode.
- * ~1100 lines of chaos mode logic extracted from main file.
- * 
- * @author Refactored from stepper_controller_restructured.ino
- * @version 1.0
  */
 
 #include "movement/ChaosController.h"
@@ -140,7 +136,7 @@ bool ChaosController::checkLimits() {
         float distanceToEndLimitMM = config.totalDistanceMM - maxChaosPositionMM;
         if (distanceToEndLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
             if (Contacts.isEndActive()) {
-                Status.sendError("❌ CHAOS: Contact END atteint - amplitude proche limite");
+                Status.sendError("❌ CHAOS: END contact triggered - amplitude near limit");
                 config.currentState = STATE_ERROR;
                 chaosState.isRunning = false;
                 return false;
@@ -162,7 +158,7 @@ bool ChaosController::checkLimits() {
         
         if (minChaosPositionMM <= HARD_DRIFT_TEST_ZONE_MM) {
             if (Contacts.isStartActive()) {
-                Status.sendError("❌ CHAOS: Contact START atteint - amplitude proche limite");
+                Status.sendError("❌ CHAOS: START contact triggered - amplitude near limit");
                 config.currentState = STATE_ERROR;
                 chaosState.isRunning = false;
                 return false;

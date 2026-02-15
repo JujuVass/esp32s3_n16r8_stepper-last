@@ -178,7 +178,6 @@ bool ContactSensors::checkHardDriftStart() {
     
     float distanceToStartMM = currentStep / STEPS_PER_MM;
     
-    
     if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {
         // Close to start → activate opto sensor test (no debounce needed)
         if (isStartActive()) {

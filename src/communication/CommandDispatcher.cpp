@@ -3,11 +3,7 @@
  * CommandDispatcher.cpp - WebSocket Command Routing Implementation
  * ============================================================================
  * 
- * Implements all WebSocket command handlers extracted from main file.
- * ~850 lines of command routing logic centralized here.
- * 
- * @author Refactored from stepper_controller_restructured.ino
- * @version 1.0
+ * Implements all WebSocket command handlers.
  */
 
 #include "communication/CommandDispatcher.h"
@@ -224,7 +220,7 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
         maxDistanceLimitPercent = percent;
         engine->updateEffectiveMaxDistance();
         
-        engine->info(String("✅ Limite course: ") + String(percent, 0) + "% (" + 
+        engine->info(String("✅ Travel limit: ") + String(percent, 0) + "% (" + 
               String(effectiveMaxDistanceMM, 1) + " mm / " + 
               String(config.totalDistanceMM, 1) + " mm)");
         

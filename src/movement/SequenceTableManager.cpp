@@ -3,9 +3,6 @@
  * SEQUENCE TABLE MANAGER IMPLEMENTATION
  * ============================================================================
  * Handles sequence table CRUD operations, import/export, validation.
- * 
- * @author Modular Refactoring
- * @version 1.0
  */
 
 #include "movement/SequenceTableManager.h"

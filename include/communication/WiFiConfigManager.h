@@ -7,11 +7,11 @@
  * - Test connection before saving
  * - Clear configuration (factory reset)
  * 
- * EEPROM Layout (starting at address 2):
- *   Addr 2      : Configured flag (0xAA = valid config)
- *   Addr 3-34   : SSID (32 bytes, null-terminated)
- *   Addr 35-98  : Password (64 bytes, null-terminated)
- *   Addr 99     : Checksum (XOR of all bytes 2-98)
+ * EEPROM Layout (starting at address 4):
+ *   Addr 4      : Configured flag (0xAA = valid config)
+ *   Addr 5-36   : SSID (32 bytes, null-terminated)
+ *   Addr 37-100  : Password (64 bytes, null-terminated)
+ *   Addr 101     : Checksum (XOR of all bytes 4-100)
  */
 
 #pragma once
@@ -22,14 +22,13 @@
 #include <ArduinoJson.h>
 
 // EEPROM addresses for WiFi config
-// 🛡️ CRITICAL FIX: Shifted from byte 2 to byte 3 to avoid collision with UtilityEngine stats
-// Layout: 0=logging, 1=log_level, 2=stats_enabled, 3-100=WiFi, 127=global_checksum
-#define WIFI_EEPROM_START       3
-#define WIFI_EEPROM_FLAG        3       // 1 byte: 0xAA = configured
-#define WIFI_EEPROM_SSID        4       // 32 bytes
-#define WIFI_EEPROM_PASSWORD    36      // 64 bytes
-#define WIFI_EEPROM_CHECKSUM    100     // 1 byte
-#define WIFI_EEPROM_END         101
+// Layout: 0=logging, 1=log_level, 2=stats_enabled, 3=sensorsInverted, 4-102=WiFi, 127=global_checksum
+#define WIFI_EEPROM_START       4
+#define WIFI_EEPROM_FLAG        4       // 1 byte: 0xAA = configured
+#define WIFI_EEPROM_SSID        5       // 32 bytes
+#define WIFI_EEPROM_PASSWORD    37      // 64 bytes
+#define WIFI_EEPROM_CHECKSUM    101     // 1 byte
+#define WIFI_EEPROM_END         102
 
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PASSWORD_MAX_LEN   64

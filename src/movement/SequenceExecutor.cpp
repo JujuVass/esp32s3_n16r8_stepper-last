@@ -3,11 +3,7 @@
  * SequenceExecutor.cpp - Sequence Execution Engine Implementation
  * ============================================================================
  * 
- * Extracted from stepper_controller_restructured.ino (~400 lines)
  * Manages sequence table execution: line advancement, timing, coordination.
- * 
- * @author Refactored from main file
- * @version 1.0
  */
 
 #include "movement/SequenceExecutor.h"
@@ -25,7 +21,7 @@
 // SEQUENCER STATE - Owned by this module
 // ============================================================================
 SequenceExecutionState seqState;
-MovementType currentMovement = MOVEMENT_VAET;  // Default: Va-et-vient
+volatile MovementType currentMovement = MOVEMENT_VAET;  // Default: Va-et-vient
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -571,7 +567,7 @@ void SequenceExecutor::startOscillationLine(SequenceLine* line) {
     oscillationState.lastPhaseUpdateMs = millis();
     
     engine->debug("📍 Oscillation starts from current position: " + String(currentPosMM, 1) + 
-          "mm (phase initiale: " + String(initialPhase, 3) + ", relativePos: " + String(relativePos, 2) + ")");
+          "mm (initial phase: " + String(initialPhase, 3) + ", relativePos: " + String(relativePos, 2) + ")");
     
     String waveformName = "SINE";
     if (line->oscWaveform == OSC_TRIANGLE) waveformName = "TRIANGLE";

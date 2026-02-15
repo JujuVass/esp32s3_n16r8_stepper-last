@@ -172,7 +172,9 @@ constexpr float OSC_MAX_SPEED_MM_S = MAX_SPEED_LEVEL * 20.0f;  // Maximum oscill
 // CONFIGURATION - Loop Timing
 // ============================================================================
 constexpr unsigned long WEBSERVICE_INTERVAL_US = 3000;    // Service WebSocket every 3ms
-constexpr unsigned long STATUS_UPDATE_INTERVAL_MS = 100;  // Send status every 100ms
+constexpr unsigned long STATUS_UPDATE_INTERVAL_MS = 100;  // Default status interval (active movement)
+constexpr unsigned long STATUS_IDLE_INTERVAL_MS = 1000;   // Reduced rate when idle (READY/INIT/ERROR)
+constexpr unsigned long STATUS_CALIB_INTERVAL_MS = 200;   // Moderate rate during calibration
 constexpr unsigned long SUMMARY_LOG_INTERVAL_MS = 30000;  // Print summary every 30s
 
 // ============================================================================
@@ -205,8 +207,6 @@ constexpr unsigned long BROADCAST_SLOW_THRESHOLD_US = 200000;  // 200ms
 // CONFIGURATION - System Timing Intervals
 // ============================================================================
 // Status broadcasting and debouncing intervals
-constexpr uint32_t STATUS_BROADCAST_INTERVAL_MS = 20;        // WebSocket status (STA mode)
-constexpr uint32_t STATUS_BROADCAST_INTERVAL_AP_MS = 100;    // WebSocket status (AP mode - slower)
 constexpr uint32_t CONTACT_DEBOUNCE_MS = 50;            // Physical contact debounce time
 constexpr uint32_t OTA_CHECK_INTERVAL_MS = 1000;        // OTA update check frequency
 constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 5000;   // WiFi reconnection delay

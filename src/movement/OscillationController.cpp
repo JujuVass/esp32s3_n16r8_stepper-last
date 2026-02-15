@@ -3,11 +3,8 @@
  * OscillationController.cpp - Sinusoidal Oscillation Movement Implementation
  * ============================================================================
  * 
- * Extracted from main stepper_controller_restructured.ino
- * Original functions: calculateOscillationPosition(), validateOscillationAmplitude(),
- *                     doOscillationStep(), startOscillation()
- * 
- * Created: December 2024
+ * Implements oscillation mode: calculateOscillationPosition(),
+ * validateOscillationAmplitude(), doOscillationStep(), startOscillation()
  * ============================================================================
  */
 

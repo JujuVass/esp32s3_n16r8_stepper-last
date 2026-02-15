@@ -18,9 +18,6 @@
  * - Pursuit: Pursuit mode control
  * - Chaos: Chaos mode control
  * - Calibration: Calibration operations
- * 
- * @author Refactored from stepper_controller_restructured.ino
- * @version 2.0 - Cleaned up extern declarations
  */
 
 #pragma once

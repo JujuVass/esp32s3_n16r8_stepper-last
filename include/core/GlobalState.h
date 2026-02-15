@@ -18,8 +18,6 @@
  *   - Core 0 (APP_CPU): Network tasks (WiFi, WebSocket, HTTP, OTA)
  *   - Core 1 (PRO_CPU): Motor tasks (stepping, timing-critical operations)
  *   - Mutexes protect shared motion configurations
- * 
- * Created: December 2024
  * ============================================================================
  */
 
@@ -49,6 +47,7 @@ extern TaskHandle_t networkTaskHandle;
 // Mutexes for shared data protection
 extern SemaphoreHandle_t motionMutex;      // Protects: motion, pendingMotion, zoneEffect
 extern SemaphoreHandle_t stateMutex;       // Protects: config.currentState changes
+extern SemaphoreHandle_t statsMutex;       // Protects: stats compound operations (reset, save)
 
 // ============================================================================
 // MUTEX HELPER FUNCTIONS (inline for performance)
@@ -72,6 +71,15 @@ inline bool takeStateMutex(TickType_t timeout = pdMS_TO_TICKS(10)) {
 
 inline void giveStateMutex() {
     if (stateMutex != NULL) xSemaphoreGive(stateMutex);
+}
+
+inline bool takeStatsMutex(TickType_t timeout = pdMS_TO_TICKS(10)) {
+    if (statsMutex == NULL) return true;  // Not initialized yet
+    return xSemaphoreTake(statsMutex, timeout) == pdTRUE;
+}
+
+inline void giveStatsMutex() {
+    if (statsMutex != NULL) xSemaphoreGive(statsMutex);
 }
 
 // RAII-style mutex guard for automatic release (C++ scope-based)
@@ -111,30 +119,31 @@ extern volatile bool blockingMoveInProgress; // When true, networkTask skips web
 extern SystemConfig config;
 
 // ============================================================================
-// MOTION VARIABLES
+// MOTION VARIABLES (Core 1 writes, Core 0 reads for display)
+// volatile ensures cross-core visibility (32-bit types = atomic on Xtensa)
 // ============================================================================
 
 extern volatile long currentStep;           // Safe: 32-bit on ESP32 Xtensa (atomic read/write)
-extern long startStep;
-extern long targetStep;
-extern bool movingForward;
-extern bool hasReachedStartStep;
-extern unsigned long lastStepMicros;
-extern unsigned long stepDelayMicrosForward;
-extern unsigned long stepDelayMicrosBackward;
+extern volatile long startStep;
+extern volatile long targetStep;
+extern volatile bool movingForward;
+extern bool hasReachedStartStep;            // Core 1 only — no cross-core access
+extern unsigned long lastStepMicros;        // Core 1 only — no cross-core access
+extern volatile unsigned long stepDelayMicrosForward;
+extern volatile unsigned long stepDelayMicrosBackward;
 
 // ============================================================================
-// DISTANCE LIMITS
+// DISTANCE LIMITS (Core 0 writes via CommandDispatcher, Core 1 reads)
 // ============================================================================
 
-extern float effectiveMaxDistanceMM;
-extern float maxDistanceLimitPercent;
+extern volatile float effectiveMaxDistanceMM;
+extern volatile float maxDistanceLimitPercent;
 
 // ============================================================================
-// SENSOR CONFIGURATION
+// SENSOR CONFIGURATION (Core 0 writes, Core 1 reads)
 // ============================================================================
 
-extern bool sensorsInverted;  // false=normal (START=GPIO4, END=GPIO5), true=inverted
+extern volatile bool sensorsInverted;  // false=normal (START=GPIO4, END=GPIO5), true=inverted
 
 // ============================================================================
 // MOTION CONFIGURATIONS
@@ -147,16 +156,16 @@ extern ZoneEffectConfig zoneEffect;  // Zone effects (speed + special effects) -
 extern ZoneEffectState zoneEffectState;  // Zone effects runtime state - Owned by BaseMovementController.cpp
 
 // ============================================================================
-// STATISTICS TRACKING
+// STATISTICS TRACKING (Core 1 writes, Core 0 reads for display/save)
 // ============================================================================
 
-extern StatsTracking stats;  // Encapsulated distance tracking
-extern unsigned long lastStartContactMillis;
-extern unsigned long cycleTimeMillis;
-extern float measuredCyclesPerMinute;
-extern bool wasAtStart;
-extern bool statsRequested;
-extern unsigned long lastStatsRequestTime;
+extern StatsTracking stats;  // Encapsulated distance tracking (statsMutex for compound ops)
+extern volatile unsigned long lastStartContactMillis;
+extern volatile unsigned long cycleTimeMillis;
+extern volatile float measuredCyclesPerMinute;
+extern volatile bool wasAtStart;
+extern bool statsRequested;            // Core 0 only — no cross-core access
+extern unsigned long lastStatsRequestTime;  // Core 0 only — no cross-core access
 
 // ============================================================================
 // WEB SERVERS

@@ -1,44 +1,35 @@
 // ============================================================================
-// UTILITY ENGINE - Unified System for WebSocket, Logging, and LittleFS
+// UTILITY ENGINE - System Services Facade
 // ============================================================================
-// Purpose: Centralized management of all system utilities
-// - WebSocket server lifecycle and message broadcasting
-// - Multi-level structured logging (ERROR, WARN, INFO, DEBUG)
-// - LittleFS filesystem operations (read, write, delete)
-// - Circular log buffer with async file flushing
+// Lightweight facade that coordinates four focused sub-systems:
+//   - Logger         (core/logger/)      — multi-channel structured logging
+//   - FileSystem     (core/filesystem/)   — LittleFS wrapper + JSON helpers
+//   - StatsManager   (core/stats/)        — daily distance statistics
+//   - EepromManager  (core/eeprom/)       — EEPROM persistence
 //
-// Benefits:
-// ✓ Single initialization point (setup)
-// ✓ Consistent error handling across modules
-// ✓ Reusable in other ESP32 projects
-// ✓ Type-safe logging with compile-time level checking
-// ✓ SystemConfig holds SSoT fields only (no duplication with globals)
+// Public methods forward inline to sub-objects, providing a single
+// access point for all system services.
 // ============================================================================
 
 #ifndef UTILITY_ENGINE_H
 #define UTILITY_ENGINE_H
 
-#include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
 #include <EEPROM.h>
-#include <LittleFS.h>
 #include <time.h>
-#include <string>
 #include "Types.h"  // For SystemState, ExecutionContext enums
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
-#define LOG_BUFFER_SIZE 100
-#define LOG_FILE_PATTERN "/logs/log_"
-#define LOG_FILE_SUFFIX "_session"
-#define LOG_FILE_EXTENSION ".txt"
+// Sub-object headers
+#include "core/logger/Logger.h"
+#include "core/filesystem/FileSystem.h"
+#include "core/stats/StatsManager.h"
+#include "core/eeprom/EepromManager.h"
 
 // ============================================================================
 // LOG LEVEL ENUM
 // ============================================================================
-enum LogLevel {
+enum LogLevel : int {
   LOG_ERROR = 0,
   LOG_WARNING = 1,
   LOG_INFO = 2,
@@ -46,19 +37,7 @@ enum LogLevel {
 };
 
 // ============================================================================
-// LOG ENTRY STRUCTURE
-// ============================================================================
-struct LogEntry {
-  unsigned long timestamp;  // millis() when log was created
-  LogLevel level;
-  String message;
-  bool valid;  // true if entry contains data
-  
-  LogEntry() : timestamp(0), level(LOG_INFO), message(""), valid(false) {}
-};
-
-// ============================================================================
-// SYSTEM CONFIGURATION STRUCT - Refactored (Code Review #9)
+// SYSTEM CONFIGURATION STRUCT
 // ============================================================================
 // Single Source of Truth (SSoT) for fields that are NOT duplicated as globals.
 // Runtime-volatile state (motion, oscillation, chaos, pursuit, etc.) lives
@@ -71,9 +50,10 @@ struct SystemConfig {
   
   // ========================================================================
   // SYSTEM STATE (SSoT - used by all modules via config.currentState)
+  // volatile: both fields are read/written from both cores
   // ========================================================================
-  SystemState currentState;         // Current operation state (INIT, RUNNING, PAUSED, etc.)
-  ExecutionContext executionContext; // Execution context (STANDALONE vs SEQUENCER)
+  volatile SystemState currentState;         // Current operation state (INIT, RUNNING, PAUSED, etc.)
+  volatile ExecutionContext executionContext; // Execution context (STANDALONE vs SEQUENCER)
   
   // ========================================================================
   // CALIBRATION RESULTS (SSoT - written by CalibrationManager)
@@ -119,297 +99,106 @@ public:
   // CONSTRUCTOR & LIFECYCLE
   // ========================================================================
   
-  /**
-   * Initialize UtilityEngine with WebSocket server reference
-   * @param webSocketServer Reference to global WebSocketsServer instance
-   */
   UtilityEngine(WebSocketsServer& webSocketServer);
   
   /**
-   * Full initialization (must be called in setup())
-   * - Mounts LittleFS
-   * - Creates logs directory
-   * - Opens/creates log file
-   * - Configures NTP time
-   * @return true if successful, false if critical failure
+   * Full initialization sequence:
+   * 1. EEPROM → 2. FileSystem → 3. Logger → 4. StatsManager
    */
   bool initialize();
   
-  /**
-   * Cleanup before shutdown or OTA update
-   * - Flushes pending logs to disk
-   * - Closes log file
-   */
+  /** Cleanup before shutdown or OTA update */
   void shutdown();
   
   // ========================================================================
-  // LOGGING INTERFACE
+  // SUB-OBJECT ACCESS (for callers that need direct access)
   // ========================================================================
   
-  /**
-   * Main logging function (used by macros and direct calls)
-   * Outputs to 3 channels: Serial, WebSocket (if clients), File (buffered)
-   * @param level Severity level (ERROR, WARN, INFO, DEBUG)
-   * @param message Log message
-   */
-  void log(LogLevel level, const String& message);
-  
-  // Convenience methods (same as macros but class-based)
-  void error(const String& message)   { log(LOG_ERROR, message); }
-  void warn(const String& message)    { log(LOG_WARNING, message); }
-  void info(const String& message)    { log(LOG_INFO, message); }
-  void debug(const String& message)   { log(LOG_DEBUG, message); }
-  
-  /**
-   * Flush log buffer to disk (called every 5-10 seconds)
-   * - CRITICAL: Skips flush if motor is actively moving (avoid jitter)
-   * - EXCEPTION: Forces flush if buffer reaches 80% capacity
-   * @param forceFlush Force flush even during movement (true = emergency only)
-   */
-  void flushLogBuffer(bool forceFlush = false);
-  
-  /**
-   * Set current log level (filters what gets logged)
-   * @param level Minimum level to log (LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG)
-   */
-  void setLogLevel(LogLevel level) { currentLogLevel = level; }
-  
-  /**
-   * Get current log level
-   */
-  LogLevel getLogLevel() const { return currentLogLevel; }
-  
-  /**
-   * Fast check for hot-path debug guards (avoids String allocation when debug is off)
-   */
-  bool isDebugEnabled() const { return loggingEnabled && currentLogLevel >= LOG_DEBUG; }
-  
-  /**
-   * Enable or disable all logging (console + file)
-   * @param enabled true = logs active, false = logs disabled
-   */
-  void setLoggingEnabled(bool enabled) { loggingEnabled = enabled; }
-  
-  /**
-   * Check if logging is enabled
-   */
-  bool isLoggingEnabled() const { return loggingEnabled; }
-  
-  /**
-   * Save logging preferences to EEPROM
-   * - Byte 0: loggingEnabled (0=disabled, 1=enabled)
-   * - Byte 1: currentLogLevel (0-3)
-   */
-  void saveLoggingPreferences();
-  
-  /**
-   * Load logging preferences from EEPROM
-   */
-  void loadLoggingPreferences();
+  Logger&        logger()       { return _logger; }
+  FileSystem&    fs()           { return _fs; }
+  StatsManager&  statsManager() { return _stats; }
+  EepromManager& eeprom()       { return _eeprom; }
   
   // ========================================================================
-  // FILESYSTEM INTERFACE
+  // LOGGING FACADE (inline forwarding — zero overhead)
   // ========================================================================
   
-  /**
-   * Check if filesystem is mounted and ready
-   */
-  bool isFilesystemReady() const { return littleFsMounted; }
-  
-  /**
-   * Check if file exists in LittleFS
-   * @param path Absolute path (e.g., "/index.html", "/logs/log_20250102_0.txt")
-   * @return true if file exists and is not a directory
-   */
-  bool fileExists(const String& path) const;
-  
-  /**
-   * Check if directory exists in LittleFS
-   * @param path Absolute path to directory (e.g., "/logs", "/www")
-   * @return true if directory exists
-   */
-  bool directoryExists(const String& path) const;
-  
-  /**
-   * Read file contents as string (text files only)
-   * Binary files will return garbled strings - use download for those
-   * @param path Absolute file path
-   * @param maxSize Maximum bytes to read (safety limit, default 1MB)
-   * @return File contents as String, or empty String if error
-   */
-  String readFileAsString(const String& path, size_t maxSize = 1024 * 1024);
-  
-  /**
-   * Write/overwrite file with string contents
-   * @param path Absolute file path
-   * @param data String to write
-   * @return true if write successful, false otherwise
-   */
-  bool writeFileAsString(const String& path, const String& data);
-  
-  /**
-   * Delete file from filesystem
-   * @param path Absolute file path
-   * @return true if deletion successful, false otherwise
-   */
-  bool deleteFile(const String& path);
-  
-  /**
-   * Create directory in filesystem
-   * @param path Absolute directory path (e.g., "/logs", "/www/assets")
-   * @return true if created or already exists, false on error
-   */
-  bool createDirectory(const String& path);
-  
-  /**
-   * Get total filesystem capacity in bytes
-   */
-  uint32_t getTotalBytes() const;
-  
-  /**
-   * Get used filesystem space in bytes
-   */
-  uint32_t getUsedBytes() const;
-  
-  /**
-   * Get available filesystem space in bytes
-   */
-  uint32_t getAvailableBytes() const { return getTotalBytes() - getUsedBytes(); }
-  
-  /**
-   * Get disk usage as percentage (0-100)
-   */
-  float getDiskUsagePercent() const;
+  void log(LogLevel level, const String& message)  { _logger.log(level, message); }
+  void error(const String& message)                { _logger.error(message); }
+  void warn(const String& message)                 { _logger.warn(message); }
+  void info(const String& message)                 { _logger.info(message); }
+  void debug(const String& message)                { _logger.debug(message); }
+  void flushLogBuffer(bool forceFlush = false)      { _logger.flushLogBuffer(forceFlush); }
+  void setLogLevel(LogLevel level)                  { _logger.setLogLevel(level); }
+  LogLevel getLogLevel() const                      { return _logger.getLogLevel(); }
+  bool isDebugEnabled() const                       { return _logger.isDebugEnabled(); }
+  void setLoggingEnabled(bool enabled)              { _logger.setLoggingEnabled(enabled); }
+  bool isLoggingEnabled() const                     { return _logger.isLoggingEnabled(); }
+  String getCurrentLogFile() const                  { return _logger.getCurrentLogFile(); }
   
   // ========================================================================
-  // JSON HELPERS
+  // EEPROM FACADE (logging preferences — bridges Logger + EepromManager)
   // ========================================================================
   
-  /**
-   * Load JSON from file (deserialize)
-   * Automatically handles file opening/closing and error checking
-   * @param path File path (e.g., "/playlist.json", "/stats.json")
-   * @param doc Reference to JsonDocument to populate
-   * @return true if successful, false on error (file not found, invalid JSON, etc.)
-   */
-  bool loadJsonFile(const String& path, JsonDocument& doc);
-  
-  /**
-   * Save JSON to file (serialize)
-   * Automatically handles file opening/closing and error checking
-   * @param path File path
-   * @param doc JsonDocument to save
-   * @return true if successful, false on error
-   */
-  bool saveJsonFile(const String& path, const JsonDocument& doc);
+  void saveLoggingPreferences() {
+    _eeprom.saveLoggingPreferences(_logger.isLoggingEnabled(), (uint8_t)_logger.getLogLevel());
+  }
+  void loadLoggingPreferences();  // Implemented in .cpp (loads + restores Logger state)
   
   // ========================================================================
-  // WEBSOCKET INTERFACE (Relay functions)
+  // FILESYSTEM FACADE
   // ========================================================================
   
-  /**
-   * Broadcast message to all connected WebSocket clients
-   * @param message JSON string or text message
-   */
-  void broadcastWebSocket(const String& message);
-  
-  /**
-   * Get number of connected WebSocket clients
-   */
-  uint8_t getConnectedClients() const;
-  
-  /**
-   * Check if any clients are connected
-   */
-  bool hasConnectedClients() const { return getConnectedClients() > 0; }
+  bool isFilesystemReady() const                            { return _fs.isReady(); }
+  bool fileExists(const String& path) const                 { return _fs.fileExists(path); }
+  bool directoryExists(const String& path) const            { return _fs.directoryExists(path); }
+  String readFileAsString(const String& path, size_t maxSize = 1024 * 1024) { return _fs.readFileAsString(path, maxSize); }
+  bool writeFileAsString(const String& path, const String& data) { return _fs.writeFileAsString(path, data); }
+  bool deleteFile(const String& path)                       { return _fs.deleteFile(path); }
+  bool createDirectory(const String& path)                  { return _fs.createDirectory(path); }
+  uint32_t getTotalBytes() const                            { return _fs.getTotalBytes(); }
+  uint32_t getUsedBytes() const                             { return _fs.getUsedBytes(); }
+  uint32_t getAvailableBytes() const                        { return _fs.getAvailableBytes(); }
+  float getDiskUsagePercent() const                         { return _fs.getDiskUsagePercent(); }
+  bool loadJsonFile(const String& path, JsonDocument& doc)  { return _fs.loadJsonFile(path, doc); }
+  bool saveJsonFile(const String& path, const JsonDocument& doc) { return _fs.saveJsonFile(path, doc); }
   
   // ========================================================================
-  // STATISTICS MANAGEMENT
+  // WEBSOCKET FACADE
   // ========================================================================
   
-  /**
-   * Increment daily statistics with distance traveled
-   * Saves to /stats.json with date as key (YYYY-MM-DD)
-   * @param distanceMM Distance to add in millimeters
-   */
-  void incrementDailyStats(float distanceMM);
-  
-  /**
-   * Get today's total distance from stats
-   * @return Distance in mm for today, 0 if no data
-   */
-  float getTodayDistance();
-  
-  /**
-   * Enable/disable stats recording (saved in EEPROM)
-   * When disabled, incrementDailyStats() does nothing
-   * @param enabled true to enable recording, false to disable
-   */
-  void setStatsRecordingEnabled(bool enabled);
-  
-  /**
-   * Check if stats recording is enabled
-   * @return true if stats are being recorded
-   */
-  bool isStatsRecordingEnabled() const { return statsRecordingEnabled; }
-  
-  /**
-   * Load sensors inversion preference from EEPROM
-   */
-  void loadSensorsInverted();
-  
-  /**
-   * Save sensors inversion preference to EEPROM
-   */
-  void saveSensorsInverted();
-  
-  /**
-   * Save current session's distance to daily stats
-   * Only saves the increment since last save to avoid double-counting
-   * Called when: STOP pressed, mode change, WebSocket disconnect
-   */
-  void saveCurrentSessionStats();
-  
-  /**
-   * Reset total distance counter to zero
-   * Saves current session stats before resetting
-   */
-  void resetTotalDistance();
-  
-  /**
-   * Update effective max distance based on limit percent
-   * effectiveMaxDistanceMM = totalDistanceMM * (maxDistanceLimitPercent / 100)
-   */
-  void updateEffectiveMaxDistance();
+  uint8_t getConnectedClients() const   { return _ws.connectedClients(); }
+  bool hasConnectedClients() const      { return getConnectedClients() > 0; }
   
   // ========================================================================
-  // UTILITY METHODS
+  // STATISTICS FACADE
   // ========================================================================
   
-  /**
-   * Get current log filename
-   */
-  String getCurrentLogFile() const { return currentLogFileName; }
+  void incrementDailyStats(float distanceMM)  { _stats.incrementDailyStats(distanceMM); }
+  float getTodayDistance()                     { return _stats.getTodayDistance(); }
+  void setStatsRecordingEnabled(bool enabled)  { _stats.setStatsRecordingEnabled(enabled); }
+  bool isStatsRecordingEnabled() const         { return _stats.isStatsRecordingEnabled(); }
+  void saveCurrentSessionStats()               { _stats.saveCurrentSessionStats(); }
+  void resetTotalDistance()                     { _stats.resetTotalDistance(); }
+  void updateEffectiveMaxDistance()             { _stats.updateEffectiveMaxDistance(); }
   
-  /**
-   * Get system uptime in seconds
-   */
+  // ========================================================================
+  // SENSORS EEPROM FACADE
+  // ========================================================================
+  
+  void loadSensorsInverted();  // Implemented in .cpp (bridges EEPROM → global)
+  void saveSensorsInverted();  // Implemented in .cpp (bridges global → EEPROM)
+  
+  // ========================================================================
+  // TIME UTILITIES (kept here — tiny, no dedicated class needed)
+  // ========================================================================
+  
   unsigned long getUptimeSeconds() const { return millis() / 1000; }
-  
-  /**
-   * Get formatted current time (requires NTP sync)
-   * @param format strftime format string (e.g., "%Y-%m-%d %H:%M:%S")
-   * @return Formatted time string
-   */
   String getFormattedTime(const char* format = "%Y-%m-%d %H:%M:%S") const;
-  
-  /**
-   * Check if system time is synchronized (NTP)
-   */
   bool isTimeSynchronized() const;
   
   // ========================================================================
-  // STATE INSPECTION (for debugging)
+  // STATE INSPECTION
   // ========================================================================
   
   struct EngineStatus {
@@ -424,57 +213,19 @@ public:
     String currentLogFile;
   };
   
-  /**
-   * Get complete engine status snapshot
-   */
   EngineStatus getStatus() const;
-  
-  /**
-   * Print status to Serial (for debugging)
-   */
   void printStatus() const;
 
 private:
-  
   // ========================================================================
-  // PRIVATE MEMBERS
-  // ========================================================================
-  
-  // WebSocket reference (not owned)
-  WebSocketsServer& webSocket;
-  
-  // Filesystem state
-  bool littleFsMounted;
-  File globalLogFile;
-  String currentLogFileName;
-  
-  // Logging state
-  LogLevel currentLogLevel;
-  bool loggingEnabled;  // Master switch for all logging
-  bool statsRecordingEnabled;  // Stats recording enabled (saved in EEPROM)
-  LogEntry logBuffer[LOG_BUFFER_SIZE];
-  int logBufferWriteIndex;
-  unsigned long lastLogFlush;
-  
-  // ========================================================================
-  // PRIVATE HELPER METHODS
+  // SUB-OBJECTS (owned)
   // ========================================================================
   
-  /**
-   * Initialize log file (creates /logs directory, opens session file)
-   */
-  bool initializeLogFile();
-  
-  /**
-   * Generate log filename with session suffix
-   * @return Filename like "/logs/log_20250102_1.txt"
-   */
-  String generateLogFilename();
-  
-  /**
-   * Get log level prefix string ([ERROR], [WARN], etc.)
-   */
-  const char* getLevelPrefix(LogLevel level) const;
+  WebSocketsServer& _ws;
+  FileSystem     _fs;
+  EepromManager  _eeprom;
+  Logger         _logger;
+  StatsManager   _stats;
   
 }; // class UtilityEngine
 

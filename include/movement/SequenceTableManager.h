@@ -12,9 +12,6 @@
  * - WebSocket broadcasting
  * 
  * Note: Execution logic remains in main (processSequenceExecution)
- * 
- * @author Modular Refactoring
- * @version 1.0
  */
 
 #ifndef SEQUENCE_TABLE_MANAGER_H

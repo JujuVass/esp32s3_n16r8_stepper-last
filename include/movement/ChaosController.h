@@ -15,9 +15,6 @@
  * - ChaosPatterns.h for pattern configurations
  * - Types.h for ChaosRuntimeConfig, ChaosExecutionState
  * - MotorDriver for motor control
- * 
- * @author Refactored from stepper_controller_restructured.ino
- * @version 1.0
  */
 
 #pragma once

@@ -20,8 +20,6 @@
  * - MotorDriver.h (Motor singleton)
  * - ContactSensors.h (Contacts singleton)
  * - UtilityEngine.h (engine singleton)
- * 
- * Created: December 2024
  * ============================================================================
  */
 

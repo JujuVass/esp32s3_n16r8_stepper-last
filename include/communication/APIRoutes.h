@@ -62,13 +62,6 @@ void sendJsonSuccess(const String& message = "");
 void sendJsonSuccessWithId(int id);
 
 /**
- * Send JSON API error (alias for sendJsonError)
- * @param code HTTP status code
- * @param message Error message
- */
-void sendJsonApiError(int code, const String& message);
-
-/**
  * Send empty playlist structure
  */
 void sendEmptyPlaylistStructure();

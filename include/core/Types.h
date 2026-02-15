@@ -111,19 +111,21 @@ struct CyclePauseState {
 
 // ============================================================================
 // STATS TRACKING - Distance tracking encapsulation
+// volatile fields: written by Core 1 (trackDelta), read by Core 0 (StatusBroadcaster)
+// Compound operations (reset, save) must be protected by statsMutex
 // ============================================================================
 
 struct StatsTracking {
-  unsigned long totalDistanceTraveled;  // Total steps traveled (session)
-  unsigned long lastSavedDistance;      // Last saved value (for increment calc)
-  long lastStepForDistance;             // Last step position (for delta calc)
+  volatile unsigned long totalDistanceTraveled;  // Total steps traveled (session)
+  volatile unsigned long lastSavedDistance;      // Last saved value (for increment calc)
+  volatile long lastStepForDistance;             // Last step position (for delta calc)
   
   StatsTracking() : 
     totalDistanceTraveled(0),
     lastSavedDistance(0),
     lastStepForDistance(0) {}
   
-  // Reset all counters
+  // Reset all counters — CALLER MUST HOLD statsMutex
   void reset() {
     totalDistanceTraveled = 0;
     lastSavedDistance = 0;
@@ -134,22 +136,23 @@ struct StatsTracking {
     if (delta > 0) totalDistanceTraveled += delta;
   }
   
-  // Get increment since last save (in steps)
+  // Get increment since last save (in steps) — CALLER MUST HOLD statsMutex
   unsigned long getIncrementSteps() const {
     return totalDistanceTraveled - lastSavedDistance;
   }
   
-  // Mark current distance as saved
+  // Mark current distance as saved — CALLER MUST HOLD statsMutex
   void markSaved() {
     lastSavedDistance = totalDistanceTraveled;
   }
   
-  // Sync lastStepForDistance with current position
+  // Sync lastStepForDistance with current position (Core 1 only, no mutex needed)
   void syncPosition(long currentStep) {
     lastStepForDistance = currentStep;
   }
   
-  // Track distance from last position to current
+  // Track distance from last position to current (Core 1 hot path, no mutex needed)
+  // Individual 32-bit writes are atomic on Xtensa — safe without mutex
   void trackDelta(long currentStep) {
     long delta = abs(currentStep - lastStepForDistance);
     addDistance(delta);
@@ -473,10 +476,10 @@ struct ChaosExecutionState {
   float lastCalmSineValue;           // Last sine value for CALM peak detection
   
   // BRUTE FORCE specific state (3-phase: fast in, slow out, pause)
-  uint8_t brutePhase;                // 0=aller rapide, 1=retour lent, 2=pause
+  uint8_t brutePhase;                // 0=fast forward, 1=slow return, 2=pause
   
   // LIBERATOR specific state (3-phase: slow in, fast out, pause)
-  uint8_t liberatorPhase;            // 0=aller lent, 1=retour rapide, 2=pause
+  uint8_t liberatorPhase;            // 0=slow forward, 1=fast return, 2=pause
   
   // Timing control for non-blocking stepping
   unsigned long stepDelay;           // Microseconds between steps

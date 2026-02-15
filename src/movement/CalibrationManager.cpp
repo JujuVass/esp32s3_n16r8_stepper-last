@@ -118,7 +118,7 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
         if (stepCount > CALIBRATION_MAX_STEPS) {
             String errorMsg = "❌ ERROR: Contact ";
             errorMsg += contactName;
-            errorMsg += " introuvable";
+            errorMsg += " not found";
             if (m_errorCallback) m_errorCallback(errorMsg);
             Motor.disable();
             config.currentState = STATE_ERROR;

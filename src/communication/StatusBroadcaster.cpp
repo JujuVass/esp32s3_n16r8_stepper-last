@@ -3,11 +3,7 @@
  * StatusBroadcaster.cpp - WebSocket Status Broadcasting Implementation
  * ============================================================================
  * 
- * Extracted from stepper_controller_restructured.ino (~300 lines)
  * Handles mode-specific JSON construction and status broadcasting.
- * 
- * @author Refactored from main file
- * @version 1.0
  */
 
 #include "communication/StatusBroadcaster.h"
@@ -39,6 +35,22 @@ StatusBroadcaster& Status = StatusBroadcaster::getInstance();
 void StatusBroadcaster::begin(WebSocketsServer* ws) {
     _webSocket = ws;
     engine->info("StatusBroadcaster initialized");
+}
+
+// ============================================================================
+// ADAPTIVE BROADCAST RATE
+// ============================================================================
+
+unsigned long StatusBroadcaster::getAdaptiveBroadcastInterval() const {
+    switch (config.currentState) {
+        case STATE_RUNNING:
+        case STATE_PAUSED:
+            return STATUS_UPDATE_INTERVAL_MS;    // 100ms (10 Hz) - real-time feedback
+        case STATE_CALIBRATING:
+            return STATUS_CALIB_INTERVAL_MS;     // 200ms (5 Hz) - position matters
+        default:
+            return STATUS_IDLE_INTERVAL_MS;      // 1000ms (1 Hz) - keep-alive only
+    }
 }
 
 // ============================================================================
@@ -95,7 +107,6 @@ void StatusBroadcaster::send() {
     doc["errorMessage"] = errorMessage;
     doc["movementType"] = (int)currentMovement;
     doc["executionContext"] = (int)config.executionContext;
-    doc["operationMode"] = (int)currentMovement;  // Legacy
     doc["pursuitActive"] = pursuit.isMoving;
     doc["statsRecordingEnabled"] = engine->isStatsRecordingEnabled();  // Stats recording preference
     doc["sensorsInverted"] = sensorsInverted;  // Sensors inversion mode
@@ -136,7 +147,25 @@ void StatusBroadcaster::send() {
     // Serialize to String and broadcast
     String output;
     serializeJson(doc, output);
+    
+    // Hash-based deduplication: skip broadcast if payload is identical to last one
+    // Uses FNV-1a hash (fast, good distribution, no library needed)
+    uint32_t hash = 2166136261u;  // FNV offset basis
+    const char* data = output.c_str();
+    size_t len = output.length();
+    for (size_t i = 0; i < len; i++) {
+        hash ^= (uint8_t)data[i];
+        hash *= 16777619u;  // FNV prime
+    }
+    
+    // Always send if stats were requested (on-demand, don't skip)
+    if (hash == _lastBroadcastHash && !statsRequested) {
+        return;  // Identical payload, skip broadcast
+    }
+    _lastBroadcastHash = hash;
+    
     _webSocket->broadcastTXT(output);
+    
     
     // Performance monitoring: warn if broadcast took too long (can cause step loss)
     unsigned long elapsedMicros = micros() - startMicros;

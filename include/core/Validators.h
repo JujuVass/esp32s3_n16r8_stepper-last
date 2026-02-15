@@ -22,8 +22,8 @@
 
 // Note: GlobalState.h provides all extern declarations
 // These are needed here because Validators.h may be included before GlobalState.h
-extern float effectiveMaxDistanceMM;
-extern float maxDistanceLimitPercent;
+extern volatile float effectiveMaxDistanceMM;
+extern volatile float maxDistanceLimitPercent;
 extern SystemConfig config;
 
 namespace Validators {
