@@ -162,15 +162,14 @@ void StatusBroadcaster::send() {
     if (hash == _lastBroadcastHash && !statsRequested) {
         return;  // Identical payload, skip broadcast
     }
+
     _lastBroadcastHash = hash;
-    
+
     _webSocket->broadcastTXT(output);
-    
     
     // Performance monitoring: warn if broadcast took too long (can cause step loss)
     unsigned long elapsedMicros = micros() - startMicros;
     if (elapsedMicros > BROADCAST_SLOW_THRESHOLD_US) {
-     
         engine->warn("⚠️ SLOW BROADCAST: " + String(elapsedMicros / 1000.0, 1) + "ms");
     }
 }

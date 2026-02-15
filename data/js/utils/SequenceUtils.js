@@ -34,6 +34,39 @@ const SPEED_CURVE_LABELS = ['Lin', 'Sin', 'Tri⁻¹', 'Sin⁻¹'];
 function getSpeedEffectLabels() { return ['', t('seqUtils.decel'), t('seqUtils.accel')]; }
 
 // ============================================================================
+// LEGACY FORMAT CONVERSION
+// ============================================================================
+
+/**
+ * Get zone effect config from an object, converting legacy decel* fields if needed.
+ * Single source of truth for legacy → vaetZoneEffect conversion.
+ * @param {Object} obj - Object with vaetZoneEffect or legacy decel* fields
+ * @returns {Object} Normalized vaetZoneEffect object
+ */
+function getZoneEffectConfig(obj) {
+  if (obj.vaetZoneEffect) return obj.vaetZoneEffect;
+  
+  // Legacy format - convert with unified defaults
+  return {
+    enabled: (obj.decelStartEnabled || obj.decelEndEnabled) || false,
+    enableStart: obj.decelStartEnabled ?? false,
+    enableEnd: obj.decelEndEnabled ?? false,
+    zoneMM: obj.decelZoneMM || 50,
+    speedEffect: 1,  // DECEL
+    speedCurve: obj.decelMode || 1,
+    speedIntensity: obj.decelEffectPercent || 75,
+    mirrorOnReturn: false,
+    randomTurnbackEnabled: false,
+    turnbackChance: 30,
+    endPauseEnabled: false,
+    endPauseIsRandom: false,
+    endPauseDurationSec: 1.0,
+    endPauseMinSec: 0.5,
+    endPauseMaxSec: 2.0
+  };
+}
+
+// ============================================================================
 // TYPE DISPLAY HELPERS
 // ============================================================================
 
@@ -98,21 +131,7 @@ function getDecelSummary(line, movementType) {
   }
   
   // Get zone effect config (new format or convert from legacy)
-  let ze = line.vaetZoneEffect;
-  if (!ze) {
-    // Legacy format - convert
-    ze = {
-      enabled: line.decelStartEnabled || line.decelEndEnabled,
-      enableStart: line.decelStartEnabled ?? false,
-      enableEnd: line.decelEndEnabled ?? false,
-      zoneMM: line.decelZoneMM || 50,
-      speedEffect: 1,  // DECEL
-      speedCurve: line.decelMode || 1,
-      speedIntensity: line.decelEffectPercent || 75,
-      randomTurnbackEnabled: false,
-      endPauseEnabled: false
-    };
-  }
+  const ze = getZoneEffectConfig(line);
   
   if (!ze.enabled) {
     return '<span style="color: #999; font-size: 10px;">--</span>';

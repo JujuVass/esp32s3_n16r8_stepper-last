@@ -16,7 +16,7 @@
      * @param {Object} data - Status data from backend
      */
     function updateSpeedDisplay(data) {
-      const speedElement = document.getElementById('currentSpeed');
+      const speedElement = DOM.currentSpeed;
       const cpmSpan = speedElement ? speedElement.nextElementSibling : null;
       const currentMode = AppState.system.currentMode;
       
@@ -124,8 +124,8 @@
       const speedInfo = getSpeedMilestoneInfo(cmPerSec);
       
       // Update DOM
-      const speedIconEl = document.getElementById('speedIcon');
-      const realSpeedEl = document.getElementById('realSpeed');
+      const speedIconEl = DOM.speedIcon;
+      const realSpeedEl = DOM.realSpeed;
       
       if (speedIconEl) {
         speedIconEl.textContent = speedInfo.current.emoji;
@@ -160,7 +160,7 @@
       }
       
       // Update speed values based on unified/separate mode
-      const isSeparateMode = document.getElementById('speedModeSeparate')?.checked || false;
+      const isSeparateMode = DOM.speedModeSeparate?.checked || false;
       
       if (data.motion) {
         if (isSeparateMode) {
@@ -328,9 +328,9 @@
       // Show tabs and controls after first successful calibration
       // Once calibrated (canStart = true), reveal the interface
       if (AppState.system.canStart && data.totalDistMM > 0) {
-        const tabsContainer = document.getElementById('tabsContainer');
+        const tabsContainer = DOM.tabsContainer;
         const allTabContents = document.querySelectorAll('.tab-content');
-        const welcomeMessage = document.getElementById('welcomeMessage');
+        const welcomeMessage = DOM.welcomeMessage;
         
         // Hide welcome message
         if (welcomeMessage && !welcomeMessage.classList.contains('hidden')) {
@@ -415,8 +415,8 @@
       
       if (data.totalDistMM > 0 && data.positionMM !== undefined) {
         const progress = (data.positionMM / data.totalDistMM) * 100;
-        const progressMini = document.getElementById('progressMini');
-        const progressPct = document.getElementById('progressPct');
+        const progressMini = DOM.progressMini;
+        const progressPct = DOM.progressPct;
         if (progressMini) progressMini.style.width = progress + '%';
         if (progressPct) progressPct.textContent = progress.toFixed(1) + '%';
       }
@@ -498,7 +498,7 @@
         DOM.chkSensorsInverted.checked = data.sensorsInverted;
         DOM.sensorsInvertedStatus.textContent = data.sensorsInverted ? '(' + t('common.inverted') + ')' : '(' + t('common.normal') + ')';
         // Update icon next to "Course:"
-        const invertedIcon = document.getElementById('sensorsInvertedIcon');
+        const invertedIcon = DOM.sensorsInvertedIcon;
         if (invertedIcon) {
           invertedIcon.style.display = data.sensorsInverted ? 'inline' : 'none';
         }

@@ -1,7 +1,11 @@
 ﻿// ============================================================================
 // API ROUTES MANAGER - Implementation
 // ============================================================================
-// HTTP server routes for ESP32 Stepper Controller
+// HTTP server routes for ESP32 Stepper Controller.
+// Direct LittleFS access: Justified here because APIRoutes is the HTTP
+// layer responsible for serving static files and persisting JSON data
+// (playlists, stats). FilesystemManager handles upload/format operations;
+// this module handles read/write of specific data files as part of the API.
 // ============================================================================
 
 #include "communication/APIRoutes.h"

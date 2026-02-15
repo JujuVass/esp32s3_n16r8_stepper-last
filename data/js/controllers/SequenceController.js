@@ -31,6 +31,69 @@ const seqState = AppState.sequence;
 // Local read alias (array reference — reads go through this, writes use setSequenceLines)
 let sequenceLines = seqState.lines;
 
+// ========================================================================
+// EDIT MODAL DOM CACHE (lazy-initialized on first use)
+// ========================================================================
+// Local cache for ~60 edit modal elements. Avoids getElementById on every
+// modal open/validate cycle. Initialized once, cleared if modal is removed.
+let _editDOM = null;
+
+function getEditDOM() {
+  if (_editDOM) return _editDOM;
+  const g = id => document.getElementById(id);
+  _editDOM = {
+    modal: g('editLineModal'), form: g('editLineForm'),
+    lineNumber: g('editLineNumber'),
+    validationErrors: g('editValidationErrors'),
+    validationErrorsList: g('editValidationErrorsList'),
+    btnSave: g('btnSaveEdit'),
+    // Movement type radios
+    typeVaet: g('editTypeVaet'), typeOsc: g('editTypeOsc'),
+    typeChaos: g('editTypeChaos'), typeCalibration: g('editTypeCalibration'),
+    // VA-ET-VIENT fields
+    startPos: g('editStartPos'), distance: g('editDistance'),
+    speedFwd: g('editSpeedFwd'), speedBack: g('editSpeedBack'),
+    // Zone Effects
+    zoneEnableStart: g('editZoneEnableStart'), zoneEnableEnd: g('editZoneEnableEnd'),
+    zoneMirror: g('editZoneMirror'), zoneMM: g('editZoneMM'),
+    speedEffect: g('editSpeedEffect'), speedCurve: g('editSpeedCurve'),
+    speedIntensity: g('editSpeedIntensity'), speedIntensityValue: g('editSpeedIntensityValue'),
+    randomTurnback: g('editRandomTurnback'),
+    turnbackChance: g('editTurnbackChance'), turnbackChanceValue: g('editTurnbackChanceValue'),
+    endPauseEnabled: g('editEndPauseEnabled'),
+    endPauseModeFixed: g('editEndPauseModeFixed'), endPauseModeRandom: g('editEndPauseModeRandom'),
+    endPauseDuration: g('editEndPauseDuration'),
+    endPauseMin: g('editEndPauseMin'), endPauseMax: g('editEndPauseMax'),
+    endPauseFixedDiv: g('editEndPauseFixedDiv'), endPauseRandomDiv: g('editEndPauseRandomDiv'),
+    // Oscillation fields
+    oscCenter: g('editOscCenter'), oscAmplitude: g('editOscAmplitude'),
+    oscWaveform: g('editOscWaveform'), oscFrequency: g('editOscFrequency'),
+    oscRampIn: g('editOscRampIn'), oscRampOut: g('editOscRampOut'),
+    oscRampInDur: g('editOscRampInDur'), oscRampOutDur: g('editOscRampOutDur'),
+    // VA-ET-VIENT Cycle Pause
+    vaetPauseEnabled: g('editVaetPauseEnabled'), vaetPauseRandom: g('editVaetPauseRandom'),
+    vaetPauseDuration: g('editVaetPauseDuration'),
+    vaetPauseMin: g('editVaetPauseMin'), vaetPauseMax: g('editVaetPauseMax'),
+    // Oscillation Cycle Pause
+    oscPauseEnabled: g('editOscPauseEnabled'), oscPauseRandom: g('editOscPauseRandom'),
+    oscPauseDuration: g('editOscPauseDuration'),
+    oscPauseMin: g('editOscPauseMin'), oscPauseMax: g('editOscPauseMax'),
+    // Chaos fields
+    chaosCenter: g('editChaosCenter'), chaosAmplitude: g('editChaosAmplitude'),
+    chaosSpeed: g('editChaosSpeed'), chaosCraziness: g('editChaosCraziness'),
+    chaosDuration: g('editChaosDuration'), chaosSeed: g('editChaosSeed'),
+    // Common fields
+    cycles: g('editCycles'), pause: g('editPause'),
+    // Field containers (show/hide per mode)
+    vaetFields: g('vaetFields'), oscFields: g('oscFields'), chaosFields: g('chaosFields'),
+    playlistLoaderSimple: g('playlistLoaderSimple'),
+    playlistLoaderOscillation: g('playlistLoaderOscillation'),
+    playlistLoaderChaos: g('playlistLoaderChaos'),
+    cyclesFieldDiv: g('cyclesFieldDiv'), pauseFieldDiv: g('pauseFieldDiv')
+  };
+  return _editDOM;
+}
+
 // Local aliases for sequence state properties (avoids implicit globals)
 let editingLineId = seqState.editingLineId;
 let isLoadingEditForm = seqState.isLoadingEditForm;
@@ -313,103 +376,84 @@ function editSequenceLine(lineId) {
   editingLineId = lineId;
   isLoadingEditForm = true;
   
+  const ed = getEditDOM();
   clearErrorFields();
-  const errorContainer = document.getElementById('editValidationErrors');
-  if (errorContainer) errorContainer.style.display = 'none';
+  if (ed.validationErrors) ed.validationErrors.style.display = 'none';
   
-  document.getElementById('editLineNumber').textContent = sequenceLines.indexOf(line) + 1;
+  ed.lineNumber.textContent = sequenceLines.indexOf(line) + 1;
   
   const movementType = line.movementType !== undefined ? line.movementType : 0;
-  if (movementType === 0) document.getElementById('editTypeVaet').checked = true;
-  else if (movementType === 1) document.getElementById('editTypeOsc').checked = true;
-  else if (movementType === 2) document.getElementById('editTypeChaos').checked = true;
-  else if (movementType === 4) document.getElementById('editTypeCalibration').checked = true;
+  if (movementType === 0) ed.typeVaet.checked = true;
+  else if (movementType === 1) ed.typeOsc.checked = true;
+  else if (movementType === 2) ed.typeChaos.checked = true;
+  else if (movementType === 4) ed.typeCalibration.checked = true;
   updateMovementTypeFields();
   
   // VA-ET-VIENT fields
-  document.getElementById('editStartPos').value = line.startPositionMM || 0;
-  document.getElementById('editDistance').value = line.distanceMM || 100;
-  document.getElementById('editSpeedFwd').value = line.speedForward || 5.0;
-  document.getElementById('editSpeedBack').value = line.speedBackward || 5.0;
+  ed.startPos.value = line.startPositionMM || 0;
+  ed.distance.value = line.distanceMM || 100;
+  ed.speedFwd.value = line.speedForward || 5.0;
+  ed.speedBack.value = line.speedBackward || 5.0;
   
   // Zone Effects - Map from vaetZoneEffect or legacy fields
-  let ze = line.vaetZoneEffect;
-  if (!ze) {
-    // Legacy format - convert
-    ze = {
-      enabled: line.decelStartEnabled || line.decelEndEnabled,
-      enableStart: line.decelStartEnabled ?? false,
-      enableEnd: line.decelEndEnabled ?? true,
-      zoneMM: line.decelZoneMM || 50,
-      speedEffect: 1,
-      speedCurve: line.decelMode ?? 1,
-      speedIntensity: line.decelEffectPercent || 75,
-      randomTurnbackEnabled: false,
-      turnbackChance: 30,
-      endPauseEnabled: false,
-      endPauseIsRandom: false,
-      endPauseDurationSec: 1.0,
-      endPauseMinSec: 0.5,
-      endPauseMaxSec: 2.0
-    };
-  }
+  const ze = getZoneEffectConfig(line);
   
   // Apply ALL Zone Effects to edit modal
-  document.getElementById('editZoneEnableStart').checked = ze.enableStart || false;
-  document.getElementById('editZoneEnableEnd').checked = ze.enableEnd ?? true;
-  document.getElementById('editZoneMirror').checked = ze.mirrorOnReturn || false;
-  document.getElementById('editZoneMM').value = ze.zoneMM || 50;
-  document.getElementById('editSpeedEffect').value = ze.speedEffect ?? 1;
-  document.getElementById('editSpeedCurve').value = ze.speedCurve ?? 1;
-  document.getElementById('editSpeedIntensity').value = ze.speedIntensity || 75;
-  document.getElementById('editSpeedIntensityValue').textContent = (ze.speedIntensity || 75) + '%';
-  document.getElementById('editRandomTurnback').checked = ze.randomTurnbackEnabled || false;
-  document.getElementById('editTurnbackChance').value = ze.turnbackChance || 30;
-  document.getElementById('editTurnbackChanceValue').textContent = (ze.turnbackChance || 30) + '%';
-  document.getElementById('editEndPauseEnabled').checked = ze.endPauseEnabled || false;
-  document.getElementById('editEndPauseModeFixed').checked = !ze.endPauseIsRandom;
-  document.getElementById('editEndPauseModeRandom').checked = ze.endPauseIsRandom || false;
-  document.getElementById('editEndPauseDuration').value = ze.endPauseDurationSec || 1.0;
-  document.getElementById('editEndPauseMin').value = ze.endPauseMinSec || 0.5;
-  document.getElementById('editEndPauseMax').value = ze.endPauseMaxSec || 2.0;
+  ed.zoneEnableStart.checked = ze.enableStart || false;
+  ed.zoneEnableEnd.checked = ze.enableEnd ?? true;
+  ed.zoneMirror.checked = ze.mirrorOnReturn || false;
+  ed.zoneMM.value = ze.zoneMM || 50;
+  ed.speedEffect.value = ze.speedEffect ?? 1;
+  ed.speedCurve.value = ze.speedCurve ?? 1;
+  ed.speedIntensity.value = ze.speedIntensity || 75;
+  ed.speedIntensityValue.textContent = (ze.speedIntensity || 75) + '%';
+  ed.randomTurnback.checked = ze.randomTurnbackEnabled || false;
+  ed.turnbackChance.value = ze.turnbackChance || 30;
+  ed.turnbackChanceValue.textContent = (ze.turnbackChance || 30) + '%';
+  ed.endPauseEnabled.checked = ze.endPauseEnabled || false;
+  ed.endPauseModeFixed.checked = !ze.endPauseIsRandom;
+  ed.endPauseModeRandom.checked = ze.endPauseIsRandom || false;
+  ed.endPauseDuration.value = ze.endPauseDurationSec || 1.0;
+  ed.endPauseMin.value = ze.endPauseMinSec || 0.5;
+  ed.endPauseMax.value = ze.endPauseMaxSec || 2.0;
   // Toggle visibility of fixed/random pause divs
-  document.getElementById('editEndPauseFixedDiv').style.display = ze.endPauseIsRandom ? 'none' : 'flex';
-  document.getElementById('editEndPauseRandomDiv').style.display = ze.endPauseIsRandom ? 'flex' : 'none';
+  ed.endPauseFixedDiv.style.display = ze.endPauseIsRandom ? 'none' : 'flex';
+  ed.endPauseRandomDiv.style.display = ze.endPauseIsRandom ? 'flex' : 'none';
   
   // OSCILLATION fields
-  document.getElementById('editOscCenter').value = line.oscCenterPositionMM || 100;
-  document.getElementById('editOscAmplitude').value = line.oscAmplitudeMM || 50;
-  document.getElementById('editOscWaveform').value = line.oscWaveform !== undefined ? line.oscWaveform : 0;
-  document.getElementById('editOscFrequency').value = line.oscFrequencyHz || 0.5;
-  document.getElementById('editOscRampIn').checked = line.oscEnableRampIn || false;
-  document.getElementById('editOscRampOut').checked = line.oscEnableRampOut || false;
-  document.getElementById('editOscRampInDur').value = line.oscRampInDurationMs || 1000;
-  document.getElementById('editOscRampOutDur').value = line.oscRampOutDurationMs || 1000;
+  ed.oscCenter.value = line.oscCenterPositionMM || 100;
+  ed.oscAmplitude.value = line.oscAmplitudeMM || 50;
+  ed.oscWaveform.value = line.oscWaveform !== undefined ? line.oscWaveform : 0;
+  ed.oscFrequency.value = line.oscFrequencyHz || 0.5;
+  ed.oscRampIn.checked = line.oscEnableRampIn || false;
+  ed.oscRampOut.checked = line.oscEnableRampOut || false;
+  ed.oscRampInDur.value = line.oscRampInDurationMs || 1000;
+  ed.oscRampOutDur.value = line.oscRampOutDurationMs || 1000;
   
   // VA-ET-VIENT Cycle Pause
-  document.getElementById('editVaetPauseEnabled').checked = line.vaetCyclePauseEnabled || false;
-  document.getElementById('editVaetPauseRandom').checked = line.vaetCyclePauseIsRandom || false;
-  document.getElementById('editVaetPauseDuration').value = line.vaetCyclePauseDurationSec || 0.0;
-  document.getElementById('editVaetPauseMin').value = line.vaetCyclePauseMinSec || 0.5;
-  document.getElementById('editVaetPauseMax').value = line.vaetCyclePauseMaxSec || 3.0;
+  ed.vaetPauseEnabled.checked = line.vaetCyclePauseEnabled || false;
+  ed.vaetPauseRandom.checked = line.vaetCyclePauseIsRandom || false;
+  ed.vaetPauseDuration.value = line.vaetCyclePauseDurationSec || 0.0;
+  ed.vaetPauseMin.value = line.vaetCyclePauseMinSec || 0.5;
+  ed.vaetPauseMax.value = line.vaetCyclePauseMaxSec || 3.0;
   
   // OSCILLATION Cycle Pause
-  document.getElementById('editOscPauseEnabled').checked = line.oscCyclePauseEnabled || false;
-  document.getElementById('editOscPauseRandom').checked = line.oscCyclePauseIsRandom || false;
-  document.getElementById('editOscPauseDuration').value = line.oscCyclePauseDurationSec || 0.0;
-  document.getElementById('editOscPauseMin').value = line.oscCyclePauseMinSec || 0.5;
-  document.getElementById('editOscPauseMax').value = line.oscCyclePauseMaxSec || 3.0;
+  ed.oscPauseEnabled.checked = line.oscCyclePauseEnabled || false;
+  ed.oscPauseRandom.checked = line.oscCyclePauseIsRandom || false;
+  ed.oscPauseDuration.value = line.oscCyclePauseDurationSec || 0.0;
+  ed.oscPauseMin.value = line.oscCyclePauseMinSec || 0.5;
+  ed.oscPauseMax.value = line.oscCyclePauseMaxSec || 3.0;
   
-  document.getElementById('editVaetPauseEnabled').dispatchEvent(new Event('change'));
-  document.getElementById('editOscPauseEnabled').dispatchEvent(new Event('change'));
+  ed.vaetPauseEnabled.dispatchEvent(new Event('change'));
+  ed.oscPauseEnabled.dispatchEvent(new Event('change'));
   
   // CHAOS fields
-  document.getElementById('editChaosCenter').value = line.chaosCenterPositionMM || 110;
-  document.getElementById('editChaosAmplitude').value = line.chaosAmplitudeMM || 50;
-  document.getElementById('editChaosSpeed').value = line.chaosMaxSpeedLevel || 10;
-  document.getElementById('editChaosCraziness').value = line.chaosCrazinessPercent || 50;
-  document.getElementById('editChaosDuration').value = line.chaosDurationSeconds || 30;
-  document.getElementById('editChaosSeed').value = line.chaosSeed || 0;
+  ed.chaosCenter.value = line.chaosCenterPositionMM || 110;
+  ed.chaosAmplitude.value = line.chaosAmplitudeMM || 50;
+  ed.chaosSpeed.value = line.chaosMaxSpeedLevel || 10;
+  ed.chaosCraziness.value = line.chaosCrazinessPercent || 50;
+  ed.chaosDuration.value = line.chaosDurationSeconds || 30;
+  ed.chaosSeed.value = line.chaosSeed || 0;
   
   if (line.chaosPatternsEnabled && line.chaosPatternsEnabled.length === 11) {
     for (let i = 0; i < 11; i++) {
@@ -419,8 +463,8 @@ function editSequenceLine(lineId) {
   }
   
   // COMMON fields
-  document.getElementById('editCycles').value = line.cycleCount || 1;
-  document.getElementById('editPause').value = ((line.pauseAfterMs || 0) / 1000).toFixed(1);
+  ed.cycles.value = line.cycleCount || 1;
+  ed.pause.value = ((line.pauseAfterMs || 0) / 1000).toFixed(1);
   
   if (PlaylistState.loaded) {
     populateSequencerDropdown('simple');
@@ -428,14 +472,14 @@ function editSequenceLine(lineId) {
     populateSequencerDropdown('chaos');
   }
   
-  document.getElementById('editLineModal').style.display = 'block';
+  ed.modal.style.display = 'block';
   isLoadingEditForm = false;
 }
 
 function saveLineEdit(event) {
   event.preventDefault();
   
-  const form = document.getElementById('editLineForm');
+  const form = getEditDOM().form;
   const movementType = parseInt(form.movementType.value);
   
   // Build FULL vaetZoneEffect from modal fields
@@ -514,7 +558,7 @@ function saveLineEdit(event) {
 function validateEditForm() {
   if (isLoadingEditForm) return;
   
-  const form = document.getElementById('editLineForm');
+  const form = getEditDOM().form;
   const movementType = parseInt(form.movementType.value);
   const emptyFieldErrors = [];
   
@@ -573,9 +617,10 @@ function validateEditForm() {
   const validationErrors = validateSequencerLine(line, movementType);
   const errors = emptyFieldErrors.concat(validationErrors);
   
-  const errorContainer = document.getElementById('editValidationErrors');
-  const errorList = document.getElementById('editValidationErrorsList');
-  const saveButton = document.getElementById('btnSaveEdit');
+  const ed = getEditDOM();
+  const errorContainer = ed.validationErrors;
+  const errorList = ed.validationErrorsList;
+  const saveButton = ed.btnSave;
   
   if (errors.length > 0) {
     errorContainer.style.display = 'block';
@@ -621,37 +666,37 @@ function clearErrorFields() {
 }
 
 function updateMovementTypeFields() {
-  const isVaet = document.getElementById('editTypeVaet').checked;
-  const isOsc = document.getElementById('editTypeOsc').checked;
-  const isChaos = document.getElementById('editTypeChaos').checked;
-  const isCalibration = document.getElementById('editTypeCalibration').checked;
+  const ed = getEditDOM();
+  const isVaet = ed.typeVaet.checked;
+  const isOsc = ed.typeOsc.checked;
+  const isChaos = ed.typeChaos.checked;
+  const isCalibration = ed.typeCalibration.checked;
   
-  document.getElementById('vaetFields').style.display = isVaet ? 'block' : 'none';
-  document.getElementById('oscFields').style.display = isOsc ? 'block' : 'none';
-  document.getElementById('chaosFields').style.display = isChaos ? 'block' : 'none';
+  ed.vaetFields.style.display = isVaet ? 'block' : 'none';
+  ed.oscFields.style.display = isOsc ? 'block' : 'none';
+  ed.chaosFields.style.display = isChaos ? 'block' : 'none';
   
-  document.getElementById('playlistLoaderSimple').style.display = isVaet ? 'block' : 'none';
-  document.getElementById('playlistLoaderOscillation').style.display = isOsc ? 'block' : 'none';
-  document.getElementById('playlistLoaderChaos').style.display = isChaos ? 'block' : 'none';
+  ed.playlistLoaderSimple.style.display = isVaet ? 'block' : 'none';
+  ed.playlistLoaderOscillation.style.display = isOsc ? 'block' : 'none';
+  ed.playlistLoaderChaos.style.display = isChaos ? 'block' : 'none';
   
-  document.getElementById('cyclesFieldDiv').style.display = (isChaos || isCalibration) ? 'none' : 'block';
-  document.getElementById('pauseFieldDiv').style.display = 'block';
+  ed.cyclesFieldDiv.style.display = (isChaos || isCalibration) ? 'none' : 'block';
+  ed.pauseFieldDiv.style.display = 'block';
   
   validateEditForm();
 }
 
 function closeEditModal() {
-  document.getElementById('editLineModal').style.display = 'none';
+  const ed = getEditDOM();
+  ed.modal.style.display = 'none';
   editingLineId = null;
   clearErrorFields();
-  const errorContainer = document.getElementById('editValidationErrors');
-  if (errorContainer) errorContainer.style.display = 'none';
+  if (ed.validationErrors) ed.validationErrors.style.display = 'none';
   
-  const saveButton = document.getElementById('btnSaveEdit');
-  if (saveButton) {
-    saveButton.disabled = false;
-    saveButton.style.opacity = '1';
-    saveButton.style.cursor = 'pointer';
+  if (ed.btnSave) {
+    ed.btnSave.disabled = false;
+    ed.btnSave.style.opacity = '1';
+    ed.btnSave.style.cursor = 'pointer';
   }
 }
 
@@ -893,7 +938,7 @@ function updateSequenceStatus(status) {
     DOM.btnPauseSequence.innerHTML = '⏸️ ' + t('common.pause');
   }
   
-  const tbody = document.getElementById('sequenceTableBody');
+  const tbody = DOM.sequenceTableBody;
   if (tbody) {
     const rows = tbody.querySelectorAll('tr');
     rows.forEach(row => row.classList.remove('sequence-line-active'));
@@ -930,7 +975,7 @@ function renderSequenceTable(data) {
     }
   });
   
-  const tbody = document.getElementById('sequenceTableBody');
+  const tbody = DOM.sequenceTableBody;
   tbody.innerHTML = '';
   
   if (sequenceLines.length === 0) {
@@ -1109,7 +1154,7 @@ let sequenceSortable = null;
  * Called after table render
  */
 function initSequenceSortable() {
-  const tbody = document.getElementById('sequenceTableBody');
+  const tbody = DOM.sequenceTableBody;
   if (!tbody || typeof Sortable === 'undefined') return;
   
   // Destroy previous instance if exists
@@ -1231,14 +1276,14 @@ function initSequenceListeners() {
   console.debug('📋 Initializing Sequence listeners...');
   
   // ===== TABLE ACTION BUTTONS =====
-  document.getElementById('btnAddLine').addEventListener('click', addSequenceLine);
-  document.getElementById('btnClearAll').addEventListener('click', clearSequence);
-  document.getElementById('btnImportSeq').addEventListener('click', importSequence);
-  document.getElementById('btnExportSeq').addEventListener('click', exportSequence);
+  DOM.btnAddLine.addEventListener('click', addSequenceLine);
+  DOM.btnClearAll.addEventListener('click', clearSequence);
+  DOM.btnImportSeq.addEventListener('click', importSequence);
+  DOM.btnExportSeq.addEventListener('click', exportSequence);
   document.getElementById('btnDownloadTemplate').addEventListener('click', downloadTemplate);
   
   // ===== PLAYBACK CONTROLS =====
-  document.getElementById('btnStartSequence').addEventListener('click', function() {
+  DOM.btnStartSequence.addEventListener('click', function() {
     // Reset test mode flag in case it was left on from a failed test
     seqState.isTestingLine = false;
     // Disable both start buttons immediately (instant feedback)
@@ -1247,7 +1292,7 @@ function initSequenceListeners() {
     sendCommand(WS_CMD.START_SEQUENCE, {});
   });
   
-  document.getElementById('btnLoopSequence').addEventListener('click', function() {
+  DOM.btnLoopSequence.addEventListener('click', function() {
     // Reset test mode flag in case it was left on from a failed test
     seqState.isTestingLine = false;
     // Disable both start buttons immediately (instant feedback)
@@ -1256,11 +1301,11 @@ function initSequenceListeners() {
     sendCommand(WS_CMD.LOOP_SEQUENCE, {});
   });
   
-  document.getElementById('btnPauseSequence').addEventListener('click', function() {
+  DOM.btnPauseSequence.addEventListener('click', function() {
     sendCommand(WS_CMD.TOGGLE_SEQUENCE_PAUSE, {});
   });
   
-  document.getElementById('btnStopSequence').addEventListener('click', function() {
+  DOM.btnStopSequence.addEventListener('click', function() {
     // Only show modal if motor has moved (currentStep > 0)
     if (currentPositionMM > 0.5) {
       showStopModal();
@@ -1270,7 +1315,7 @@ function initSequenceListeners() {
     }
   });
   
-  document.getElementById('btnSkipLine').addEventListener('click', function() {
+  DOM.btnSkipLine.addEventListener('click', function() {
     sendCommand(WS_CMD.SKIP_SEQUENCE_LINE, {});
   });
   

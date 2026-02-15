@@ -205,6 +205,11 @@ const WS_CMD = Object.freeze({
 // ============================================================================
 // CONSOLE WRAPPER - Respect AppState.logging preferences
 // ============================================================================
+// Design: All console.* calls are routed through wrappers that check
+// AppState.logging.enabled (and .debugLevel for console.debug).
+// This allows runtime log control via the System panel without code changes.
+// The original methods are preserved in _console for bypass if needed.
+// console.error is intentionally NOT filtered — errors always surface.
 
 // Store original console methods BEFORE any override
 const _console = {

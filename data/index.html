@@ -209,6 +209,28 @@
     </div>
   </div>
 
+  <!-- Unified Prompt Modal (replaces native prompt()) -->
+  <div class="modal" id="unifiedPromptModal">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-title">
+        <span id="unifiedPromptIcon" style="margin-right: 8px;">✏️</span>
+        <span id="unifiedPromptTitle">Input</span>
+      </div>
+      <div class="modal-message" id="unifiedPromptMessage" style="padding: 10px 0; line-height: 1.6;">
+        Message
+      </div>
+      <div style="padding: 5px 0 15px;">
+        <input type="text" id="unifiedPromptInput" 
+               style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; font-family: monospace;"
+               autocomplete="off">
+      </div>
+      <div class="modal-buttons">
+        <button class="button btn-secondary" id="unifiedPromptCancelBtn" onclick="closePromptModal(null)">Annuler</button>
+        <button class="button btn-primary" id="unifiedPromptOkBtn" onclick="closePromptModal(document.getElementById('unifiedPromptInput').value)" style="min-width: 100px;">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- WiFi Configuration Modal -->
   <div class="modal" id="wifiConfigModal">
     <div class="modal-content" style="max-width: 450px;">

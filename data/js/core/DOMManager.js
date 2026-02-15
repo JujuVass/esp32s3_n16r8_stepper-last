@@ -45,6 +45,12 @@ function initDOMCache() {
   DOM.milestoneIcon = document.getElementById('milestoneIcon');
   DOM.progress = document.getElementById('progress');
   DOM.debugMovement = document.getElementById('debugMovement');
+  DOM.currentSpeed = document.getElementById('currentSpeed');
+  DOM.speedIcon = document.getElementById('speedIcon');
+  DOM.realSpeed = document.getElementById('realSpeed');
+  DOM.progressMini = document.getElementById('progressMini');
+  DOM.progressPct = document.getElementById('progressPct');
+  DOM.sensorsInvertedIcon = document.getElementById('sensorsInvertedIcon');
 
   // ========================================================================
   // INPUT FIELDS (Simple mode)
@@ -197,6 +203,10 @@ function initDOMCache() {
   DOM.statsFileInput = document.getElementById('statsFileInput');
   DOM.statsTableBody = document.getElementById('statsTableBody');
   DOM.statsChartCanvas = document.getElementById('statsChart');
+  DOM.statsTotalDistance = document.getElementById('statsTotalDistance');
+  DOM.statsTotalMilestone = document.getElementById('statsTotalMilestone');
+  DOM.statsRecordingEnabled = document.getElementById('statsRecordingEnabled');
+  DOM.statsRecordingWarning = document.getElementById('statsRecordingWarning');
 
   // ========================================================================
   // SYSTEM PANEL ELEMENTS
@@ -255,6 +265,15 @@ function initDOMCache() {
   DOM.unifiedConfirmOkBtn = document.getElementById('unifiedConfirmOkBtn');
   DOM.unifiedConfirmCancelBtn = document.getElementById('unifiedConfirmCancelBtn');
 
+  // Unified Prompt Modal
+  DOM.unifiedPromptModal = document.getElementById('unifiedPromptModal');
+  DOM.unifiedPromptIcon = document.getElementById('unifiedPromptIcon');
+  DOM.unifiedPromptTitle = document.getElementById('unifiedPromptTitle');
+  DOM.unifiedPromptMessage = document.getElementById('unifiedPromptMessage');
+  DOM.unifiedPromptInput = document.getElementById('unifiedPromptInput');
+  DOM.unifiedPromptOkBtn = document.getElementById('unifiedPromptOkBtn');
+  DOM.unifiedPromptCancelBtn = document.getElementById('unifiedPromptCancelBtn');
+
   // Modal controls
   DOM.returnToStartCheckbox = document.getElementById('returnToStartCheckbox');
   DOM.bypassCalibrationCheckbox = document.getElementById('bypassCalibrationCheckbox');
@@ -270,8 +289,11 @@ function initDOMCache() {
   DOM.playlistSearchInput = document.getElementById('playlistSearchInput');
 
   // ========================================================================
-  // TABS
+  // TABS & LAYOUT
   // ========================================================================
+  DOM.tabsContainer = document.getElementById('tabsContainer');
+  DOM.welcomeMessage = document.getElementById('welcomeMessage');
+  DOM.speedModeSeparate = document.getElementById('speedModeSeparate');
   DOM.tabs = document.querySelectorAll('.tab');
   DOM.tabContents = document.querySelectorAll('.tab-content');
 

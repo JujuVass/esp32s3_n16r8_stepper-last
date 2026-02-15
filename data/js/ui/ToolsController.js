@@ -52,7 +52,7 @@ function toggleLogsPanel() {
   
   if (panel.style.display === 'none') {
     panel.style.display = 'block';
-    btn.innerHTML = '📋 Logs';
+    btn.innerHTML = '📋 ' + t('status.logs');
     btn.style.background = '#e74c3c';
     btn.style.color = 'white';
     
@@ -80,7 +80,7 @@ function toggleLogsPanel() {
  */
 function closeLogsPanel() {
   DOM.logsPanel.style.display = 'none';
-  DOM.btnShowLogs.innerHTML = '📋 Logs';
+  DOM.btnShowLogs.innerHTML = '📋 ' + t('status.logs');
   DOM.btnShowLogs.style.background = '#17a2b8';
   DOM.btnShowLogs.style.color = 'white';
 }
@@ -209,7 +209,7 @@ function toggleSystemPanel() {
   
   if (panel.style.display === 'none') {
     panel.style.display = 'block';
-    btn.innerHTML = '⚙️ Sys';
+    btn.innerHTML = '⚙️ ' + t('status.sys');
     btn.style.background = '#e74c3c';
     btn.style.color = 'white';
     
@@ -235,7 +235,7 @@ function closeSystemPanel() {
   const btn = DOM.btnShowSystem;
   
   panel.style.display = 'none';
-  btn.innerHTML = '⚙️ Sys';
+  btn.innerHTML = '⚙️ ' + t('status.sys');
   btn.style.background = '#2196F3';
   btn.style.color = 'white';
   
@@ -290,7 +290,7 @@ async function refreshWifi() {
     }
     
     // Send reconnect command (expect network error as WiFi disconnects)
-    fetch('/api/system/wifi/reconnect', { method: 'POST' })
+    fetch('/api/system/wifi/reconnect', { method: 'POST', signal: AbortSignal.timeout(5000) })
       .then(response => response.json())
       .then(data => {
         console.debug('📶 WiFi reconnect command acknowledged:', data);
@@ -312,7 +312,7 @@ async function refreshWifi() {
       console.debug(`📶 Checking connection (attempt ${attempts}/${maxAttempts})...`);
       statusSpan.textContent = t('tools.checkingConnection', {attempts: attempts, max: maxAttempts});
       
-      fetch('/api/ping', { method: 'GET' })
+      fetch('/api/ping', { method: 'GET', signal: AbortSignal.timeout(3000) })
         .then(response => {
           if (response.ok) {
             console.debug('✅ WiFi reconnected successfully!');
@@ -409,7 +409,7 @@ async function rebootESP32() {
     DOM.rebootOverlay.style.display = 'flex';
     
     // Send reboot command
-    fetch('/api/system/reboot', { method: 'POST' })
+    fetch('/api/system/reboot', { method: 'POST', signal: AbortSignal.timeout(5000) })
       .then(response => response.json())
       .then(data => {
         console.debug('🔄 Reboot command sent:', data);
@@ -454,7 +454,8 @@ function reconnectAfterReboot() {
     // Test HTTP connection first using ping endpoint
     fetch('/api/ping', { 
       method: 'GET',
-      cache: 'no-cache'
+      cache: 'no-cache',
+      signal: AbortSignal.timeout(3000)
     })
       .then(response => {
         if (!response.ok) throw new Error('HTTP not ready');

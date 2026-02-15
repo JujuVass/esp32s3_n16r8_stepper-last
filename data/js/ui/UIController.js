@@ -419,6 +419,7 @@ function initUIListeners() {
 const ModalState = {
   alertResolveCallback: null,
   confirmResolveCallback: null,
+  promptResolveCallback: null,
   rejectCallback: null
 };
 
@@ -542,6 +543,58 @@ function closeConfirmModal(confirmed) {
   }
 }
 
+/**
+ * Show a stylized prompt modal (replaces native prompt())
+ * @param {string} message - Message to display
+ * @param {Object} options - Optional configuration
+ * @param {string} options.title - Modal title (default: 'Input')
+ * @param {string} options.defaultValue - Default input value
+ * @param {string} options.placeholder - Input placeholder text
+ * @param {string} options.okText - OK button text (default: 'OK')
+ * @param {string} options.cancelText - Cancel button text
+ * @returns {Promise<string|null>} Resolves to input value or null if cancelled
+ */
+function showPrompt(message, options = {}) {
+  return new Promise((resolve) => {
+    const {
+      title = '✏️ ' + t('common.input'),
+      defaultValue = '',
+      placeholder = '',
+      okText = 'OK',
+      cancelText = t('common.cancel')
+    } = options;
+
+    DOM.unifiedPromptIcon.textContent = '✏️';
+    DOM.unifiedPromptTitle.textContent = title;
+    DOM.unifiedPromptMessage.textContent = message;
+    DOM.unifiedPromptInput.value = defaultValue;
+    DOM.unifiedPromptInput.placeholder = placeholder;
+    DOM.unifiedPromptOkBtn.textContent = okText;
+    DOM.unifiedPromptCancelBtn.textContent = cancelText;
+
+    ModalState.promptResolveCallback = resolve;
+
+    DOM.unifiedPromptModal.classList.add('active');
+    // Focus and select input for quick editing
+    setTimeout(() => {
+      DOM.unifiedPromptInput.focus();
+      DOM.unifiedPromptInput.select();
+    }, 100);
+  });
+}
+
+/**
+ * Close prompt modal with result
+ * @param {string|null} value - Input value or null if cancelled
+ */
+function closePromptModal(value) {
+  DOM.unifiedPromptModal.classList.remove('active');
+  if (ModalState.promptResolveCallback) {
+    ModalState.promptResolveCallback(value);
+    ModalState.promptResolveCallback = null;
+  }
+}
+
 // ============================================================================
 // WIFI CONFIGURATION MODAL
 // ============================================================================
@@ -553,7 +606,7 @@ function openWifiConfigModal() {
   const modal = document.getElementById('wifiConfigModal');
   
   // Load current EEPROM config
-  fetch('/api/wifi/config')
+  fetchWithRetry('/api/wifi/config', {}, { maxRetries: 2, silent: true })
     .then(response => response.json())
     .then(data => {
       const currentConfigDiv = document.getElementById('wifiCurrentSsid');
@@ -617,11 +670,11 @@ function saveWifiConfig() {
   showWifiEditStatus('💾 ' + t('common.save') + '...', 'info');
   
   // Send to backend
-  fetch('/api/wifi/save', {
+  fetchWithRetry('/api/wifi/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ssid, password })
-  })
+  }, { maxRetries: 2, silent: true })
     .then(response => response.json())
     .then(data => {
       if (data.success) {

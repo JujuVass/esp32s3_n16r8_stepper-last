@@ -357,7 +357,7 @@ function filterPlaylistPresets(searchTerm) {
 /**
  * Add current configuration to playlist
  */
-function addToPlaylist(mode) {
+async function addToPlaylist(mode) {
   const config = getCurrentModeConfig(mode);
   
   // Validation: refuse infinite durations
@@ -378,7 +378,10 @@ function addToPlaylist(mode) {
   
   // Generate default name
   const defaultName = generatePresetName(mode, config);
-  const name = prompt(t('playlist.promptName'), defaultName);
+  const name = await showPrompt(t('playlist.promptName'), {
+    title: t('playlist.addTitle'),
+    defaultValue: defaultName
+  });
   if (!name) return;
   
   // Send to backend
@@ -438,11 +441,14 @@ async function deleteFromPlaylist(mode, id) {
 /**
  * Rename preset in playlist
  */
-function renamePlaylistPreset(mode, id) {
+async function renamePlaylistPreset(mode, id) {
   const preset = PlaylistState[mode].find(p => p.id === id);
   if (!preset) return;
   
-  const newName = prompt(t('playlist.promptRename'), preset.name);
+  const newName = await showPrompt(t('playlist.promptRename'), {
+    title: t('playlist.renameTitle'),
+    defaultValue: preset.name
+  });
   if (!newName || newName === preset.name) return;
   
   postWithRetry('/api/playlists/update', {
@@ -512,26 +518,7 @@ function loadSimplePreset(config) {
   }
   
   // Load Zone Effects parameters (new format: vaetZoneEffect, or legacy: decel*)
-  let ze = config.vaetZoneEffect;
-  if (!ze) {
-    // Convert legacy format to new format
-    ze = {
-      enabled: config.decelStartEnabled || config.decelEndEnabled || false,
-      enableStart: config.decelStartEnabled ?? true,
-      enableEnd: config.decelEndEnabled ?? true,
-      zoneMM: config.decelZoneMM || 50,
-      speedEffect: 1,  // DECEL
-      speedCurve: config.decelMode || 1,
-      speedIntensity: config.decelEffectPercent || 75,
-      randomTurnbackEnabled: false,
-      turnbackChance: 30,
-      endPauseEnabled: false,
-      endPauseIsRandom: false,
-      endPauseDurationSec: 1.0,
-      endPauseMinSec: 0.5,
-      endPauseMaxSec: 2.0
-    };
-  }
+  const ze = getZoneEffectConfig(config);
   
   // Apply Zone Effects to UI
   const zoneEffectSection = document.getElementById('zoneEffectSection');
@@ -830,29 +817,7 @@ function quickAddToSequencer(mode, presetId) {
   const center = effectiveMax / 2;
   
   // Build vaetZoneEffect from config (new format) or convert from legacy format
-  let vaetZoneEffect;
-  if (config.vaetZoneEffect) {
-    // New format
-    vaetZoneEffect = config.vaetZoneEffect;
-  } else {
-    // Legacy format - convert decel* fields
-    vaetZoneEffect = {
-      enabled: config.decelStartEnabled || config.decelEndEnabled,
-      enableStart: config.decelStartEnabled ?? true,
-      enableEnd: config.decelEndEnabled ?? true,
-      zoneMM: config.decelZoneMM || 50,
-      speedEffect: 1,  // DECEL
-      speedCurve: config.decelMode || 1,
-      speedIntensity: config.decelEffectPercent || 75,
-      randomTurnbackEnabled: false,
-      turnbackChance: 30,
-      endPauseEnabled: false,
-      endPauseIsRandom: false,
-      endPauseDurationSec: 1.0,
-      endPauseMinSec: 0.5,
-      endPauseMaxSec: 2.0
-    };
-  }
+  const vaetZoneEffect = getZoneEffectConfig(config);
   
   const newLine = {
     enabled: true,

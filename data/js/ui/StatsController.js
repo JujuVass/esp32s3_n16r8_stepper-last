@@ -46,7 +46,7 @@ function loadStatsData() {
     })
     .catch(error => {
       console.error('Error loading stats:', error);
-      const tbody = document.getElementById('statsTableBody');
+      const tbody = DOM.statsTableBody;
       if (tbody) {
         tbody.innerHTML = 
           '<tr><td colspan="4" class="empty-state text-error">❌ ' + t('stats.loadingError') + '</td></tr>';
@@ -63,8 +63,8 @@ function loadStatsData() {
  * @param {Array} stats - Array of {date, distanceMM} objects
  */
 function displayStatsTable(stats) {
-  const tbody = document.getElementById('statsTableBody');
-  const totalEl = document.getElementById('statsTotalDistance');
+  const tbody = DOM.statsTableBody;
+  const totalEl = DOM.statsTotalDistance;
   
   if (!tbody || !totalEl) {
     console.warn('Stats table elements not found');
@@ -143,7 +143,7 @@ function displayStatsTable(stats) {
  * @param {number} totalMM - Total distance in millimeters
  */
 function updateTotalMilestone(totalMM) {
-  const totalMilestoneEl = document.getElementById('statsTotalMilestone');
+  const totalMilestoneEl = DOM.statsTotalMilestone;
   if (!totalMilestoneEl || totalMM <= 0) return;
   
   const totalMeters = totalMM / 1000;
@@ -285,7 +285,7 @@ function aggregateByWeek(stats) {
  * @param {Object} weeklyData - Weekly data for tooltips
  */
 function renderStatsChart(labels, distances, sortedWeeks, weeklyData) {
-  const canvas = document.getElementById('statsChart');
+  const canvas = DOM.statsChartCanvas;
   if (!canvas) {
     console.warn('Stats chart canvas not found');
     return;
@@ -374,14 +374,14 @@ function renderStatsChart(labels, distances, sortedWeeks, weeklyData) {
  * Toggle stats panel visibility
  */
 function toggleStatsPanel() {
-  const panel = document.getElementById('statsPanel');
-  const btn = document.getElementById('btnShowStats');
+  const panel = DOM.statsPanel;
+  const btn = DOM.btnShowStats;
   const wasVisible = (panel.style.display !== 'none');
   
   if (!wasVisible) {
     // Opening panel
     panel.style.display = 'block';
-    btn.innerHTML = '📊 Stats';
+    btn.innerHTML = '📊 ' + t('status.stats');
     btn.style.background = '#e74c3c';
     btn.style.color = 'white';
     
@@ -404,11 +404,11 @@ function toggleStatsPanel() {
  * Close stats panel
  */
 function closeStatsPanel() {
-  const panel = document.getElementById('statsPanel');
-  const btn = document.getElementById('btnShowStats');
+  const panel = DOM.statsPanel;
+  const btn = DOM.btnShowStats;
   
   panel.style.display = 'none';
-  btn.innerHTML = '📊 Stats';
+  btn.innerHTML = '📊 ' + t('status.stats');
   btn.style.background = '#4CAF50';
   btn.style.color = 'white';
   
@@ -485,7 +485,7 @@ function exportStats() {
  * Trigger stats file import dialog
  */
 function triggerStatsImport() {
-  document.getElementById('statsFileInput').click();
+  DOM.statsFileInput.click();
 }
 
 /**
@@ -653,7 +653,7 @@ function updateMilestones(totalTraveledMM) {
  * Toggle stats recording on/off (persisted to EEPROM)
  */
 function toggleStatsRecording() {
-  const checkbox = document.getElementById('statsRecordingEnabled');
+  const checkbox = DOM.statsRecordingEnabled;
   if (!checkbox) return;
   
   const enabled = checkbox.checked;
@@ -679,8 +679,8 @@ function updateStatsRecordingUI(enabled) {
   // Don't update if user is currently editing
   if (AppState.stats.isEditingRecording) return;
   
-  const checkbox = document.getElementById('statsRecordingEnabled');
-  const warning = document.getElementById('statsRecordingWarning');
+  const checkbox = DOM.statsRecordingEnabled;
+  const warning = DOM.statsRecordingWarning;
   
   if (checkbox) {
     checkbox.checked = enabled;
@@ -702,17 +702,16 @@ function updateStatsRecordingUI(enabled) {
 function initStatsListeners() {
   console.debug('📊 Initializing Stats listeners...');
   
-  document.getElementById('btnShowStats').addEventListener('click', toggleStatsPanel);
-  document.getElementById('btnCloseStats').addEventListener('click', closeStatsPanel);
-  document.getElementById('btnClearStats').addEventListener('click', clearAllStats);
-  document.getElementById('btnExportStats').addEventListener('click', exportStats);
-  document.getElementById('btnImportStats').addEventListener('click', triggerStatsImport);
-  document.getElementById('statsFileInput').addEventListener('change', handleStatsFileImport);
+  DOM.btnShowStats.addEventListener('click', toggleStatsPanel);
+  DOM.btnCloseStats.addEventListener('click', closeStatsPanel);
+  DOM.btnClearStats.addEventListener('click', clearAllStats);
+  DOM.btnExportStats.addEventListener('click', exportStats);
+  DOM.btnImportStats.addEventListener('click', triggerStatsImport);
+  DOM.statsFileInput.addEventListener('change', handleStatsFileImport);
   
   // Stats recording toggle
-  const statsRecordingCheckbox = document.getElementById('statsRecordingEnabled');
-  if (statsRecordingCheckbox) {
-    statsRecordingCheckbox.addEventListener('change', toggleStatsRecording);
+  if (DOM.statsRecordingEnabled) {
+    DOM.statsRecordingEnabled.addEventListener('change', toggleStatsRecording);
   }
   
   console.debug('✅ Stats listeners initialized');
