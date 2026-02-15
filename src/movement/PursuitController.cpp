@@ -182,8 +182,7 @@ unsigned long PursuitControllerClass::calculateStepDelay(float errorMM) {
 }
 
 bool PursuitControllerClass::checkSafetyContacts(bool moveForward) {
-    // 🆕 OPTIMISATION: HARD DRIFT detection - Test UNIQUEMENT si proche des limites
-    // Test END contact si poursuite vers limite haute
+    // Hard drift detection: only test contacts when near limits
     if (moveForward) {
         long stepsToLimit = config.maxStep - currentStep;
         float distanceToLimitMM = stepsToLimit / STEPS_PER_MM;
@@ -198,7 +197,7 @@ bool PursuitControllerClass::checkSafetyContacts(bool moveForward) {
             }
         }
     } else {
-        // Test START contact si poursuite vers limite basse
+        // Test START contact when pursuing toward lower limit
         float distanceToStartMM = currentStep / STEPS_PER_MM;
         
         if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {

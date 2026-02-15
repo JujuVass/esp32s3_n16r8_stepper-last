@@ -227,8 +227,7 @@ void OscillationControllerClass::process() {
         return;  // Too early for next step
     }
     
-    // 🎯 STRATÉGIE "RALENTIR LA FORMULE": Seulement catch-up si erreur critique (>3mm)
-    // Sinon, 1 step fluide = le moteur suit naturellement la formule sinusoïdale
+    // Catch-up only on critical error (>3mm), otherwise 1 smooth step following the sine formula
     long absErrorSteps = abs(errorSteps);
     float errorMM = absErrorSteps / STEPS_PER_MM;
     bool isCatchUp = (errorMM > OSC_CATCH_UP_THRESHOLD_MM);
@@ -354,7 +353,7 @@ float OscillationControllerClass::calculatePosition() {
         oscillationState.completedCycles++;
         engine->debug("🔄 Cycle " + String(oscillationState.completedCycles) + "/" + String(oscillation.cycleCount));
         
-        // 🆕 NOUVEAU: Vérifier si pause entre cycles activée
+        // Check if inter-cycle pause is enabled
         if (oscillation.cyclePause.enabled) {
             oscPauseState.currentPauseDuration = oscillation.cyclePause.calculateDurationMs();
             
@@ -364,7 +363,7 @@ float OscillationControllerClass::calculatePosition() {
             engine->debug("⏸️ Pause cycle OSC: " + String(oscPauseState.currentPauseDuration) + "ms");
         }
         
-        // ⚠️ Send status update to frontend when cycle completes (Bug #1 fix)
+        // Send status update to frontend when cycle completes
         if (config.executionContext == CONTEXT_SEQUENCER) {
             SeqExecutor.sendStatus();
         }
@@ -372,7 +371,7 @@ float OscillationControllerClass::calculatePosition() {
     oscillationState.lastPhase = phase;
     
     // Calculate current amplitude with ramping
-    // ✅ PRO MODE: Rampes uniquement au début/fin de TOUTE la ligne (pas entre cycles)
+    // Ramps apply only at start/end of the entire line (not between cycles)
     float effectiveAmplitude = oscillation.amplitudeMM;
     
     // 🎯 SMOOTH AMPLITUDE TRANSITION: Interpolate amplitude when changed during oscillation
@@ -413,10 +412,10 @@ float OscillationControllerClass::calculatePosition() {
         unsigned long rampElapsed = currentMs - oscillationState.rampStartMs;
         
         if (rampElapsed < OSC_RAMP_START_DELAY_MS) {
-            // Phase de stabilisation : amplitude = 0
+            // Stabilization phase: amplitude = 0
             effectiveAmplitude = 0;
         } else if (rampElapsed < (oscillation.rampInDurationMs + OSC_RAMP_START_DELAY_MS)) {
-            // Phase de rampe : calculer la progression depuis la fin du délai
+            // Ramp phase: calculate progress from end of delay
             unsigned long adjustedElapsed = rampElapsed - OSC_RAMP_START_DELAY_MS;
             float rampProgress = (float)adjustedElapsed / (float)oscillation.rampInDurationMs;
             effectiveAmplitude = oscillation.amplitudeMM * rampProgress;
@@ -531,9 +530,9 @@ bool OscillationControllerClass::handleCyclePause() {
     
     unsigned long elapsedMs = millis() - oscPauseState.pauseStartMs;
     if (elapsedMs >= oscPauseState.currentPauseDuration) {
-        // Pause terminée - AJUSTER le timer pour éviter un "saut" de phase
+        // Pause complete - reset phase timer to avoid phase jump
         unsigned long pauseDuration = elapsedMs;
-        oscillationState.lastPhaseUpdateMs = millis();  // Reset le timer pour éviter deltaMs énorme
+        oscillationState.lastPhaseUpdateMs = millis();  // Reset timer to avoid huge deltaMs
         
         oscPauseState.isPausing = false;
         engine->debug("▶️ End cycle pause OSC (" + String(pauseDuration) + "ms) - Phase frozen");
@@ -544,12 +543,12 @@ bool OscillationControllerClass::handleCyclePause() {
 }
 
 bool OscillationControllerClass::handleInitialPositioning() {
-    // Cible = centre (pas de sinusoïde pendant le positionnement initial)
+    // Target = center (no sine wave during initial positioning)
     float targetPositionMM = oscillation.centerPositionMM;
     long targetStep = (long)(targetPositionMM * STEPS_PER_MM);
     long errorSteps = targetStep - currentStep;
     
-    // DEBUG: Log position actuelle au premier appel
+    // Log current position on first call
     if (firstPositioningCall_) {
         float currentMM = currentStep / STEPS_PER_MM;
         engine->debug("🚀 Start positioning: Position=" + String(currentMM, 1) + 
@@ -567,10 +566,10 @@ bool OscillationControllerClass::handleInitialPositioning() {
     unsigned long elapsedMicros = currentMicros - lastStepMicros_;
     
     if (elapsedMicros < OSC_POSITIONING_STEP_DELAY_MICROS) {
-        return true;  // Trop tôt pour le prochain step
+        return true;  // Too early for next step
     }
     
-    // Mouvement ultra-doux: 1 step à la fois
+    // Ultra-smooth movement: 1 step at a time
     bool moveForward = (errorSteps > 0);
     Motor.setDirection(moveForward);
     Motor.step();
@@ -586,7 +585,7 @@ bool OscillationControllerClass::handleInitialPositioning() {
     
     lastStepMicros_ = currentMicros;
     
-    // Désactiver le positionnement initial quand on est au centre
+    // Disable initial positioning when at center
     long absErrorSteps = abs(errorSteps);
     if (absErrorSteps < (long)(OSC_INITIAL_POSITIONING_TOLERANCE_MM * STEPS_PER_MM)) {
         oscillationState.isInitialPositioning = false;
@@ -601,12 +600,11 @@ bool OscillationControllerClass::handleInitialPositioning() {
 }
 
 bool OscillationControllerClass::checkSafetyContacts(long targetStep) {
-    // 🆕 OPTIMISATION: Safety check contacts - Test UNIQUEMENT si oscillation proche des limites
-    // Calcul des positions extrêmes de l'oscillation
+    // Safety check: only test contacts when oscillation is near limits
     float minOscPositionMM = oscillation.centerPositionMM - oscillation.amplitudeMM;
     float maxOscPositionMM = oscillation.centerPositionMM + oscillation.amplitudeMM;
     
-    // Test END contact uniquement si oscillation approche de la limite haute
+    // Test END contact only if oscillation approaches upper limit
     float distanceToEndLimitMM = config.totalDistanceMM - maxOscPositionMM;
     if (distanceToEndLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
         if (targetStep >= config.maxStep && Contacts.isEndActive()) {
@@ -616,7 +614,7 @@ bool OscillationControllerClass::checkSafetyContacts(long targetStep) {
         }
     }
 
-    // Test START contact uniquement si oscillation approche de la limite basse
+    // Test START contact only if oscillation approaches lower limit
     if (minOscPositionMM <= HARD_DRIFT_TEST_ZONE_MM) {
         if (targetStep <= config.minStep && Contacts.isStartActive()) {
             Status.sendError("❌ OSCILLATION: START contact reached unexpectedly (amplitude near limit)");
@@ -636,7 +634,7 @@ void OscillationControllerClass::executeSteps(long targetStep, bool isCatchUp) {
     if (isCatchUp) {
         stepsToExecute = min(absErrorSteps, (long)OSC_MAX_STEPS_PER_CATCH_UP);
     } else {
-        // OSCILLATION NORMALE: 1 step fluide = suivre naturellement la sinusoïde
+        // Normal oscillation: 1 smooth step following the sine wave
         stepsToExecute = 1;
     }
     

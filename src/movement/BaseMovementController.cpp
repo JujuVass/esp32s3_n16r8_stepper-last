@@ -604,7 +604,7 @@ void BaseMovementControllerClass::togglePause() {
         // Toggle state directly via config.currentState (single source of truth)
         config.currentState = wasPaused ? STATE_RUNNING : STATE_PAUSED;
         
-        // 🆕 CORRECTION: Reset timer en mode oscillation pour éviter le saut de phase lors de la reprise
+        // Reset phase timer in oscillation mode to avoid phase jump on resume
         if (wasPaused && currentMovement == MOVEMENT_OSC) {
             oscillationState.lastPhaseUpdateMs = millis();
             engine->debug("🔄 Phase frozen after pause (avoids jerk)");

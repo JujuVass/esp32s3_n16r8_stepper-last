@@ -1144,12 +1144,12 @@ void setupAPIRoutes() {
     
     engine->info("🔌 Testing WiFi: " + ssid);
     
-    // 🛡️ OPTION 1: Sauvegarder D'ABORD, puis tester (recommandé pour mode AP)
-    // Même si le test échoue, les credentials sont sauvegardés pour tentative au reboot
-    bool saveFirst = true;  // Comportement mode AP : toujours sauvegarder
+    // Save credentials FIRST, then test (recommended for AP mode)
+    // Even if test fails, credentials are saved for retry on reboot
+    bool saveFirst = true;  // AP mode behavior: always save first
     
     if (saveFirst) {
-      // Save to EEPROM AVANT de tester
+      // Save to EEPROM before testing
       engine->info("💾 Saving WiFi credentials to EEPROM...");
       bool saved = WiFiConfig.saveConfig(ssid, password);
       
@@ -1191,9 +1191,9 @@ void setupAPIRoutes() {
       Network.apLedBlinkEnabled = false;
       setRgbLed(25, 10, 0);  // Orange = Warning
       
-      // ✅ NOUVEAU: Credentials sont déjà sauvegardés, reboot essaiera de se connecter
+      // Credentials already saved, reboot will try to connect
       JsonDocument respDoc;
-      respDoc["success"] = true;  // Changed from false - config IS saved
+      respDoc["success"] = true;  // Config IS saved even though test failed
       respDoc["warning"] = "WiFi credentials saved but connection test failed";
       respDoc["message"] = "Configuration saved. Reboot to try connecting.";
       respDoc["details"] = "Connection test timed out - password may be wrong or signal too weak";
@@ -1317,7 +1317,7 @@ void setupAPIRoutes() {
                     (server.method() == HTTP_OPTIONS) ? "OPTIONS" : "OTHER";
     engine->debug("📥 Request: " + method + " " + uri);
     
-    // En mode AP_SETUP, tout sauf /setup.html et /api/wifi/* redirige vers /setup.html
+    // In AP_SETUP mode, redirect everything except /setup.html and /api/wifi/* to /setup.html
     if (Network.isAPSetupMode()) {
       if (uri != "/setup.html" && !uri.startsWith("/api/wifi")) {
         server.sendHeader("Location", "http://192.168.4.1/setup.html", true);
@@ -1325,7 +1325,7 @@ void setupAPIRoutes() {
         return;
       }
     } else {
-      // En mode STA+AP ou AP_DIRECT, on bloque l'accès à setup.html
+      // In STA+AP or AP_DIRECT mode, block access to setup.html
       if (uri == "/setup.html") {
         server.send(404, "text/plain", "Not found: setup.html (use GPIO 19 to GND for setup mode)");
         return;

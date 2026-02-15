@@ -1,76 +1,15 @@
     // ========================================================================
     // MAIN APPLICATION CODE
     // ========================================================================
-    // Note: AppState, WS_CMD, PlaylistState, SystemState loaded from app.js
-    // Note: showNotification, validateNumericInput, etc. loaded from utils.js
-    // Note: connectWebSocket, handleWebSocketMessage loaded from websocket.js
-    // Note: loadStatsData, displayStatsTable, displayStatsChart loaded from stats.js
-    // Note: Playlist functions loaded from PlaylistController.js:
-    //   - loadPlaylists(), updatePlaylistButtonCounters()
-    //   - generatePresetName(), generatePresetTooltip()
-    //   - getCurrentModeConfig(), openPlaylistModal(), closePlaylistModal()
-    //   - refreshPlaylistPresets(), addToPlaylist(), deleteFromPlaylist()
-    //   - renamePlaylistPreset(), loadPresetInMode(), quickAddToSequencer()
-    //   - loadPresetIntoSequencerModal(), initPlaylistListeners()
-
-    // Note: MILESTONES array and getMilestoneInfo() loaded from app.js
-    // Note: SPEED_MILESTONES array and getSpeedMilestoneInfo() loaded from speedMilestones.js
-    
-    // ========================================================================
-    // CYCLE PAUSE HELPERS - Moved to SimpleController.js
-    // ========================================================================
-    // Note: getCyclePauseSection(), getCyclePauseOscSection() now in SimpleController.js
 
     // ========================================================================
     // GLOBAL STATE - Position Tracking
     // ========================================================================
     let currentPositionMM = 0; // Current motor position in millimeters
     
-    // ========================================================================
-    // SPEED LIMITS - Moved to ToolsController.js
-    // ========================================================================
-    // Note: maxSpeedLevel and initSpeedLimits() are now in ToolsController.js
-
-    // ========================================================================
-    // DOM CACHE - Performance Optimization
-    // ========================================================================
-    // DOM CACHE - Loaded from DOMManager.js
-    // ========================================================================
-    // Note: DOM object and initDOMCache() function are defined in DOMManager.js
-    // The file must be loaded BEFORE main.js in index.html
-    
-    // ========================================================================
-    // MODE Séquenceur - Moved to SequenceController.js
-    // ========================================================================
-    // Variables and functions for sequence table management are now in:
-    //   SequenceController.js
-    // Including: sequenceLines, editingLineId, isLoadingEditForm, draggedLineId,
-    //   selectedLineIds, validateSequencerLine(), addSequenceLine(), editSequenceLine(),
-    //   saveLineEdit(), validateEditForm(), renderSequenceTable(), testSequenceLine(),
-    //   restoreSequenceAfterTest(), updateSequenceStatus(), clearSequence(),
-    //   importSequence(), exportSequence(), downloadTemplate(), batchEnableLines(),
-    //   batchDeleteLines(), clearSelection(), initializeTrashZones(), etc.
-
-    // ========================================================================
-    // WEBSOCKET CONNECTION - Moved to /js/websocket.js
-    // ========================================================================
-    // connectWebSocket() is now loaded from external module
-    // Handles: onopen, onmessage, onclose, onerror
-    // Message routing: handleWebSocketMessage() dispatches to appropriate handlers
-    
     // ============================================================================
     // UI UPDATE - HELPER FUNCTIONS
     // ============================================================================
-    
-    /**
-     * Update milestone display from total traveled distance
-     * @param {number} totalTraveledMM - Total traveled distance in mm
-     */
-    // ============================================================================
-    // UI UPDATE - HELPER FUNCTIONS
-    // ============================================================================
-    
-    // Note: updateMilestones() moved to StatsController.js
     
     /**
      * Update speed display based on current active mode
@@ -681,23 +620,7 @@
       requestSequenceTableWhenReady();
     });
     
-    // ============================================================================
-    // MODE Séquenceur - Moved to SequenceController.js
-    // ============================================================================
-    // Note: All sequencer event listeners moved to initSequenceListeners() in SequenceController.js
-    // Including: btnAddLine, btnClearAll, btnImportSeq, btnExportSeq, btnDownloadTemplate,
-    //   btnStartSequence, btnLoopSequence, btnPauseSequence, btnStopSequence, btnSkipLine,
-    //   editLineForm, movement type radios, cycle pause toggles, keyboard shortcuts
-
-    // ============================================================================
-    // MAIN NUMERIC INPUTS - Moved to utils.js
-    // ============================================================================
-    // Note: initMainNumericConstraints() now in utils.js
     initMainNumericConstraints();
-    
-    // ===== CYCLE PAUSE - Moved to SimpleController.js =====
-    // Note: createCyclePauseHandlers(), getCyclePauseSection/Osc() now in SimpleController.js
-    // Initialize handlers for Simple and Oscillation modes
     initCyclePauseHandlers();
     
     connectWebSocket();

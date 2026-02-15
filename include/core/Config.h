@@ -64,10 +64,8 @@ constexpr float STEPS_PER_MM = STEPS_PER_REV / MM_PER_REV;  // 8.0 steps/mm
 // CONFIGURATION - Drift Correction (Safety Offset)
 // ============================================================================
 // Safety offset from physical contacts (matches calibration offset)
-// Why 20? Position 0 is set 20 steps AFTER START contact release
-// maxStep is set 20 steps BEFORE END contact
 // This creates a buffer zone for drift tolerance
-constexpr int SAFETY_OFFSET_STEPS = 20;  // 20 steps = 2.5mm @ 8.0 steps/mm
+constexpr int SAFETY_OFFSET_STEPS = 30;
 
 // Hard drift detection zone (only test physical contacts when close to limits)
 // Why 20mm? Balance between performance (88% less tests) and safety (~133 steps buffer)
@@ -85,7 +83,7 @@ constexpr int DIR_CHANGE_DELAY_MICROS = 15;  // HSS86 driver requires time to pr
 // CONFIGURATION - Calibration Constants
 // ============================================================================
 // WebSocket servicing during calibration
-// Why 20? At 10Âµs/step (5Âµs HIGH + 5Âµs LOW), 20 steps = 200Âµs
+// Why 20? At 10us/step (5us HIGH + 5us LOW), 20 steps = 200us
 // This ensures WebSocket keeps connection alive without interfering with timing
 constexpr int WEBSOCKET_SERVICE_INTERVAL_STEPS = 20;
 
@@ -97,7 +95,7 @@ constexpr int CALIB_DELAY = 2000;  // 2ms per step = 500 steps/sec (safer for he
 constexpr int CALIBRATION_MAX_STEPS = 3000;
 
 // Speed reduction for precise positioning
-// Why 3? Slows down by 3Ã— (e.g., 5ms â†’ 15ms per step)
+// Why 3? Slows down by 3x (e.g., 5ms -> 15ms per step)
 // Reduces mechanical shock when contacting limit switches
 constexpr int CALIBRATION_SLOW_FACTOR = 3;
 
@@ -128,7 +126,7 @@ constexpr unsigned long OSC_MIN_STEP_DELAY_MICROS = 50;  // Minimum delay for os
 constexpr int OSC_MAX_STEPS_PER_CATCH_UP = 2;  // Max steps per loop iteration (anti-jerk)
 
 // Sine wave lookup table (optional performance optimization)
-#define USE_SINE_LOOKUP_TABLE true  // Enable pre-calculated sine table (saves ~13Âµs per call)
+#define USE_SINE_LOOKUP_TABLE true  // Enable pre-calculated sine table (saves ~13us per call)
 constexpr int SINE_TABLE_SIZE = 1024;  // 1024 points = 0.1% precision, 4KB RAM
 
 // Smooth transitions
@@ -144,7 +142,7 @@ constexpr unsigned long OSC_TRANSITION_LOG_INTERVAL_MS = 200;  // Transition log
 // ============================================================================
 // CONFIGURATION - Chaos Mode
 // ============================================================================
-// Why 50000Âµs? Chaos mode: max step delay = 50ms = 20 steps/sec (minimum sane speed)
+// Why 50000us? Chaos mode: max step delay = 50ms = 20 steps/sec (minimum sane speed)
 constexpr unsigned long CHAOS_MAX_STEP_DELAY_MICROS = 50000;
 
 // Why 500ms? Sequence status: update frequency during wait (balance responsiveness vs traffic)

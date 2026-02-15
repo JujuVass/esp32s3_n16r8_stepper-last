@@ -162,7 +162,7 @@ void CalibrationManager::releaseContact(uint8_t contactPin, bool moveForward) {
     }
     
     // Settling time for opto sensor stabilization
-    delay(50);
+    delay(10);
 }
 
 float CalibrationManager::validateAccuracy() {

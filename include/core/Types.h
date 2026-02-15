@@ -73,11 +73,11 @@ enum MovementType {
 // ============================================================================
 
 struct CyclePauseConfig {
-  bool enabled;              // Pause activée/désactivée
-  float pauseDurationSec;    // Durée fixe en secondes (si !isRandom)
-  bool isRandom;             // Mode aléatoire activé
-  float minPauseSec;         // Borne minimum si aléatoire
-  float maxPauseSec;         // Borne maximum si aléatoire
+  bool enabled;              // Pause enabled/disabled
+  float pauseDurationSec;    // Fixed duration in seconds (if !isRandom)
+  bool isRandom;             // Random mode enabled
+  float minPauseSec;         // Minimum bound if random
+  float maxPauseSec;         // Maximum bound if random
   
   CyclePauseConfig() :
     enabled(false),
@@ -99,9 +99,9 @@ struct CyclePauseConfig {
 };
 
 struct CyclePauseState {
-  bool isPausing;            // En cours de pause actuellement
-  unsigned long pauseStartMs; // Timestamp début de pause
-  unsigned long currentPauseDuration; // Durée pause actuelle (ms)
+  bool isPausing;            // Currently pausing
+  unsigned long pauseStartMs; // Pause start timestamp
+  unsigned long currentPauseDuration; // Current pause duration (ms)
   
   CyclePauseState() :
     isPausing(false),
@@ -166,7 +166,7 @@ struct MotionConfig {
   float targetDistanceMM;
   float speedLevelForward;
   float speedLevelBackward;
-  CyclePauseConfig cyclePause;  // Pause entre cycles
+  CyclePauseConfig cyclePause;  // Inter-cycle pause
   
   MotionConfig() : 
     startPositionMM(0.0),
@@ -325,7 +325,7 @@ struct OscillationConfig {
   int cycleCount;              // Number of cycles (0 = infinite)
   bool returnToCenter;         // Return to center after completion
   
-  CyclePauseConfig cyclePause; // Pause entre cycles
+  CyclePauseConfig cyclePause; // Inter-cycle pause
   
   OscillationConfig() :
     centerPositionMM(0),

@@ -787,8 +787,8 @@ function initZoneEffectListeners() {
  * @returns {Function} sendConfig function for external use
  */
 function createCyclePauseHandlers(cfg) {
-  const s = cfg.suffix;  // '' pour Simple, 'Osc' pour Oscillation
-  const dataS = cfg.dataAttrSuffix;  // '' pour Simple, '-osc' pour Oscillation
+  const s = cfg.suffix;  // '' for Simple, 'Osc' for Oscillation
+  const dataS = cfg.dataAttrSuffix;  // '' for Simple, '-osc' for Oscillation
   
   // Send config function
   const sendConfig = () => {

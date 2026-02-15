@@ -168,12 +168,6 @@ extern WebSocketsServer webSocket;
 // ============================================================================
 // CALLBACK FUNCTIONS (defined in main, called by modules)
 // ============================================================================
-// NOTE: sendError() moved to StatusBroadcaster - use Status.sendError()
-// NOTE: saveCurrentSessionStats() moved to UtilityEngine - use engine->saveCurrentSessionStats()
-// NOTE: resetTotalDistance() moved to UtilityEngine - use engine->resetTotalDistance()
-// NOTE: togglePause() removed - use BaseMovement.togglePause() directly
-// NOTE: returnToStart() removed - use BaseMovement.returnToStart() directly
-// NOTE: updateEffectiveMaxDistance() moved to UtilityEngine - use engine->updateEffectiveMaxDistance()
 
 extern void sendStatus();
 extern void stopMovement();

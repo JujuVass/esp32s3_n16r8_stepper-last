@@ -121,7 +121,7 @@ function getDecelSummary(line, movementType) {
   // Build summary parts
   const parts = [];
   
-  // Position indicators (Début/Fin/Miroir)
+  // Position indicators (Start/End/Physical position)
   const posIndicator = [];
   if (ze.enableStart) posIndicator.push('D');
   if (ze.enableEnd) posIndicator.push('F');
