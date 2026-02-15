@@ -515,6 +515,25 @@ bool CommandDispatcher::handlePursuitCommands(const char* cmd, JsonDocument& doc
         return true;
     }
     
+    if (strcmp(cmd, "disablePursuitMode") == 0) {
+        Pursuit.stop();
+        if (currentMovement == MOVEMENT_PURSUIT) {
+            currentMovement = MOVEMENT_VAET;
+        }
+        
+        // Protected state change (Core 0 → Core 1 safety)
+        {
+            MutexGuard guard(stateMutex);
+            if (guard && config.currentState == STATE_RUNNING) {
+                config.currentState = STATE_READY;
+            }
+        }
+        
+        engine->debug("✅ Pursuit mode disabled");
+        sendStatus();
+        return true;
+    }
+    
     if (strcmp(cmd, "pursuitMove") == 0) {
         if (currentMovement != MOVEMENT_PURSUIT) {
             engine->warn("pursuitMove ignored: not in PURSUIT mode");
