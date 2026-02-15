@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,7 @@
   <!-- Scripts are loaded sequentially at end of body for reliability -->
 
   <link rel="stylesheet" href="/css/styles.css">
-  <script src="/js/lib/chart.umd.min.js"></script>
+  <script defer src="/js/lib/chart.umd.min.js"></script>
 </head>
 <body>
   <!-- Calibration Overlay -->
@@ -1364,48 +1364,48 @@
           <div style="padding: 10px; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
             <label style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 8px;">✅ <span data-i18n="chaos.activePatterns">Patterns actifs:</span></label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;">
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternWave" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternWave" checked class="chaos-pattern-checkbox">
                 <span>🌊 WAVE</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternPendulum" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternPendulum" checked class="chaos-pattern-checkbox">
                 <span>🎯 PENDULUM</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternSpiral" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternSpiral" checked class="chaos-pattern-checkbox">
                 <span>🌀 SPIRAL</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternZigzag" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternZigzag" checked class="chaos-pattern-checkbox">
                 <span>⚡ ZIGZAG</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternSweep" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternSweep" checked class="chaos-pattern-checkbox">
                 <span>↔️ SWEEP</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternPulse" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternPulse" checked class="chaos-pattern-checkbox">
                 <span>💫 PULSE</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternDrift" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternDrift" checked class="chaos-pattern-checkbox">
                 <span>🌫️ DRIFT</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternBurst" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternBurst" checked class="chaos-pattern-checkbox">
                 <span>🔥 BURST</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternCalm" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternCalm" checked class="chaos-pattern-checkbox">
                 <span>😌 BREATHING</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternBruteForce" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternBruteForce" checked class="chaos-pattern-checkbox">
                 <span>🔨 BRUTE FORCE</span>
               </label>
-              <label style="display: flex; align-items: center; background: white; padding: 5px; border-radius: 3px; cursor: pointer; font-size: 11px;">
-                <input type="checkbox" id="patternLiberator" checked style="margin-right: 5px; transform: scale(1.1);">
+              <label class="chaos-pattern-label">
+                <input type="checkbox" id="patternLiberator" checked class="chaos-pattern-checkbox">
                 <span>🔓 LIBERATOR</span>
               </label>
             </div>
@@ -1491,25 +1491,25 @@
         </div>
 
         <!-- Sequence Table Container -->
-        <div style="overflow-x: auto; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 8px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <table id="sequenceTable" style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <div class="seq-table-container">
+          <table id="sequenceTable" class="seq-table">
             <thead>
-              <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 30px;">✓</th>
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 30px;">#</th>
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 40px;">Type</th>
-                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);"><span data-i18n="sequencer.startCol">Début</span><br><small style="font-size: 9px;">(mm)</small></th>
-                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);"><span data-i18n="sequencer.distCol">Dist.</span><br><small style="font-size: 9px;">(mm)</small></th>
-                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);"><span data-i18n="sequencer.speedCol">Vitesses</span><br><small style="font-size: 9px;" data-i18n="sequencer.speedSubCol">A/R</small></th>
-                <th style="padding: 8px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2);"><span data-i18n="sequencer.decelCol">Décel.</span></th>
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 45px;">Cycles</th>
-                <th style="padding: 8px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.2); width: 50px;">⏱️<br><small style="font-size: 9px;">(s)</small></th>
-                <th style="padding: 8px 4px; text-align: center;">Actions</th>
+              <tr class="seq-thead-row">
+                <th class="seq-th" style="width: 30px;">✓</th>
+                <th class="seq-th" style="width: 30px;">#</th>
+                <th class="seq-th" style="width: 40px;">Type</th>
+                <th class="seq-th-wide"><span data-i18n="sequencer.startCol">Début</span><br><small>(mm)</small></th>
+                <th class="seq-th-wide"><span data-i18n="sequencer.distCol">Dist.</span><br><small>(mm)</small></th>
+                <th class="seq-th-wide"><span data-i18n="sequencer.speedCol">Vitesses</span><br><small data-i18n="sequencer.speedSubCol">A/R</small></th>
+                <th class="seq-th-wide"><span data-i18n="sequencer.decelCol">Décel.</span></th>
+                <th class="seq-th" style="width: 45px;">Cycles</th>
+                <th class="seq-th" style="width: 50px;">⏱️<br><small>(s)</small></th>
+                <th class="seq-th">Actions</th>
               </tr>
             </thead>
             <tbody id="sequenceTableBody">
               <tr>
-                <td colspan="10" style="padding: 40px; text-align: center; color: #999;">
+                <td colspan="10" class="seq-empty-row">
                   <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
                   <div style="font-size: 16px;">Aucune ligne - Cliquez sur "➕ Ajouter ligne" pour commencer</div>
                 </td>
@@ -1559,17 +1559,17 @@
     <!-- END MODE Séquenceur -->
 
     <!-- Modal for Line Editing -->
-    <div id="editLineModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; overflow-y: auto;" onclick="closeEditLineModalOnOverlayClick(event)">
-      <div style="max-width: 600px; margin: 50px auto; background: white; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;" onclick="event.stopPropagation()">
+    <div id="editLineModal" class="modal-overlay" onclick="closeEditLineModalOnOverlayClick(event)">
+      <div class="modal-container" onclick="event.stopPropagation()">
         
         <!-- Modal Header -->
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; font-size: 20px;">✏️ <span data-i18n="sequencer.editLineTitle">Éditer la ligne #</span><span id="editLineNumber">--</span></h3>
-          <button id="btnCloseModal" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; line-height: 1;">×</button>
+        <div class="modal-header">
+          <h3>✏️ <span data-i18n="sequencer.editLineTitle">Éditer la ligne #</span><span id="editLineNumber">--</span></h3>
+          <button id="btnCloseModal" class="modal-close-btn">×</button>
         </div>
 
         <!-- Modal Body -->
-        <div style="padding: 25px;">
+        <div class="modal-body">
           <form id="editLineForm" novalidate>
             
             <!-- Movement Type Selection -->

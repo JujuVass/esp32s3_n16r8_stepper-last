@@ -1383,3 +1383,104 @@ select.select-input:focus {
 .d-block {
   display: block;
 }
+
+/* === Sequence Table Header (F3) === */
+.seq-table-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.seq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.seq-thead-row {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+.seq-th {
+  padding: 8px 4px;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+.seq-th-wide {
+  padding: 8px 6px;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+.seq-th:last-child,
+.seq-th-wide:last-child {
+  border-right: none;
+}
+.seq-th small,
+.seq-th-wide small {
+  font-size: 9px;
+}
+.seq-empty-row {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}
+
+/* === Edit Line Modal (F4) === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 9999;
+  overflow-y: auto;
+}
+.modal-container {
+  max-width: 600px;
+  margin: 50px auto;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+.modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+.modal-close-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  line-height: 1;
+}
+.modal-body {
+  padding: 25px;
+}
+
+/* === Chaos Pattern Labels (F5) === */
+.chaos-pattern-label {
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.chaos-pattern-checkbox {
+  margin-right: 5px;
+  transform: scale(1.1);
+}
