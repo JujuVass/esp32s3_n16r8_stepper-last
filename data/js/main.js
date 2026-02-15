@@ -563,10 +563,3 @@
     initCyclePauseHandlers();
     
     connectWebSocket();
-    
-    // Initialize dependency injection context
-    if (typeof initContext === 'function') {
-      initContext();
-    }
-    
-    loadPlaylists();  // Load playlist presets from backend

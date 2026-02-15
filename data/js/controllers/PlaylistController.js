@@ -55,9 +55,9 @@ function loadPlaylists(callback) {
  * Update playlist button counters in the UI
  */
 function updatePlaylistButtonCounters() {
-  const btnSimple = document.getElementById('btnManagePlaylistSimple');
-  const btnOsc = document.getElementById('btnManagePlaylistOscillation');
-  const btnChaos = document.getElementById('btnManagePlaylistChaos');
+  const btnSimple = DOM.btnManagePlaylistSimple;
+  const btnOsc = DOM.btnManagePlaylistOscillation;
+  const btnChaos = DOM.btnManagePlaylistChaos;
   
   if (btnSimple) {
     btnSimple.innerHTML = '📋 ' + t('simple.playlist') + ' (' + PlaylistState.simple.length + '/20)';
