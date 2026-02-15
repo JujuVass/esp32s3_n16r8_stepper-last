@@ -41,7 +41,8 @@
     "fixed": "Fixed",
     "random": "Random",
     "normal": "Normal",
-    "inverted": "Inverted"
+    "inverted": "Inverted",
+    "preset": "Preset"
   },
   "overlay": {
     "calibrationTitle": "Calibration in progress...",
@@ -168,7 +169,9 @@
     "accel": "Accel",
     "zoneAdjusted": "Zone adjusted: {{requested}}mm → {{received}}mm (movement limit)",
     "pauseMinMax": "Pause Min ({{min}}s) must be ≤ Max ({{max}}s)",
-    "playlist": "Playlist"
+    "playlist": "Playlist",
+    "turnback": "Turnback",
+    "physicalPos": "📌Phys.Pos."
   },
   "pursuit": {
     "gaugeTitle": "Position Gauge",

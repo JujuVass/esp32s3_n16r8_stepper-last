@@ -419,9 +419,9 @@ function updateZoneEffectHeaderText() {
   const effects = [];
   if (speedEffect === 1) effects.push(t('simple.decel'));
   if (speedEffect === 2) effects.push(t('simple.accel'));
-  if (randomTurnback) effects.push('Retour');
-  if (endPause) effects.push('Pause');
-  if (mirrorOnReturn) effects.push('📌Pos.Phys.');
+  if (randomTurnback) effects.push(t('simple.turnback'));
+  if (endPause) effects.push(t('common.pause'));
+  if (mirrorOnReturn) effects.push(t('simple.physicalPos'));
   
   if (effects.length === 0) {
     headerText.textContent = t('simple.zoneEffectsNoEffect');

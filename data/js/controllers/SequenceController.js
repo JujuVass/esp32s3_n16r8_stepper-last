@@ -245,7 +245,7 @@ function testSequenceLine(lineId) {
     
     sendCommand(WS_CMD.START_SEQUENCE, {});
     const testedLine = sequenceLines.find(l => l.lineId === lineId);
-    const cycleText = testedLine ? testedLine.cycleCount + ' cycle(s)' : '';
+    const cycleText = testedLine ? testedLine.cycleCount + ' ' + t('common.cycles') : '';
     showNotification('🧪 ' + t('sequencer.testingLine', {id: lineId, cycles: cycleText}), 'info', 3000);
   }, 500);
 }

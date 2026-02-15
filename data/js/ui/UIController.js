@@ -488,8 +488,8 @@ function closeAlertModal() {
  * @param {Object} options - Optional configuration
  * @param {string} options.title - Modal title (default: 'Confirmation')
  * @param {string} options.type - 'info', 'warning', 'danger' (default: 'warning')
- * @param {string} options.confirmText - Confirm button text (default: 'Confirmer')
- * @param {string} options.cancelText - Cancel button text (default: 'Annuler')
+ * @param {string} options.confirmText - Confirm button text (default: t('common.confirm'))
+ * @param {string} options.cancelText - Cancel button text (default: t('common.cancel'))
  * @param {boolean} options.dangerous - If true, confirm button is red (default: false)
  * @returns {Promise<boolean>} Resolves to true if confirmed, false if cancelled
  */

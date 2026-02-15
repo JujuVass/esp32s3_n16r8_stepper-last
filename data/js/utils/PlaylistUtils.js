@@ -48,7 +48,7 @@ function generatePresetNamePure(mode, config) {
   } else if (mode === 'chaos') {
     return `Chaos ${config.durationSeconds}s (${config.crazinessPercent}%)`;
   }
-  return 'Preset';
+  return t('common.preset');
 }
 
 // ============================================================================
@@ -103,7 +103,7 @@ function generatePresetTooltipPure(mode, config) {
     tooltip += `⏱️ ${t('utils.duration')}: ${config.durationSeconds === 0 ? '∞' : config.durationSeconds + 's'}`;
     return tooltip;
   }
-  return 'Preset';
+  return t('common.preset');
 }
 
 /**

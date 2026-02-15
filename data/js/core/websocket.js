@@ -256,7 +256,8 @@ function handleLogMessage(logData) {
   };
   const color = colors[level] || '#d4d4d4';
   
-  const timestamp = new Date().toLocaleTimeString('fr-FR', { 
+  const locale = (typeof I18n !== 'undefined' && I18n.getLang() === 'en') ? 'en-US' : 'fr-FR';
+  const timestamp = new Date().toLocaleTimeString(locale, { 
     hour: '2-digit', 
     minute: '2-digit', 
     second: '2-digit' 
