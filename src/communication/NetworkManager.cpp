@@ -187,6 +187,8 @@ bool NetworkManager::startSTAMode() {
     }
     
     // Connect to WiFi
+    // Set hostname BEFORE WiFi.begin() — registers with DHCP & helps mDNS reliability
+    WiFi.setHostname(otaHostname);
     WiFi.begin(targetSSID.c_str(), targetPassword.c_str());
     engine->info("📶 Connecting to WiFi: " + targetSSID + " [" + credentialSource + "]");
     
@@ -376,7 +378,7 @@ void NetworkManager::checkConnectionHealth() {
     // Only in STA+AP mode (AP_DIRECT and AP_SETUP don't need health checks)
     if (_mode != NET_STA_AP) return;
     
-    // Rate limit to once per 5 seconds
+    // Rate limit health checks to once per 5 seconds
     unsigned long now = millis();
     if (now - _lastHealthCheck < 5000) return;
     _lastHealthCheck = now;
@@ -431,17 +433,8 @@ void NetworkManager::checkConnectionHealth() {
     }
     
     // ═══════════════════════════════════════════════════════════════════════
-    // CASE 3: Periodic mDNS refresh (every 2 minutes)
+    // CASE 3: Connection stable — nothing to do (mDNS.update() is above)
     // ═══════════════════════════════════════════════════════════════════════
-    if (currentlyConnected && (now - _lastMdnsRefresh >= MDNS_REFRESH_INTERVAL_MS)) {
-        if (!engine->hasConnectedClients()) {
-            engine->debug("🔄 Periodic mDNS refresh (no WS clients)...");
-            MDNS.end();
-            delay(50);
-            setupMDNS();
-        }
-        _lastMdnsRefresh = now;
-    }
     
     _wasConnected = currentlyConnected;
 }

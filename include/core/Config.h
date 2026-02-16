@@ -210,7 +210,6 @@ constexpr unsigned long BROADCAST_SLOW_THRESHOLD_US = 200000;  // 200ms
 constexpr uint32_t CONTACT_DEBOUNCE_MS = 50;            // Physical contact debounce time
 constexpr uint32_t OTA_CHECK_INTERVAL_MS = 1000;        // OTA update check frequency
 constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 5000;   // WiFi reconnection delay
-constexpr uint32_t MDNS_REFRESH_INTERVAL_MS = 120000;   // mDNS refresh every 2 minutes
 constexpr uint32_t STATS_SAVE_INTERVAL_MS = 60000;      // Auto-save stats to filesystem
 constexpr uint32_t WEBSOCKET_RECONNECT_MS = 2000;       // Client-side WS reconnect delay
 
