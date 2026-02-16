@@ -55,7 +55,7 @@
   },
   "status": {
     "stateLabel": "État:",
-    "init": "Initialisation...",
+    "init": "À calibrer",
     "calibrating": "Calibration...",
     "ready": "Prêt",
     "running": "En marche",
@@ -69,8 +69,8 @@
     "speed": "Vitesse:",
     "distanceLabel": "Distance:",
     "resetDistance": "Réinitialiser distance",
-    "limitCourse": "Limiter course",
-    "courseLimitation": "Limitation de course",
+    "limitCourse": "Modifier course",
+    "courseLimitation": "Limitation de course & inversion",
     "courseLimitInfo": "Limite la zone utilisable sans recalibrer",
     "limit": "Limite:",
     "modifyReadyOnly": "Modification en état PRÊT uniquement",
@@ -88,7 +88,7 @@
     "sequenceMode": "- (mode séquence)",
     "speedLimited": "limité"
   },
-  "states": ["Initialisation", "Calibration...", "Prêt", "En marche", "En pause", "Erreur"],
+  "states": ["À calibrer", "Calibration...", "Prêt", "En marche", "En pause", "Erreur"],
   "tabs": {
     "simple": "Simple",
     "pursuit": "Poursuite",

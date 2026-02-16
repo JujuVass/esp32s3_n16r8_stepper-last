@@ -306,7 +306,7 @@
         }
       }
       
-      const stateText = t('states') || ['Init', 'Calibrating', 'Ready', 'Running', 'Paused', 'Error'];
+      const stateText = t('states') || ['Needs calibration', 'Calibrating', 'Ready', 'Running', 'Paused', 'Error'];
       const stateClass = ['state-init', 'state-calibrating', 'state-ready', 'state-running', 'state-paused', 'state-error'];
       
       let displayText = stateText[data.state] || t('common.error');

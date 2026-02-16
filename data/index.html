@@ -288,7 +288,7 @@
       <!-- Header Row: État + Actions -->
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.06)); border-bottom:1px solid rgba(102,126,234,0.1);">
         <span style="font-weight:700; font-size:15px; color:#5a67d8;">
-          <span data-i18n="status.stateLabel">État:</span> <span id="state" style="color:#2d3748;" data-i18n="status.init">Initialisation...</span>
+          <span data-i18n="status.stateLabel">État:</span> <span id="state" style="color:#2d3748;" data-i18n="status.init">À calibrer</span>
         </span>
         <div class="flex-gap-6">
           <button class="btn-compact" id="btnLangToggle" onclick="I18n.toggleLanguage()" title="Switch to English" style="background: transparent; border: 1.5px solid rgba(102,126,234,0.2); font-size: 18px; padding: 4px 8px; cursor: pointer; border-radius: 6px;">🇫🇷</button>
@@ -320,10 +320,6 @@
           <span id="maxDistLimitValue" style="font-weight:700; font-size:12px; min-width:40px; color:#2d3748;">100%</span>
           <span id="maxDistLimitMM" style="color:#718096; font-size:11px; min-width:70px;">(-- mm)</span>
         </div>
-        <div class="flex-gap-6">
-          <button id="btnApplyMaxDistLimit" class="btn-compact btn-success" disabled>✅ OK</button>
-          <button id="btnCancelMaxDistLimit" class="btn-compact btn-secondary">✕ <span data-i18n="common.cancel">Annuler</span></button>
-        </div>
         <div style="font-size:10px; color:#f56565; margin-top:6px; display:none;" id="maxDistLimitWarning" data-i18n="status.modifyReadyOnly">
           ⚠️ Modification en état PRÊT uniquement
         </div>
@@ -332,8 +328,12 @@
           <label style="font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer; color:#4a5568;">
             <input type="checkbox" id="chkSensorsInverted" style="width:16px; height:16px; accent-color:#667eea;">
             <span>🔄 <span data-i18n="status.invertStartEnd">Inverser START ↔ END</span></span>
+            <span id="sensorsInvertedStatus" style="font-size:10px; color:#718096;">(Normal)</span>
           </label>
-          <span id="sensorsInvertedStatus" style="font-size:10px; color:#718096;">(Normal)</span>
+        </div>
+        <div class="flex-gap-6">
+          <button id="btnApplyMaxDistLimit" class="btn-compact btn-success" disabled>✅ OK</button>
+          <button id="btnCancelMaxDistLimit" class="btn-compact btn-secondary">✕ <span data-i18n="common.cancel">Annuler</span></button>
         </div>
       </div>
       

@@ -55,7 +55,7 @@
   },
   "status": {
     "stateLabel": "State:",
-    "init": "Initializing...",
+    "init": "Needs calibration",
     "calibrating": "Calibrating...",
     "ready": "Ready",
     "running": "Running",
@@ -69,8 +69,8 @@
     "speed": "Speed:",
     "distanceLabel": "Distance:",
     "resetDistance": "Reset distance",
-    "limitCourse": "Limit travel",
-    "courseLimitation": "Travel limitation",
+    "limitCourse": "Edit travel",
+    "courseLimitation": "Travel limitation & inversion",
     "courseLimitInfo": "Limits the usable range without recalibrating",
     "limit": "Limit:",
     "modifyReadyOnly": "Modification in READY state only",
@@ -88,7 +88,7 @@
     "sequenceMode": "- (sequence mode)",
     "speedLimited": "limited"
   },
-  "states": ["Initializing", "Calibrating...", "Ready", "Running", "Paused", "Error"],
+  "states": ["Needs calibration", "Calibrating...", "Ready", "Running", "Paused", "Error"],
   "tabs": {
     "simple": "Simple",
     "pursuit": "Pursuit",
