@@ -316,6 +316,7 @@ select.select-input:focus {
   background: rgba(102, 126, 234, 0.06);
   padding: 6px;
   border-radius: 12px;
+  flex-wrap: wrap;
 }
 
 .tabs.hidden-until-calibrated {
@@ -1068,13 +1069,15 @@ select.select-input:focus {
 
 /* Form Layouts */
 .form-row-compact {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 15px;
   margin-bottom: 12px;
 }
 
 .form-group-compact {
+  flex: 1 1 200px;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1343,7 +1346,8 @@ select.select-input:focus {
   height: 100px;
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;
-  margin-top: 10px;
+  margin: 10px auto 0;
+  display: block;
 }
 
 /* ============================================================================
@@ -1372,6 +1376,7 @@ select.select-input:focus {
 .flex-gap-6 {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .flex-gap-10 { display: flex; gap: 10px; }
@@ -1662,4 +1667,193 @@ select.select-input:focus {
   margin-right: 5px;
   transform: scale(1.1);
   accent-color: #667eea;
+}
+
+/* ============================================================================
+ * RESPONSIVE — Mobile & Tablet
+ * ============================================================================ */
+
+/* --- Tablet & small desktop (≤768px) --- */
+@media (max-width: 768px) {
+  body {
+    padding: 8px;
+  }
+
+  .container {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .overlay-content {
+    padding: 24px 30px;
+    margin: 0 16px;
+  }
+
+  .modal-container {
+    margin: 20px 12px;
+  }
+}
+
+/* --- Mobile (≤600px) --- */
+@media (max-width: 600px) {
+  body {
+    padding: 4px;
+  }
+
+  .container {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  /* Tabs: smaller padding, allow natural wrap */
+  .tab {
+    padding: 8px 12px;
+    font-size: 13px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* Header bar: stack state + buttons vertically */
+  .status-compact > div:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Buttons bar wraps */
+  .flex-gap-6 {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* Form rows: stack vertically on mobile */
+  .form-row-compact {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-group-compact {
+    flex: 1 1 100%;
+  }
+
+  /* Speed controls can wrap on mobile */
+  .speed-control-inline {
+    flex-wrap: wrap;
+  }
+
+  /* Inputs slightly larger touch targets */
+  input[type="number"],
+  select.select-input {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  /* Compact buttons: slightly more padding */
+  .btn-compact {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  /* Overlay */
+  .overlay-content {
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .overlay-icon {
+    font-size: 40px;
+  }
+
+  .overlay-title {
+    font-size: 18px;
+  }
+
+  /* Modal */
+  .modal-container {
+    margin: 10px 8px;
+  }
+
+  .modal-body {
+    padding: 15px;
+  }
+
+  .modal-header {
+    padding: 14px 18px;
+  }
+
+  .modal-header h3 {
+    font-size: 17px;
+  }
+
+  /* Sequence table: allow horizontal scroll */
+  .seq-table {
+    font-size: 10px;
+  }
+
+  .seq-th,
+  .seq-th-wide {
+    padding: 6px 2px;
+  }
+
+  /* Section titles */
+  .header-compact h2 {
+    font-size: 16px;
+  }
+
+  /* Canvas: full width */
+  .canvas-compact {
+    max-width: 100%;
+  }
+
+  /* Pursuit: stack gauge above settings on mobile */
+  .pursuit-layout {
+    flex-direction: column;
+    align-items: center !important;
+    gap: 15px !important;
+  }
+
+  .pursuit-layout > div {
+    flex: 1 1 100% !important;
+    width: 100%;
+  }
+}
+
+/* --- Small mobile (≤400px) --- */
+@media (max-width: 400px) {
+  body {
+    padding: 2px;
+  }
+
+  .container {
+    padding: 8px;
+    border-radius: 8px;
+  }
+
+  .tab {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .form-group-compact > div > input[type="number"] {
+    width: 100px;
+    min-width: 100px;
+  }
+
+  .btn-compact {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .label-inline {
+    min-width: 70px;
+    font-size: 12px;
+  }
+
+  .seq-table {
+    font-size: 9px;
+  }
+
+  .btn-action {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
 }

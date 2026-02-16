@@ -55,7 +55,7 @@
   },
   "status": {
     "stateLabel": "État:",
-    "init": "À calibrer",
+    "init": "Initialisation...",
     "calibrating": "Calibration...",
     "ready": "Prêt",
     "running": "En marche",
@@ -92,7 +92,7 @@
   "tabs": {
     "simple": "Simple",
     "pursuit": "Poursuite",
-    "oscillation": "Oscillation",
+    "oscillation": "Oscilla.",
     "chaos": "Chaos",
     "sequencer": "Séquenc."
   },
