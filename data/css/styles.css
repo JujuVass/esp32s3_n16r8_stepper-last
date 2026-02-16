@@ -1692,6 +1692,18 @@ select.select-input:focus {
   .modal-container {
     margin: 20px 12px;
   }
+
+  /* Modal content: respect margins on narrower screens */
+  .modal-content {
+    max-width: calc(100vw - 32px) !important;
+    margin: 0 16px;
+  }
+
+  /* Notifications: narrower on tablet */
+  .notification {
+    max-width: 320px;
+    min-width: 240px;
+  }
 }
 
 /* --- Mobile (≤600px) --- */
@@ -1705,7 +1717,7 @@ select.select-input:focus {
     border-radius: 10px;
   }
 
-  /* Tabs: smaller padding, allow natural wrap */
+  /* === Tabs === */
   .tab {
     padding: 8px 12px;
     font-size: 13px;
@@ -1713,19 +1725,18 @@ select.select-input:focus {
     min-width: 0;
   }
 
-  /* Header bar: stack state + buttons vertically */
+  /* === Header bar: wrap state + buttons === */
   .status-compact > div:first-child {
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  /* Buttons bar wraps */
   .flex-gap-6 {
     flex-wrap: wrap;
     justify-content: flex-end;
   }
 
-  /* Form rows: stack vertically on mobile */
+  /* === Forms: stack vertically === */
   .form-row-compact {
     flex-direction: column;
     gap: 10px;
@@ -1735,56 +1746,161 @@ select.select-input:focus {
     flex: 1 1 100%;
   }
 
-  /* Speed controls can wrap on mobile */
   .speed-control-inline {
     flex-wrap: wrap;
   }
 
-  /* Inputs slightly larger touch targets */
+  /* Larger touch targets */
   input[type="number"],
   select.select-input {
     padding: 8px;
     font-size: 14px;
   }
 
-  /* Compact buttons: slightly more padding */
   .btn-compact {
     padding: 5px 10px;
     font-size: 12px;
   }
 
-  /* Overlay */
+  /* === Buttons: full-width on mobile === */
+  .button {
+    padding: 10px 20px;
+    font-size: 14px;
+    margin: 3px 0;
+  }
+
+  .button-group {
+    margin: 12px 0;
+  }
+
+  /* Modal buttons stack vertically on mobile */
+  .modal-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-buttons .button {
+    width: 100%;
+    margin: 0;
+  }
+
+  /* === Overlays === */
   .overlay-content {
     padding: 20px;
     border-radius: 14px;
+    margin: 0 12px;
+    max-width: calc(100vw - 24px);
   }
 
   .overlay-icon {
     font-size: 40px;
+    margin-bottom: 12px;
   }
 
   .overlay-title {
     font-size: 18px;
   }
 
-  /* Modal */
-  .modal-container {
-    margin: 10px 8px;
+  .overlay-message {
+    font-size: 13px;
   }
 
-  .modal-body {
-    padding: 15px;
+  /* === Confirm/Alert/Prompt Modals === */
+  .modal-content {
+    max-width: calc(100vw - 24px) !important;
+    margin: 0 12px;
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  .modal-message {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  /* === Edit Line Modal (sequencer) === */
+  .modal-overlay {
+    padding: 0;
+  }
+
+  .modal-container {
+    margin: 8px;
+    border-radius: 12px;
+    max-height: calc(100vh - 16px);
   }
 
   .modal-header {
-    padding: 14px 18px;
+    padding: 12px 16px;
   }
 
   .modal-header h3 {
-    font-size: 17px;
+    font-size: 16px;
   }
 
-  /* Sequence table: allow horizontal scroll */
+  .modal-close-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+  }
+
+  .modal-body {
+    padding: 14px;
+  }
+
+  /* Edit modal type selection: wrap radio buttons */
+  #editLineModal .type-selection-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  #editLineModal .type-selection-buttons {
+    width: 100%;
+  }
+
+  #editLineModal .type-selection-buttons label {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .radio-label-inline {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Modal grids: single column on mobile */
+  .grid-2col-12 {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Chaos patterns: 2 columns instead of 4 */
+  .grid-4col-patterns {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 8px;
+  }
+
+  /* === Playlist Modal === */
+  #playlistModal .modal-content {
+    max-height: 90vh !important;
+    border-radius: 14px;
+  }
+
+  /* Tooltip: full width on mobile */
+  #playlistTooltipOverlay {
+    max-width: calc(100vw - 40px);
+    font-size: 11px;
+    padding: 12px 16px;
+  }
+
+  /* === Sequence Table === */
   .seq-table {
     font-size: 10px;
   }
@@ -1794,17 +1910,49 @@ select.select-input:focus {
     padding: 6px 2px;
   }
 
-  /* Section titles */
+  .seq-table-container {
+    border-radius: 8px;
+  }
+
+  /* === Sections === */
   .header-compact h2 {
     font-size: 16px;
   }
 
-  /* Canvas: full width */
+  .section-collapsible {
+    border-radius: 8px;
+  }
+
+  .section-collapsible-header {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .section-collapsible-content {
+    padding: 10px;
+  }
+
+  /* === Canvas === */
   .canvas-compact {
     max-width: 100%;
   }
 
-  /* Pursuit: stack gauge above settings on mobile */
+  /* === Welcome Message === */
+  .welcome-message {
+    padding: 24px 18px;
+    margin: 12px 0;
+    border-radius: 12px;
+  }
+
+  .welcome-message h2 {
+    font-size: 22px;
+  }
+
+  .welcome-message p {
+    font-size: 14px;
+  }
+
+  /* === Pursuit: stack gauge above settings === */
   .pursuit-layout {
     flex-direction: column;
     align-items: center !important;
@@ -1814,6 +1962,31 @@ select.select-input:focus {
   .pursuit-layout > div {
     flex: 1 1 100% !important;
     width: 100%;
+  }
+
+  /* === Notifications: full-width on mobile === */
+  #notification-container {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+  }
+
+  .notification {
+    max-width: 100%;
+    min-width: 0;
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 10px;
+  }
+
+  /* === Preset items: more compact === */
+  .preset-item-box {
+    padding: 6px 10px;
+  }
+
+  .btn-action {
+    padding: 4px 6px;
+    font-size: 11px;
   }
 }
 
@@ -1843,9 +2016,38 @@ select.select-input:focus {
     font-size: 11px;
   }
 
+  .button {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
   .label-inline {
     min-width: 70px;
     font-size: 12px;
+  }
+
+  /* Modals: edge-to-edge */
+  .modal-content {
+    margin: 0 4px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .modal-container {
+    margin: 4px;
+  }
+
+  .modal-body {
+    padding: 10px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  /* Chaos patterns: single column on tiny screens */
+  .grid-4col-patterns {
+    grid-template-columns: 1fr;
   }
 
   .seq-table {
@@ -1853,7 +2055,24 @@ select.select-input:focus {
   }
 
   .btn-action {
-    padding: 4px 6px;
+    padding: 3px 5px;
     font-size: 10px;
+  }
+
+  .notification {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .welcome-message {
+    padding: 18px 14px;
+  }
+
+  .welcome-message h2 {
+    font-size: 19px;
+  }
+
+  .welcome-message p {
+    font-size: 13px;
   }
 }
