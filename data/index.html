@@ -1595,8 +1595,10 @@
     </div>
     <!-- END MODE Séquenceur -->
 
-    <!-- Modal for Line Editing -->
-    <div id="editLineModal" class="modal-overlay" onclick="closeEditLineModalOnOverlayClick(event)">
+  </div>
+
+  <!-- Modal for Line Editing (outside container for proper fullscreen overlay) -->
+  <div id="editLineModal" class="modal-overlay" onclick="closeEditLineModalOnOverlayClick(event)">
       <div class="modal-container" onclick="event.stopPropagation()">
         
         <!-- Modal Header -->
@@ -2055,8 +2057,6 @@
       </div>
     </div>
     <!-- END EDIT MODAL -->
-
-  </div>
 
   <!-- Script Loader: resolves ESP32 IP first (for WebSocket on port 81),
        then downloads 2 scripts at a time, executes in order, retries on failure.
