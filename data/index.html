@@ -407,43 +407,43 @@
     </div>
 
     <!-- Statistics Panel -->
-    <div id="statsPanel" style="display: none; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(102,126,234,0.08), 0 1px 2px rgba(0,0,0,0.04); margin-bottom: 15px; border: 1px solid rgba(102,126,234,0.08);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #48bb78; padding-bottom: 8px;">
-        <h3 style="margin: 0; color: #38a169; font-size: 18px; font-weight: 700;">
+    <div id="statsPanel" class="stats-panel" style="display: none;">
+      <div class="stats-header">
+        <h3>
           📊 <span data-i18n="stats.title">Statistiques</span>
         </h3>
-        <button id="btnCloseStats" style="background: linear-gradient(135deg,#fc8181,#f56565); color: white; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 14px;">✕</button>
+        <button id="btnCloseStats" class="stats-close-btn">✕</button>
       </div>
 
       <!-- Stats Table -->
-      <div style="margin-bottom: 20px; overflow-x: auto; max-height: 300px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 8px;">
-        <table id="statsTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
-          <thead style="position: sticky; top: 0; background: #f7fafc; z-index: 1;">
-            <tr style="border-bottom: 2px solid #48bb78;">
-              <th style="padding: 8px; text-align: left; font-weight: 600; color: #4a5568;" data-i18n="stats.dateCol">Date</th>
-              <th style="padding: 8px; text-align: center; font-weight: 600; color: #4a5568;" data-i18n="stats.dayCol">Jour</th>
-              <th style="padding: 8px; text-align: center; font-weight: 600; color: #4a5568;">🏆</th>
-              <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;" data-i18n="stats.distanceCol">Distance</th>
+      <div class="stats-table-wrap">
+        <table id="statsTable" class="stats-table">
+          <thead class="stats-thead">
+            <tr>
+              <th class="stats-th" style="text-align: left;" data-i18n="stats.dateCol">Date</th>
+              <th class="stats-th" data-i18n="stats.dayCol">Jour</th>
+              <th class="stats-th">🏆</th>
+              <th class="stats-th" style="text-align: right;" data-i18n="stats.distanceCol">Distance</th>
             </tr>
           </thead>
           <tbody id="statsTableBody">
             <tr>
-              <td colspan="4" style="padding: 20px; text-align: center; color: #a0aec0; font-style: italic;" data-i18n="stats.noStats">Aucune statistique disponible</td>
+              <td colspan="4" class="empty-state" data-i18n="stats.noStats">Aucune statistique disponible</td>
             </tr>
           </tbody>
         </table>
       </div>
       
       <!-- Stats Footer (outside scroll container) -->
-      <div style="background: rgba(72,187,120,0.08); border: 1.5px solid rgba(72,187,120,0.2); border-radius: 10px; padding: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; font-weight: 700;">
+      <div class="stats-total-bar">
         <span data-i18n="stats.total">TOTAL</span>
         <span>🏆</span>
         <span id="statsTotalMilestone" style="font-size: 18px;">🎯</span>
-        <span id="statsTotalDistance" style="color: #38a169; font-size: 15px;">0 km</span>
+        <span id="statsTotalDistance" class="stats-total-distance">0 km</span>
       </div>
 
       <!-- Stats Action Buttons -->
-      <div style="margin-bottom: 20px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center;">
+      <div class="stats-actions">
         <button id="btnExportStats" class="button" style="padding: 8px 20px; font-size: 13px; background: linear-gradient(135deg,#48bb78,#38a169); color: white;">
           📥 <span data-i18n="stats.exportBtn">Exporter</span>
         </button>
@@ -453,7 +453,7 @@
         <button id="btnClearStats" class="button btn-danger" style="padding: 8px 20px; font-size: 13px;">
           🗑️ <span data-i18n="stats.clearBtn">Effacer tout</span>
         </button>
-        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 12px; background: #f7fafc; border-radius: 8px; border: 1.5px solid #e2e8f0;" title="Désactiver pour ignorer les enregistrements des stats" data-i18n-title="stats.disableRecordingTooltip">
+        <label class="stats-recording-label" title="Désactiver pour ignorer les enregistrements des stats" data-i18n-title="stats.disableRecordingTooltip">
           <input type="checkbox" id="statsRecordingEnabled" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #667eea;">
           <span style="font-size: 12px; color: #718096;" data-i18n="stats.enableRecording">Activer sauvegarde</span>
         </label>
@@ -463,8 +463,8 @@
       <input type="file" id="statsFileInput" accept=".json" class="hidden">
 
       <!-- Histogram -->
-      <div style="background: #f7fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
-        <h4 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px; font-weight: 600;">📈 <span data-i18n="stats.historyTitle">Historique (3 mois glissants)</span></h4>
+      <div class="stats-chart-container">
+        <h4 class="stats-chart-title">📈 <span data-i18n="stats.historyTitle">Historique (3 mois glissants)</span></h4>
         <canvas id="statsChart" style="max-height: 250px;"></canvas>
       </div>
     </div>
@@ -755,7 +755,7 @@
           </div>
 
           <!-- ===== 1. Speed Effect ===== -->
-          <div style="background: #f8f9fa; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+          <div class="zone-effect-block">
             <div class="speed-control-inline mb-5">
               <label style="font-weight: bold; font-size: 13px; min-width: 90px;">🚀 <span data-i18n="simple.speedEffect">Vitesse:</span></label>
               <select id="speedEffectType" style="width: 130px; padding: 5px; font-size: 13px; border: 1px solid #ddd; border-radius: 4px;">
@@ -779,7 +779,7 @@
           </div>
 
           <!-- ===== 2. Random Turnback ===== -->
-          <div style="background: #f0f7ff; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+          <div class="zone-effect-block zone-effect-block-blue">
             <div class="speed-control-inline">
               <label style="font-size: 13px; margin-right: 10px;">
                 <input type="checkbox" id="randomTurnbackEnabled" style="margin-right: 5px;">
@@ -793,7 +793,7 @@
           </div>
 
           <!-- ===== 3. End Pause ===== -->
-          <div style="background: #fff8e6; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+          <div class="zone-effect-block zone-effect-block-amber">
             <div class="speed-control-inline mb-5">
               <label style="font-size: 13px; margin-right: 10px;">
                 <input type="checkbox" id="endPauseEnabled" style="margin-right: 5px;">
@@ -834,7 +834,7 @@
           </div>
           
           <!-- Canvas Preview -->
-          <canvas id="zoneEffectPreview" class="canvas-compact" width="300" height="100"></canvas>
+          <canvas id="zoneEffectPreview" class="canvas-zone-preview" width="320" height="110"></canvas>
         </div>
       </div>
 
@@ -925,35 +925,35 @@
           <!-- Left Side: Gauge -->
           <div style="flex: 0 0 200px;">
             <div style="text-align: center; margin-bottom: 10px;">
-              <strong style="color: #333;" data-i18n="pursuit.gaugeTitle">Jauge de Position</strong>
+              <strong class="gauge-title" data-i18n="pursuit.gaugeTitle">Jauge de Position</strong>
             </div>
             
             <!-- Gauge Container -->
-            <div id="gaugeContainer" style="position: relative; width: 120px; height: 500px; margin: 0 auto; background: linear-gradient(180deg, #f44336 0%, #FF9800 20%, #FFC107 40%, #4CAF50 60%, #2196F3 80%, #9C27B0 100%); border: 3px solid #333; border-radius: 10px; cursor: crosshair; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+            <div id="gaugeContainer" class="gauge-container">
               
               <!-- Target Cursor (user control) -->
-              <div id="gaugeCursor" style="position: absolute; left: -5px; right: -5px; height: 8px; background: #FF5722; border: 3px solid white; border-radius: 4px; cursor: grab; box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: top 0.05s linear; z-index: 10;">
-                <div style="position: absolute; right: -60px; top: -8px; background: #FF5722; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap;" data-i18n="pursuit.target">
+              <div id="gaugeCursor" class="gauge-cursor-target">
+                <div class="gauge-label-target" data-i18n="pursuit.target">
                   CIBLE
                 </div>
               </div>
               
               <!-- Current Position Indicator -->
-              <div id="gaugePosition" style="position: absolute; left: 0; right: 0; height: 6px; background: #00E676; border: 2px solid white; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,255,118,0.6); transition: top 0.1s linear; z-index: 5;">
-                <div style="position: absolute; left: -60px; top: -8px; background: #00E676; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap;" data-i18n="pursuit.actual">
+              <div id="gaugePosition" class="gauge-cursor-actual">
+                <div class="gauge-label-actual" data-i18n="pursuit.actual">
                   RÉEL
                 </div>
               </div>
               
               <!-- Software Limit Line (dynamically positioned if limit < 100%) -->
-              <div id="gaugeLimitLine" style="position: absolute; left: -8px; right: -8px; height: 3px; background: #000; border-top: 2px dashed #FF5722; display: none; z-index: 15;">
-                <div style="position: absolute; right: -90px; top: -10px; background: #000; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; white-space: nowrap;">
+              <div id="gaugeLimitLine" class="gauge-limit-line">
+                <div class="gauge-limit-label">
                   🚫 <span data-i18n="pursuit.softLimit">LIMITE</span>
                 </div>
               </div>
               
               <!-- Scale markers -->
-              <div style="position: absolute; right: -40px; top: 0; height: 100%; display: flex; flex-direction: column; justify-content: space-between; font-size: 11px; color: #666;">
+              <div class="gauge-scale">
                 <span data-i18n="pursuit.scaleEnd">FIN ▶</span>
                 <span>75% ▶</span>
                 <span>50% ▶</span>
@@ -962,9 +962,9 @@
               </div>
             </div>
             
-            <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #666;">
-              <div><strong data-i18n="pursuit.targetLabel">Cible:</strong> <span id="targetPositionMM" style="color: #FF5722;">0.0</span> mm</div>
-              <div><strong data-i18n="pursuit.actualLabel">Actuel:</strong> <span id="currentPositionMM" style="color: #00E676;">0.0</span> mm</div>
+            <div class="gauge-info">
+              <div><strong data-i18n="pursuit.targetLabel">Cible:</strong> <span id="targetPositionMM" class="gauge-target-value">0.0</span> mm</div>
+              <div><strong data-i18n="pursuit.actualLabel">Actuel:</strong> <span id="currentPositionMM" class="gauge-actual-value">0.0</span> mm</div>
               <div><strong data-i18n="pursuit.errorLabel">Écart:</strong> <span id="positionError" class="text-muted">0.0</span> mm</div>
             </div>
           </div>
@@ -972,12 +972,12 @@
           <!-- Right Side: Settings -->
           <div style="flex: 1;">
             <!-- Checkbox Activer - COMPACT -->
-            <div style="padding: 10px 15px; background: #E3F2FD; border-radius: 6px; margin-bottom: 15px;">
+            <div class="pursuit-enable-box">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="checkbox" id="pursuitActiveCheckbox" autocomplete="off">
                 <span style="font-weight: 600; color: #5a67d8;">🎯 <span data-i18n="pursuit.enablePursuit">Activer poursuite</span></span>
               </label>
-              <small style="color: #666; display: block; margin-top: 4px; font-size: 11px; padding-left: 28px;">
+              <small style="color: #718096; display: block; margin-top: 4px; font-size: 11px; padding-left: 28px;">
                 ⚠️ <span data-i18n="pursuit.enablePursuitWarn">Le moteur suivra automatiquement le curseur</span>
               </small>
             </div>

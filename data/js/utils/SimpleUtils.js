@@ -128,8 +128,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
   
   // Show disabled message if nothing is enabled
   if (!hasAnyEffect) {
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#999';
+    ctx.font = '13px "Segoe UI", sans-serif';
+    ctx.fillStyle = '#a0aec0';
     ctx.textAlign = 'center';
     ctx.fillText(t('utils.noActiveEffect'), width / 2, height / 2);
     return;
@@ -139,7 +139,7 @@ function drawZoneEffectPreviewPure(canvas, config) {
   const maxFactor = 1.0 + (speedIntensity / 100.0) * 9.0;  // 1× to 10×
   
   // Draw axes
-  ctx.strokeStyle = '#ccc';
+  ctx.strokeStyle = '#e2e8f0';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(padding, padding);
@@ -148,8 +148,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
   ctx.stroke();
   
   // Draw horizontal line for normal speed (y = 0.5 * plotHeight)
-  ctx.strokeStyle = '#ddd';
-  ctx.setLineDash([2, 2]);
+  ctx.strokeStyle = '#edf2f7';
+  ctx.setLineDash([3, 3]);
   ctx.beginPath();
   const normalY = height - padding - (0.5 * plotHeight);
   ctx.moveTo(padding, normalY);
@@ -160,8 +160,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
   // Draw speed curve if speed effect is active
   if (hasSpeedEffect) {
     const isAccel = speedEffect === 2;
-    ctx.strokeStyle = isAccel ? '#2196F3' : '#4CAF50';  // Blue for accel, green for decel
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = isAccel ? '#4299e1' : '#48bb78';  // Blue for accel, green for decel
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     
     for (let x = 0; x <= plotWidth; x++) {
@@ -215,8 +215,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
   
   // Draw zone boundaries
   if (enableStart || enableEnd) {
-    ctx.setLineDash([5, 3]);
-    ctx.strokeStyle = '#FF9800';
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = '#ed8936';
     ctx.lineWidth = 1;
     
     if (enableStart) {
@@ -240,7 +240,7 @@ function drawZoneEffectPreviewPure(canvas, config) {
   
   // Draw random turnback indicator
   if (randomTurnbackEnabled) {
-    ctx.fillStyle = 'rgba(156, 39, 176, 0.2)';  // Purple with transparency
+    ctx.fillStyle = 'rgba(159, 122, 234, 0.15)';  // Purple with transparency
     
     if (enableStart) {
       ctx.fillRect(padding, padding, (zoneMM / movementAmplitude) * plotWidth, plotHeight);
@@ -250,9 +250,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
       ctx.fillRect(endStartX, padding, (zoneMM / movementAmplitude) * plotWidth, plotHeight);
     }
     
-    // Draw turnback symbol
-    ctx.fillStyle = '#9C27B0';
-    ctx.font = '12px Arial';
+    ctx.fillStyle = '#9f7aea';
+    ctx.font = '11px "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     if (enableStart) {
       ctx.fillText('🔄 ' + turnbackChance + '%', padding + 20, padding + 15);
@@ -264,8 +263,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
   
   // Draw end pause indicator
   if (endPauseEnabled) {
-    ctx.fillStyle = '#FFC107';  // Amber
-    ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = '#ecc94b';  // Amber
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     
     if (enableStart) {
@@ -277,8 +276,8 @@ function drawZoneEffectPreviewPure(canvas, config) {
   }
   
   // Draw labels
-  ctx.font = '10px Arial';
-  ctx.fillStyle = '#666';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.fillStyle = '#718096';
   ctx.textAlign = 'center';
   ctx.fillText(t('utils.startLabel'), padding, height - 5);
   ctx.fillText(t('utils.endLabel'), width - padding, height - 5);
