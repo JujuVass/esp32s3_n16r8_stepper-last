@@ -9,7 +9,35 @@
   <!-- Note: Preloads removed - they cause issues with slow mDNS resolution -->
   <!-- Scripts are loaded sequentially at end of body for reliability -->
 
-  <link rel="stylesheet" href="/css/styles.css">
+  <link id="mainStylesheet" rel="stylesheet" href="/css/styles.css">
+  <script>
+  // CSS retry loader — mirrors JS retry mechanism
+  (function() {
+    var MAX_RETRIES = 3;
+    var RETRY_DELAY = 800;
+    var CSS_URL = '/css/styles.css';
+    var attempt = 0;
+    var link = document.getElementById('mainStylesheet');
+
+    function retryCss() {
+      if (attempt >= MAX_RETRIES) {
+        console.error('[CSS Loader] Failed after ' + MAX_RETRIES + ' retries: ' + CSS_URL);
+        return;
+      }
+      attempt++;
+      console.warn('[CSS Loader] Retry ' + attempt + '/' + MAX_RETRIES + ': ' + CSS_URL);
+      var newLink = document.createElement('link');
+      newLink.id = 'mainStylesheet';
+      newLink.rel = 'stylesheet';
+      newLink.href = CSS_URL + '?_v=' + Date.now() + '&r=' + attempt;
+      newLink.onerror = function() { setTimeout(retryCss, RETRY_DELAY); };
+      link.parentNode.replaceChild(newLink, link);
+      link = newLink;
+    }
+
+    link.onerror = function() { setTimeout(retryCss, RETRY_DELAY); };
+  })();
+  </script>
   <!-- chart.umd.min.js loaded by sequential loader below -->
 </head>
 <body>
