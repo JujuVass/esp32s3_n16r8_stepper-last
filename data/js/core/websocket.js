@@ -50,23 +50,14 @@ function connectWebSocket(useFallback) {
     console.debug('✅ WebSocket connected');
     AppState._wsRetryCount = 0;  // Reset retry counter on success
     
-    // Update status display
-    const stateEl = document.getElementById('state');
-    if (stateEl) {
-      stateEl.textContent = t('status.connectedToController');
-    }
-    
     // Initialize UI elements that depend on connection
     if (typeof updatePatternToggleButton === 'function') {
       updatePatternToggleButton();
     }
     
-    // Request initial status after connection stabilizes
-    setTimeout(function() {
-      // Sync time for AP_DIRECT mode (no NTP available)
-      sendCommand('syncTime', { time: Date.now() });
-      sendCommand(WS_CMD.GET_STATUS, {});
-    }, 50);
+    // Sync time then request initial status immediately
+    sendCommand('syncTime', { time: Date.now() });
+    sendCommand(WS_CMD.GET_STATUS, {});
   };
   
   // ========================================================================
