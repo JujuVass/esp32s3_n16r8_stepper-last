@@ -121,12 +121,18 @@ void EepromManager::saveStatsRecording(bool enabled) {
 
 void EepromManager::loadStatsRecording(bool& enabled) {
   uint8_t statsByte = EEPROM.read(EEPROM_ADDR_STATS_ENABLED);
+  bool checksumValid = verifyChecksum();
 
-  if (statsByte == 0xFF) {
-    // First boot: enable by default
+  if (statsByte == 0xFF || !checksumValid) {
+    if (!checksumValid && statsByte != 0xFF) {
+      Serial.println("[EepromManager] ⚠️ Stats: checksum mismatch, resetting to default");
+    }
+    // First boot or corruption: enable by default
     enabled = true;
     saveStatsRecording(enabled);
-    Serial.println("[EepromManager] 🔧 First boot: stats recording enabled by default");
+    Serial.println(statsByte == 0xFF
+      ? "[EepromManager] 🔧 First boot: stats recording enabled by default"
+      : "[EepromManager] 🔧 Stats repaired: reset to default (enabled)");
   } else {
     enabled = (statsByte == 1);
     Serial.print("[EepromManager] 📂 Stats recording: ");
@@ -149,12 +155,18 @@ void EepromManager::saveSensorsInverted(bool inverted) {
 
 void EepromManager::loadSensorsInverted(bool& inverted) {
   uint8_t byte = EEPROM.read(EEPROM_ADDR_SENSORS_INVERTED);
+  bool checksumValid = verifyChecksum();
 
-  if (byte == 0xFF) {
-    // First boot: normal mode
+  if (byte == 0xFF || !checksumValid) {
+    if (!checksumValid && byte != 0xFF) {
+      Serial.println("[EepromManager] ⚠️ Sensors: checksum mismatch, resetting to default");
+    }
+    // First boot or corruption: normal mode
     inverted = false;
     saveSensorsInverted(false);
-    Serial.println("[EepromManager] 🔧 First boot: sensors mode = NORMAL");
+    Serial.println(byte == 0xFF
+      ? "[EepromManager] 🔧 First boot: sensors mode = NORMAL"
+      : "[EepromManager] 🔧 Sensors repaired: reset to default (NORMAL)");
   } else {
     inverted = (byte == 1);
     Serial.print("[EepromManager] 📂 Sensors mode: ");

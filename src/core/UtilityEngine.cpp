@@ -66,6 +66,9 @@ bool UtilityEngine::initialize() {
   // STEP 4: Initialize StatsManager (load stats recording pref)
   _stats.initialize();
 
+  // STEP 5: Restore sensors inversion from EEPROM → global state
+  loadSensorsInverted();
+
   Serial.println(String("[UtilityEngine] Initialization complete (degraded mode = ") + String(!_fs.isReady() ? "YES" : "NO") + ")");
   return true;
 }
