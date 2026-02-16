@@ -68,13 +68,13 @@ bool serveStaticFile(const String& path) {
   String mimeType = getMimeType(filePath);
   
   // Set cache headers based on file type
-  if (filePath.endsWith(".html")) {
-    // HTML: no cache (always fresh)
+  if (filePath.endsWith(".html") || filePath.endsWith(".json")) {
+    // HTML/JSON: no cache (always fresh)
     server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     server.sendHeader("Pragma", "no-cache");
     server.sendHeader("Expires", "0");
   } else {
-    // CSS/JS/images: cache 24h
+    // CSS/JS/assets: cache 24h (script loader adds cache-busting params for updates)
     server.sendHeader("Cache-Control", "public, max-age=86400");
   }
   

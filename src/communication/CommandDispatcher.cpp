@@ -47,7 +47,9 @@ void CommandDispatcher::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* pa
         IPAddress ip = _webSocket->remoteIP(num);
         engine->info(String("WebSocket client #") + String(num) + " connected from " + 
               String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]));
-        // Don't send status automatically - let client request via getStatus
+        // Reset broadcast dedup hash so the next sendStatus() is guaranteed to
+        // transmit even if the payload hasn't changed since the last broadcast.
+        Status.resetHash();
     }
     
     // Client disconnected

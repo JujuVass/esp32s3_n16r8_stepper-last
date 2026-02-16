@@ -288,7 +288,7 @@
       <!-- Header Row: État + Actions -->
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.06)); border-bottom:1px solid rgba(102,126,234,0.1);">
         <span style="font-weight:700; font-size:15px; color:#5a67d8;">
-          <span data-i18n="status.stateLabel">État:</span> <span id="state" style="color:#2d3748;">Initialisation...</span>
+          <span data-i18n="status.stateLabel">État:</span> <span id="state" style="color:#2d3748;" data-i18n="status.init">Initialisation...</span>
         </span>
         <div class="flex-gap-6">
           <button class="btn-compact" id="btnLangToggle" onclick="I18n.toggleLanguage()" title="Switch to English" style="background: transparent; border: 1.5px solid rgba(102,126,234,0.2); font-size: 18px; padding: 4px 8px; cursor: pointer; border-radius: 6px;">🇫🇷</button>
@@ -2062,6 +2062,7 @@
     var CONCURRENT = 2;
     var MAX_RETRIES = 3;
     var RETRY_DELAY = 800;
+    var CACHE_BUST = '_v=' + Date.now();
     var overlay = document.getElementById('scriptLoadOverlay');
     var bar = document.getElementById('scriptLoadBar');
     var text = document.getElementById('scriptLoadText');
@@ -2079,7 +2080,7 @@
 
     function done() {
       if (overlay) overlay.style.display = 'none';
-      window.dispatchEvent(new Event('load'));
+      // main.js (last script) self-initializes via async IIFE — no event needed
     }
 
     // Execute scripts in strict order: loaded index must match next expected
@@ -2111,7 +2112,7 @@
       var src = scripts[idx];
       updateUI(idx, src, attempt);
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', src + (attempt > 0 ? '?r=' + attempt : ''), true);
+      xhr.open('GET', src + '?' + CACHE_BUST + (attempt > 0 ? '&r=' + attempt : ''), true);
       xhr.responseType = 'blob';
       xhr.onload = function() {
         if (xhr.status === 200) {

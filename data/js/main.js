@@ -276,13 +276,11 @@
       // not be passed to updateUI. Guard against missing fields to avoid runtime
       // errors like "cannot read property 'toFixed' of undefined".
       if (!data || !('positionMM' in data)) {
-        console.warn('updateUI: unexpected message, skipping', data);
         return;
       }
       
       // Guard: DOM cache must be initialized before we can update the UI
       if (!DOM.state) {
-        console.warn('updateUI: DOM cache not ready, skipping');
         return;
       }
       // Update global state for mode change logic
@@ -515,63 +513,71 @@
     // TAB MANAGEMENT & MODE SWITCHING - Loaded from UIController.js
     // ============================================================================
     
-    // Force initial state on page load (prevent browser cache issues)
-    window.addEventListener('load', async function() {
-      // Initialize DOM cache FIRST (performance optimization)
-      initDOMCache();
-      
-      // Initialize i18n system (loads translations, applies data-i18n attributes)
-      await I18n.init();
-      
-      // Initialize speed limits based on maxSpeedLevel constant
-      initSpeedLimits();
-      
-      // Initialize UI (tabs & modals) from UIController.js
-      initUIListeners();
-      
-      // Initialize stats panel (from StatsController.js)
-      initStatsListeners();
-      
-      // Initialize tools (from ToolsController.js)
-      initToolsListeners();
-      
-      // Initialize playlist management (from PlaylistController.js)
-      initPlaylistListeners();
-      
-      // Initialize simple mode (from SimpleController.js)
-      initSimpleListeners();
-      
-      // Initialize pursuit mode (from PursuitController.js)
-      initPursuitListeners();
-      initPursuitModeOnLoad();
-      
-      // Initialize oscillation mode (from OscillationController.js)
-      initOscillationListeners();
-      
-      // Initialize chaos mode (from ChaosController.js)
-      initChaosListeners();
-      
-      // Initialize sequencer mode (from SequenceController.js)
-      initSequenceListeners();
-      
-      // Initialize numeric input constraints (from utils.js)
-      initMainNumericConstraints();
-      
-      // Initialize cycle pause handlers (from SimpleController.js)
-      initCyclePauseHandlers();
-      
-      // Connect WebSocket AFTER DOM cache is ready
-      // This ensures updateUI() can access DOM.state, DOM.position, etc.
-      // when the first status response arrives from the ESP32
-      connectWebSocket();
-      
-      // Request sequence table on load (wait for WebSocket connection)
-      function requestSequenceTableWhenReady() {
-        if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
-          sendCommand(WS_CMD.GET_SEQUENCE_TABLE, {});
-        } else {
-          setTimeout(requestSequenceTableWhenReady, 200);
+    // Initialize application immediately (DOM is already parsed, all scripts loaded)
+    // Note: No need for 'load' event — the script loader guarantees all scripts
+    // are executed in order, and main.js is last. The DOM is ready.
+    (async function boot() {
+      try {
+        // Initialize DOM cache FIRST (performance optimization)
+        initDOMCache();
+        
+        // Initialize i18n system (loads translations, applies data-i18n attributes)
+        await I18n.init();
+        
+        // Initialize speed limits based on maxSpeedLevel constant
+        initSpeedLimits();
+        
+        // Initialize UI (tabs & modals) from UIController.js
+        initUIListeners();
+        
+        // Initialize stats panel (from StatsController.js)
+        initStatsListeners();
+        
+        // Initialize tools (from ToolsController.js)
+        initToolsListeners();
+        
+        // Initialize playlist management (from PlaylistController.js)
+        initPlaylistListeners();
+        
+        // Initialize simple mode (from SimpleController.js)
+        initSimpleListeners();
+        
+        // Initialize pursuit mode (from PursuitController.js)
+        initPursuitListeners();
+        initPursuitModeOnLoad();
+        
+        // Initialize oscillation mode (from OscillationController.js)
+        initOscillationListeners();
+        
+        // Initialize chaos mode (from ChaosController.js)
+        initChaosListeners();
+        
+        // Initialize sequencer mode (from SequenceController.js)
+        initSequenceListeners();
+        
+        // Initialize numeric input constraints (from utils.js)
+        initMainNumericConstraints();
+        
+        // Initialize cycle pause handlers (from SimpleController.js)
+        initCyclePauseHandlers();
+        
+        // Connect WebSocket AFTER DOM cache is ready
+        // This ensures updateUI() can access DOM.state, DOM.position, etc.
+        // when the first status response arrives from the ESP32
+        connectWebSocket();
+        
+        // Request sequence table on load (wait for WebSocket connection)
+        function requestSequenceTableWhenReady() {
+          if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+            sendCommand(WS_CMD.GET_SEQUENCE_TABLE, {});
+          } else {
+            setTimeout(requestSequenceTableWhenReady, 200);
+          }
         }
+        requestSequenceTableWhenReady();
+        
+        console.debug('🚀 Boot complete');
+      } catch(e) {
+        console.error('🚀 Boot FAILED:', e);
       }
-      requestSequenceTableWhenReady();
-    });
+    })();

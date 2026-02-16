@@ -109,9 +109,11 @@ const AppState = {
   },
   
   // Logging preferences (synchronized with backend)
+  // Default to true so console works during boot; loadLoggingPreferences() will
+  // confirm/adjust once the backend responds.
   logging: {
-    enabled: false,     // Global logging enabled/disabled
-    debugEnabled: false // Debug level logs enabled
+    enabled: true,      // Global logging enabled/disabled
+    debugEnabled: true   // Debug level logs enabled
   }
 };
 

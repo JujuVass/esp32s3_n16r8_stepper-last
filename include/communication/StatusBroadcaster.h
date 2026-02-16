@@ -61,6 +61,13 @@ public:
     void requestStats() { statsRequested = true; }
     
     /**
+     * Reset broadcast deduplication hash.
+     * Call when a new client connects so the next send() is guaranteed
+     * to broadcast even if the payload hasn't changed.
+     */
+    void resetHash() { _lastBroadcastHash = 0; }
+    
+    /**
      * Send error message via WebSocket AND Serial
      * Ensures user sees errors even without Serial monitor
      * @param message Error message to broadcast
