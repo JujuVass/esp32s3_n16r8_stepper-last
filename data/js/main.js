@@ -279,6 +279,12 @@
         console.warn('updateUI: unexpected message, skipping', data);
         return;
       }
+      
+      // Guard: DOM cache must be initialized before we can update the UI
+      if (!DOM.state) {
+        console.warn('updateUI: DOM cache not ready, skipping');
+        return;
+      }
       // Update global state for mode change logic
       AppState.system.currentState = data.state;
       AppState.system.canStart = data.canStart || false;
@@ -548,6 +554,17 @@
       // Initialize sequencer mode (from SequenceController.js)
       initSequenceListeners();
       
+      // Initialize numeric input constraints (from utils.js)
+      initMainNumericConstraints();
+      
+      // Initialize cycle pause handlers (from SimpleController.js)
+      initCyclePauseHandlers();
+      
+      // Connect WebSocket AFTER DOM cache is ready
+      // This ensures updateUI() can access DOM.state, DOM.position, etc.
+      // when the first status response arrives from the ESP32
+      connectWebSocket();
+      
       // Request sequence table on load (wait for WebSocket connection)
       function requestSequenceTableWhenReady() {
         if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
@@ -558,8 +575,3 @@
       }
       requestSequenceTableWhenReady();
     });
-    
-    initMainNumericConstraints();
-    initCyclePauseHandlers();
-    
-    connectWebSocket();
