@@ -14,6 +14,27 @@
  */
 
 // ============================================================================
+// PANEL MANAGEMENT - Exclusive panels (only one open at a time)
+// ============================================================================
+
+/**
+ * Close all tool panels (Logs, System, Stats)
+ * Used to implement exclusive panel behavior (accordion-style)
+ * @param {string} exceptPanel - Panel ID to keep open ('logs', 'system', 'stats', or null)
+ */
+function closeAllToolPanels(exceptPanel = null) {
+  if (exceptPanel !== 'logs') {
+    closeLogsPanel();
+  }
+  if (exceptPanel !== 'system') {
+    closeSystemPanel();
+  }
+  if (exceptPanel !== 'stats' && typeof closeStatsPanel === 'function') {
+    closeStatsPanel();
+  }
+}
+
+// ============================================================================
 // CALIBRATION & RESET
 // ============================================================================
 
@@ -51,6 +72,9 @@ function toggleLogsPanel() {
   const btn = DOM.btnShowLogs;
   
   if (panel.style.display === 'none') {
+    // Close other panels first (accordion behavior)
+    closeAllToolPanels('logs');
+    
     panel.style.display = 'block';
     btn.innerHTML = '📋 ' + t('status.logs');
     btn.style.background = '#e74c3c';
@@ -208,6 +232,9 @@ function toggleSystemPanel() {
   const btn = DOM.btnShowSystem;
   
   if (panel.style.display === 'none') {
+    // Close other panels first (accordion behavior)
+    closeAllToolPanels('system');
+    
     panel.style.display = 'block';
     btn.innerHTML = '⚙️ ' + t('status.sys');
     btn.style.background = '#e74c3c';

@@ -1673,6 +1673,75 @@ select.select-input:focus {
  * RESPONSIVE — Mobile & Tablet
  * ============================================================================ */
 
+/* --- Touch-friendly tablet (≤900px, e.g. Galaxy Tab A7 Lite 800×1340 @1.5x = ~534px CSS) --- */
+/* Ensures minimum 44px touch targets on tablet screens */
+@media (max-width: 900px) and (pointer: coarse) {
+  /* Increase touch targets for small interactive elements */
+  .btn-compact {
+    padding: 8px 14px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+
+  .btn-action {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 38px;
+  }
+
+  .btn-icon {
+    padding: 6px 10px;
+    font-size: 14px;
+    min-height: 38px;
+  }
+
+  .tab {
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+
+  /* Slightly larger inputs for finger tapping */
+  input[type="number"],
+  select.select-input {
+    min-height: 40px;
+  }
+
+  /* Checkboxes and radio buttons larger for touch */
+  input[type="checkbox"],
+  input[type="radio"] {
+    transform: scale(1.3);
+    margin: 4px 6px;
+  }
+
+  /* Sequence table rows: more spacing for touch */
+  .seq-row td {
+    padding: 8px 4px;
+  }
+
+  /* Drag handle: larger touch area */
+  .drag-handle {
+    padding: 8px;
+    font-size: 16px;
+  }
+
+  /* Preset items: more touch-friendly */
+  .preset-item-box {
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+
+  /* Collapsible section headers: comfortable touch */
+  .section-collapsible-header {
+    min-height: 44px;
+  }
+
+  /* Toggle switches: slightly larger */
+  .toggle-container {
+    min-height: 44px;
+    padding: 4px 0;
+  }
+}
+
 /* --- Tablet & small desktop (≤768px) --- */
 @media (max-width: 768px) {
   body {

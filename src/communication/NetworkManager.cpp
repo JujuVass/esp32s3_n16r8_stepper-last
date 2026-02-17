@@ -432,10 +432,6 @@ void NetworkManager::checkConnectionHealth() {
         _lastMdnsRefresh = now;
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
-    // CASE 3: Connection stable — nothing to do (mDNS.update() is above)
-    // ═══════════════════════════════════════════════════════════════════════
-    
     _wasConnected = currentlyConnected;
 }
 

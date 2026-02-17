@@ -379,6 +379,11 @@ function toggleStatsPanel() {
   const wasVisible = (panel.style.display !== 'none');
   
   if (!wasVisible) {
+    // Close other panels first (accordion behavior)
+    if (typeof closeAllToolPanels === 'function') {
+      closeAllToolPanels('stats');
+    }
+    
     // Opening panel
     panel.style.display = 'block';
     btn.innerHTML = '📊 ' + t('status.stats');
