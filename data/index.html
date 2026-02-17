@@ -11,7 +11,7 @@
 
   <link id="mainStylesheet" rel="stylesheet" href="/css/styles.css">
   <script>
-  // CSS retry loader — mirrors JS retry mechanism
+  // CSS retry loader with cache optimization — only cache-bust on retry
   (function() {
     var MAX_RETRIES = 3;
     var RETRY_DELAY = 800;
@@ -29,7 +29,8 @@
       var newLink = document.createElement('link');
       newLink.id = 'mainStylesheet';
       newLink.rel = 'stylesheet';
-      newLink.href = CSS_URL + '?_v=' + Date.now() + '&r=' + attempt;
+      // Add cache-bust only on retry to force fresh download after network error
+      newLink.href = CSS_URL + '?_retry=' + attempt + '&_t=' + Date.now();
       newLink.onerror = function() { setTimeout(retryCss, RETRY_DELAY); };
       link.parentNode.replaceChild(newLink, link);
       link = newLink;
@@ -2093,7 +2094,6 @@
     var CONCURRENT = 2;
     var MAX_RETRIES = 3;
     var RETRY_DELAY = 800;
-    var CACHE_BUST = '_v=' + Date.now();
     var overlay = document.getElementById('scriptLoadOverlay');
     var bar = document.getElementById('scriptLoadBar');
     var text = document.getElementById('scriptLoadText');
@@ -2143,7 +2143,12 @@
       var src = scripts[idx];
       updateUI(idx, src, attempt);
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', src + '?' + CACHE_BUST + (attempt > 0 ? '&r=' + attempt : ''), true);
+      // Only add cache-bust on retry (after network error) - first attempt uses browser cache
+      var url = src;
+      if (attempt > 0) {
+        url += (src.indexOf('?') === -1 ? '?' : '&') + '_retry=' + attempt + '&_t=' + Date.now();
+      }
+      xhr.open('GET', url, true);
       xhr.responseType = 'blob';
       xhr.onload = function() {
         if (xhr.status === 200) {
