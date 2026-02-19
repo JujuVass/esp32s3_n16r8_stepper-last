@@ -485,7 +485,7 @@ void loop() {
     static unsigned long lastLedToggle = 0;
     static bool ledIsBlue = true;
     
-    if (StepperNetwork.apLedBlinkEnabled && millis() - lastLedToggle > 500) {
+    if (StepperNetwork.apLedBlinkEnabled && millis() - lastLedToggle > AP_LED_BLINK_INTERVAL_MS) {
       lastLedToggle = millis();
       setRgbLed(ledIsBlue ? 50 : 0, 0, ledIsBlue ? 0 : 50);
       ledIsBlue = !ledIsBlue;

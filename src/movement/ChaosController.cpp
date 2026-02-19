@@ -669,9 +669,8 @@ void ChaosController::handlePulseAtTarget(float effectiveMinLimit, float effecti
         }
     } else {
         unsigned long elapsed = millis() - chaosState.patternStartTime;
-        const unsigned long MIN_PATTERN_DURATION = 150;
         
-        if (elapsed >= MIN_PATTERN_DURATION) {
+        if (elapsed >= CHAOS_MIN_PATTERN_DURATION_MS) {
             chaosState.nextPatternChangeTime = millis();
             if (engine->isDebugEnabled()) {
                 engine->debug("💓 PULSE complete after " + String(elapsed) + "ms → force new pattern");
@@ -797,9 +796,8 @@ void ChaosController::handleDiscreteAtTarget() {
     }
     
     unsigned long elapsed = millis() - chaosState.patternStartTime;
-    const unsigned long MIN_PATTERN_DURATION = 150;
     
-    if (elapsed >= MIN_PATTERN_DURATION) {
+    if (elapsed >= CHAOS_MIN_PATTERN_DURATION_MS) {
         chaosState.nextPatternChangeTime = millis();
         if (engine->isDebugEnabled()) {
             engine->debug("🎯 Discrete pattern " + String(CHAOS_PATTERN_NAMES[static_cast<int>(chaosState.currentPattern)]) + 

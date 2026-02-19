@@ -966,7 +966,7 @@ void BaseMovementControllerClass::doStep() {
         currentStep = currentStep + 1;
         
         // Track distance
-        trackDistance();
+        stats.trackDelta(currentStep);
         
     } else {
         // ═══════════════════════════════════════════════════════════════════
@@ -994,7 +994,7 @@ void BaseMovementControllerClass::doStep() {
         currentStep = currentStep - 1;
         
         // Track distance
-        trackDistance();
+        stats.trackDelta(currentStep);
         
         // Check if reached startStep (end of backward movement)
         // ONLY reverse if we've already been to startStep once (va-et-vient mode active)
@@ -1088,7 +1088,4 @@ void BaseMovementControllerClass::measureCycleTime() {
     wasAtStart = true;
 }
 
-void BaseMovementControllerClass::trackDistance() {
-    // Use encapsulated StatsTracking method
-    stats.trackDelta(currentStep);
-}
+// trackDistance() removed — callers use stats.trackDelta(currentStep) directly

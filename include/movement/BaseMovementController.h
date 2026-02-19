@@ -261,11 +261,7 @@ public:
      */
     void measureCycleTime();
     
-    /**
-     * Track distance traveled
-     * Updates totalDistanceTraveled global
-     */
-    void trackDistance();
+    // trackDistance() removed — callers use stats.trackDelta(currentStep) directly
     
     // ========================================================================
     // CYCLE COUNTING

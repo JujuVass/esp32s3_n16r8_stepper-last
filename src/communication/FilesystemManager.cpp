@@ -5,6 +5,7 @@
 // ============================================================================
 
 #include "communication/FilesystemManager.h"
+#include "communication/APIRoutes.h"
 #include "core/UtilityEngine.h"
 
 extern UtilityEngine* engine;
@@ -63,25 +64,7 @@ String FilesystemManager::normalizePath(String path) {
   return path;
 }
 
-void FilesystemManager::sendJsonError(int code, const char* message) {
-  JsonDocument doc;
-  doc["success"] = false;
-  doc["error"] = message;
-  String response;
-  serializeJson(doc, response);
-  server.send(code, "application/json", response);
-}
-
-void FilesystemManager::sendJsonSuccess(const char* message) {
-  JsonDocument doc;
-  doc["success"] = true;
-  if (message) {
-    doc["message"] = message;
-  }
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
+// sendJsonError() and sendJsonSuccess() are now shared free functions from APIRoutes.h
 
 // ============================================================================
 // ROUTE REGISTRATION

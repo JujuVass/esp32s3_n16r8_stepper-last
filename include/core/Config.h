@@ -161,6 +161,16 @@ constexpr unsigned long POSITIONING_STEP_DELAY_MICROS = 990;
 // Why 500ms? Sequence status: update frequency during wait (balance responsiveness vs traffic)
 constexpr unsigned long SEQUENCE_STATUS_UPDATE_MS = 500;
 
+// Blocking move helper timings (used by SequenceExecutor::blockingMoveToStep)
+constexpr unsigned long BLOCKING_MOVE_WS_SERVICE_MS = 10;      // WebSocket service interval during blocking moves
+constexpr unsigned long BLOCKING_MOVE_STATUS_INTERVAL_MS = 250; // Status broadcast interval during blocking moves
+
+// Minimum pattern duration before allowing early pattern change in Chaos mode
+constexpr unsigned long CHAOS_MIN_PATTERN_DURATION_MS = 150;
+
+// LED blink interval in AP_SETUP mode
+constexpr unsigned long AP_LED_BLINK_INTERVAL_MS = 500;
+
 // ============================================================================
 // CONFIGURATION - doStep() Safety Thresholds
 // ============================================================================

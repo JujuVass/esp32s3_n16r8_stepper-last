@@ -330,12 +330,12 @@ bool SequenceExecutor::blockingMoveToStep(long targetStepPos, unsigned long time
         yield();
         
         unsigned long nowMs = millis();
-        if (nowMs - lastWsService >= 10) {
+        if (nowMs - lastWsService >= BLOCKING_MOVE_WS_SERVICE_MS) {
             if (_webSocket) _webSocket->loop();
             server.handleClient();
             lastWsService = nowMs;
         }
-        if (nowMs - lastStatusUpdate >= 250) {
+        if (nowMs - lastStatusUpdate >= BLOCKING_MOVE_STATUS_INTERVAL_MS) {
             Status.send();
             lastStatusUpdate = nowMs;
         }

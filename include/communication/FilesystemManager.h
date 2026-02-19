@@ -51,9 +51,7 @@ private:
   bool isBinaryFile(const String& path);
   String normalizePath(String path);
   
-  // JSON response helpers
-  void sendJsonError(int code, const char* message);
-  void sendJsonSuccess(const char* message = nullptr);
+  // JSON response helpers: uses free functions from APIRoutes.h (DRY)
 
   // Route handlers (called by registerRoutes lambdas)
   void handleListFiles();

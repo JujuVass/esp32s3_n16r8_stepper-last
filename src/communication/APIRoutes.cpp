@@ -86,21 +86,7 @@ void handleCORSPreflight() {
 // HELPER FUNCTIONS IMPLEMENTATION
 // ============================================================================
 
-String getFormattedDate() {
-  time_t now = time(nullptr);
-  struct tm* timeinfo = localtime(&now);
-  char dateStr[11];
-  strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", timeinfo);
-  return String(dateStr);
-}
-
-String getFormattedTime() {
-  time_t now = time(nullptr);
-  struct tm* timeinfo = localtime(&now);
-  char timeStr[9];
-  strftime(timeStr, sizeof(timeStr), "%H:%M:%S", timeinfo);
-  return String(timeStr);
-}
+// getFormattedDate/Time removed — use engine->getFormattedTime("%Y-%m-%d") / engine->getFormattedTime("%H:%M:%S")
 
 void sendJsonError(int code, const String& message) {
   JsonDocument doc;
@@ -395,7 +381,7 @@ void setupAPIRoutes() {
     if (!LittleFS.exists("/stats.json")) {
       // Return empty structure if no stats
       JsonDocument doc;
-      doc["exportDate"] = getFormattedDate();
+      doc["exportDate"] = engine->getFormattedTime("%Y-%m-%d");
       doc["totalDistanceMM"] = 0;
       doc["stats"].to<JsonArray>();
       
@@ -416,8 +402,8 @@ void setupAPIRoutes() {
     
     // Build export structure with metadata
     JsonDocument exportDoc;
-    exportDoc["exportDate"] = getFormattedDate();
-    exportDoc["exportTime"] = getFormattedTime();
+    exportDoc["exportDate"] = engine->getFormattedTime("%Y-%m-%d");
+    exportDoc["exportTime"] = engine->getFormattedTime("%H:%M:%S");
     exportDoc["version"] = "1.0";
     
     JsonArray statsArray = exportDoc["stats"].to<JsonArray>();

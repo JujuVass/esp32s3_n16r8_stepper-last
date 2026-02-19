@@ -18,6 +18,25 @@
  *   - Core 0 (APP_CPU): StepperNetwork tasks (WiFi, WebSocket, HTTP, OTA)
  *   - Core 1 (PRO_CPU): Motor tasks (stepping, timing-critical operations)
  *   - Mutexes protect shared motion configurations
+ *
+ * OWNERSHIP TABLE (where each global is defined):
+ * ┌───────────────────────────────┬───────────────────────────────────┬──────────────────┐
+ * │ Variable                      │ Defined in                        │ Protected by     │
+ * ├───────────────────────────────┼───────────────────────────────────┼──────────────────┤
+ * │ config                        │ StepperController.ino             │ stateMutex       │
+ * │ motion, pendingMotion         │ StepperController.ino             │ motionMutex      │
+ * │ zoneEffect, zoneEffectState   │ StepperController.ino             │ motionMutex      │
+ * │ motionPauseState, oscPauseState│ StepperController.ino            │ —                │
+ * │ currentStep, startStep, etc.  │ StepperController.ino             │ volatile 32-bit  │
+ * │ stats                         │ StepperController.ino             │ statsMutex       │
+ * │ server, webSocket             │ StepperController.ino             │ Core 0 only      │
+ * │ chaos, chaosState             │ ChaosController.cpp               │ stateMutex       │
+ * │ oscillation, oscillationState │ OscillationController.cpp         │ stateMutex       │
+ * │ pursuit                       │ PursuitController.cpp             │ —                │
+ * │ seqState, sequenceTable[]     │ SequenceExecutor/TableManager.cpp │ —                │
+ * │ currentMovement               │ SequenceExecutor.cpp              │ volatile 32-bit  │
+ * │ engine                        │ StepperController.ino             │ — (init in setup)│
+ * └───────────────────────────────┴───────────────────────────────────┴──────────────────┘
  * ============================================================================
  */
 

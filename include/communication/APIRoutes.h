@@ -31,18 +31,6 @@ void setupAPIRoutes();
 // ============================================================================
 
 /**
- * Get formatted date string (YYYY-MM-DD)
- * @return Formatted date string
- */
-String getFormattedDate();
-
-/**
- * Get formatted time string (HH:MM:SS)
- * @return Formatted time string
- */
-String getFormattedTime();
-
-/**
  * Send JSON error response
  * @param code HTTP status code
  * @param message Error message
