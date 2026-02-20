@@ -10,6 +10,7 @@
 #include "movement/PursuitController.h"
 #include "communication/StatusBroadcaster.h"  // For Status.sendError()
 #include "core/Validators.h"
+#include "core/MovementMath.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
 
@@ -149,34 +150,7 @@ void PursuitControllerClass::stop() {
 // ============================================================================
 
 unsigned long PursuitControllerClass::calculateStepDelay(float errorMM) {
-    // Calculate speed based on error (aggressive proportional control)
-    // Ultra-aggressive speed profile for NEMA34 8NM - keep speed high until very close
-    float speedLevel;
-    
-    if (errorMM > 5.0) {
-        // Far from target (>5mm): use max speed
-        speedLevel = pursuit.maxSpeedLevel;
-    } else if (errorMM > 1.0) {
-        // Close to target (1-5mm): smooth ramp from max to 60%
-        float ratio = (errorMM - 1.0) / (5.0 - 1.0);
-        speedLevel = pursuit.maxSpeedLevel * (0.6 + (ratio * 0.4));
-    } else {
-        // Very close (<1mm): minimum speed for precision
-        speedLevel = pursuit.maxSpeedLevel * 0.6;
-    }
-    
-    // Direct conversion: speedLevel → mm/sec → steps/sec WITH compensation
-    float mmPerSecond = speedLevel * 10.0;  // speedLevel*10 → mm/s (ex: MAX_SPEED_LEVEL→(MAX_SPEED_LEVEL*10)mm/s, 10→100mm/s)
-    float stepsPerSecond = mmPerSecond * STEPS_PER_MM;
-    
-    // Limit to safe range (NEMA34 can handle more)
-    if (stepsPerSecond < 30) stepsPerSecond = 30;  // Higher minimum for responsiveness
-    if (stepsPerSecond > 6000) stepsPerSecond = 6000;  // HSS86 safe limit (close to 10kHz)
-    
-    float delayMicros = ((1000000.0 / stepsPerSecond) - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
-    if (delayMicros < 20) delayMicros = 20;  // Absolute minimum (50kHz)
-    
-    return (unsigned long)delayMicros;
+    return MovementMath::pursuitStepDelay(errorMM, pursuit.maxSpeedLevel);
 }
 
 bool PursuitControllerClass::checkSafetyContacts(bool moveForward) {

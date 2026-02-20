@@ -25,6 +25,7 @@ const char* otaPassword = "test_ota";
 // Include project headers
 #include "core/Config.h"
 #include "core/Types.h"
+#include "core/MovementMath.h"
 #include "movement/ChaosPatterns.h"
 
 using enum SystemState;
@@ -318,247 +319,133 @@ void test_system_config_defaults() {
 }
 
 // ============================================================================
-// 3. SPEED MATH
+// 3. SPEED MATH — uses MovementMath:: (real production functions)
 // ============================================================================
-// Re-implement and verify the core speed formulas.
-// ============================================================================
-
-// Mirror of BaseMovementControllerClass::speedLevelToCyclesPerMin
-static float speedLevelToCyclesPerMin(float speedLevel) {
-    float cpm = speedLevel * 10.0f;
-    if (cpm < 0) cpm = 0;
-    if (cpm > MAX_SPEED_LEVEL * 10.0f) cpm = MAX_SPEED_LEVEL * 10.0f;
-    return cpm;
-}
 
 void test_speed_level_to_cpm_linear() {
     // speedLevel × 10 = cycles per minute
-    TEST_ASSERT_FLOAT_NEAR(0.0f, speedLevelToCyclesPerMin(0), 0.01f);
-    TEST_ASSERT_FLOAT_NEAR(10.0f, speedLevelToCyclesPerMin(1.0f), 0.01f);
-    TEST_ASSERT_FLOAT_NEAR(50.0f, speedLevelToCyclesPerMin(5.0f), 0.01f);
-    TEST_ASSERT_FLOAT_NEAR(200.0f, speedLevelToCyclesPerMin(20.0f), 0.01f);
+    TEST_ASSERT_FLOAT_NEAR(0.0f, MovementMath::speedLevelToCPM(0), 0.01f);
+    TEST_ASSERT_FLOAT_NEAR(10.0f, MovementMath::speedLevelToCPM(1.0f), 0.01f);
+    TEST_ASSERT_FLOAT_NEAR(50.0f, MovementMath::speedLevelToCPM(5.0f), 0.01f);
+    TEST_ASSERT_FLOAT_NEAR(200.0f, MovementMath::speedLevelToCPM(20.0f), 0.01f);
 }
 
 void test_speed_level_clamped_negative() {
-    TEST_ASSERT_FLOAT_NEAR(0.0f, speedLevelToCyclesPerMin(-5.0f), 0.01f);
+    TEST_ASSERT_FLOAT_NEAR(0.0f, MovementMath::speedLevelToCPM(-5.0f), 0.01f);
 }
 
 void test_speed_level_clamped_max() {
     float maxCPM = MAX_SPEED_LEVEL * 10.0f;
-    TEST_ASSERT_FLOAT_NEAR(maxCPM, speedLevelToCyclesPerMin(MAX_SPEED_LEVEL + 10.0f), 0.01f);
-}
-
-// Mirror of BaseMovementController step delay formula
-static unsigned long calculateVaetStepDelay(float speedLevel, float distanceMM) {
-    if (distanceMM <= 0 || speedLevel <= 0) return 1000;
-    
-    float cpm = speedLevelToCyclesPerMin(speedLevel);
-    if (cpm <= 0.1f) cpm = 0.1f;
-    
-    long stepsPerDirection = (long)(distanceMM * STEPS_PER_MM);
-    if (stepsPerDirection <= 0) return 1000;
-    
-    float halfCycleMs = (60000.0f / cpm) / 2.0f;
-    float rawDelay = (halfCycleMs * 1000.0f) / (float)stepsPerDirection;
-    float delay = (rawDelay - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
-    
-    if (delay < 20) delay = 20;
-    return (unsigned long)delay;
+    TEST_ASSERT_FLOAT_NEAR(maxCPM, MovementMath::speedLevelToCPM(MAX_SPEED_LEVEL + 10.0f), 0.01f);
 }
 
 void test_vaet_step_delay_known_values() {
     // speed=5 → 50 cpm, distance=50mm → 400 steps
     // halfCycle = 60000/50/2 = 600ms, rawDelay = 600000/400 = 1500µs
     // delay = (1500 - 6) / 1.0 = 1494µs
-    unsigned long delay = calculateVaetStepDelay(5.0f, 50.0f);
+    unsigned long delay = MovementMath::vaetStepDelay(5.0f, 50.0f);
     TEST_ASSERT_FLOAT_NEAR(1494.0f, (float)delay, 5.0f);
 }
 
 void test_vaet_step_delay_zero_distance() {
-    TEST_ASSERT_EQUAL_UINT32(1000, calculateVaetStepDelay(5.0f, 0.0f));
+    TEST_ASSERT_EQUAL_UINT32(1000, MovementMath::vaetStepDelay(5.0f, 0.0f));
 }
 
 void test_vaet_step_delay_zero_speed() {
-    TEST_ASSERT_EQUAL_UINT32(1000, calculateVaetStepDelay(0.0f, 50.0f));
+    TEST_ASSERT_EQUAL_UINT32(1000, MovementMath::vaetStepDelay(0.0f, 50.0f));
 }
 
 void test_vaet_step_delay_minimum_clamp() {
     // Very high speed + short distance should clamp to 20µs minimum
-    unsigned long delay = calculateVaetStepDelay(MAX_SPEED_LEVEL, 5.0f);
+    unsigned long delay = MovementMath::vaetStepDelay(MAX_SPEED_LEVEL, 5.0f);
     TEST_ASSERT_TRUE(delay >= 20);
 }
 
 void test_vaet_step_delay_high_speed_shorter() {
     // Higher speed level must produce shorter delay (for same distance)
-    unsigned long slow = calculateVaetStepDelay(2.0f, 50.0f);
-    unsigned long fast = calculateVaetStepDelay(10.0f, 50.0f);
+    unsigned long slow = MovementMath::vaetStepDelay(2.0f, 50.0f);
+    unsigned long fast = MovementMath::vaetStepDelay(10.0f, 50.0f);
     TEST_ASSERT_TRUE(fast < slow);
 }
 
 void test_vaet_step_delay_longer_distance_shorter() {
     // Longer distance must produce shorter delay (for same speed)
-    unsigned long shortDist = calculateVaetStepDelay(5.0f, 20.0f);
-    unsigned long longDist = calculateVaetStepDelay(5.0f, 100.0f);
+    unsigned long shortDist = MovementMath::vaetStepDelay(5.0f, 20.0f);
+    unsigned long longDist = MovementMath::vaetStepDelay(5.0f, 100.0f);
     TEST_ASSERT_TRUE(longDist < shortDist);
-}
-
-// Mirror of ChaosController::calculateStepDelay
-static unsigned long calculateChaosStepDelay(float speedLevel) {
-    float mmPerSecond = speedLevel * 10.0f;
-    float stepsPerSecond = mmPerSecond * STEPS_PER_MM;
-    
-    unsigned long delay;
-    if (stepsPerSecond > 0) {
-        delay = (unsigned long)((1000000.0f / stepsPerSecond) / SPEED_COMPENSATION_FACTOR);
-    } else {
-        delay = 10000;
-    }
-    if (delay < 20) delay = 20;
-    if (delay > CHAOS_MAX_STEP_DELAY_MICROS) delay = CHAOS_MAX_STEP_DELAY_MICROS;
-    return delay;
 }
 
 void test_chaos_step_delay_normal() {
     // speed=5 → 50mm/s → 400 steps/s → 2500µs
-    unsigned long delay = calculateChaosStepDelay(5.0f);
+    unsigned long delay = MovementMath::chaosStepDelay(5.0f);
     TEST_ASSERT_FLOAT_NEAR(2500.0f, (float)delay, 10.0f);
 }
 
 void test_chaos_step_delay_zero() {
-    TEST_ASSERT_EQUAL_UINT32(10000, calculateChaosStepDelay(0.0f));
+    TEST_ASSERT_EQUAL_UINT32(10000, MovementMath::chaosStepDelay(0.0f));
 }
 
 void test_chaos_step_delay_max_clamp() {
     // Very slow = large delay → clamped to CHAOS_MAX_STEP_DELAY_MICROS
-    unsigned long delay = calculateChaosStepDelay(0.001f);
+    unsigned long delay = MovementMath::chaosStepDelay(0.001f);
     TEST_ASSERT_TRUE(delay <= CHAOS_MAX_STEP_DELAY_MICROS);
 }
 
 void test_chaos_step_delay_min_clamp() {
-    unsigned long delay = calculateChaosStepDelay(999.0f);
+    unsigned long delay = MovementMath::chaosStepDelay(999.0f);
     TEST_ASSERT_TRUE(delay >= 20);
-}
-
-// Mirror of PursuitController::calculateStepDelay
-static unsigned long calculatePursuitStepDelay(float errorMM, float maxSpeedLevel) {
-    float speedLevel;
-    if (errorMM > 5.0f) {
-        speedLevel = maxSpeedLevel;
-    } else if (errorMM > 1.0f) {
-        float ratio = (errorMM - 1.0f) / (5.0f - 1.0f);
-        speedLevel = maxSpeedLevel * (0.6f + (ratio * 0.4f));
-    } else {
-        speedLevel = maxSpeedLevel * 0.6f;
-    }
-    
-    float mmPerSecond = speedLevel * 10.0f;
-    float stepsPerSecond = mmPerSecond * STEPS_PER_MM;
-    if (stepsPerSecond < 30) stepsPerSecond = 30;
-    if (stepsPerSecond > 6000) stepsPerSecond = 6000;
-    
-    float delayMicros = ((1000000.0f / stepsPerSecond) - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
-    if (delayMicros < 20) delayMicros = 20;
-    return (unsigned long)delayMicros;
 }
 
 void test_pursuit_delay_far_from_target() {
     // >5mm error: uses full maxSpeedLevel
-    unsigned long d1 = calculatePursuitStepDelay(10.0f, 10.0f);
-    unsigned long d2 = calculatePursuitStepDelay(50.0f, 10.0f);
+    unsigned long d1 = MovementMath::pursuitStepDelay(10.0f, 10.0f);
+    unsigned long d2 = MovementMath::pursuitStepDelay(50.0f, 10.0f);
     // Same delay regardless of how far (both >5mm)
     TEST_ASSERT_EQUAL_UINT32(d1, d2);
 }
 
 void test_pursuit_delay_close_ramp() {
     // Between 1-5mm: speed ramps from 60% to 100%
-    unsigned long far_delay = calculatePursuitStepDelay(4.5f, 10.0f);
-    unsigned long close_delay = calculatePursuitStepDelay(1.5f, 10.0f);
+    unsigned long far_delay = MovementMath::pursuitStepDelay(4.5f, 10.0f);
+    unsigned long close_delay = MovementMath::pursuitStepDelay(1.5f, 10.0f);
     // Closer = slower = longer delay
     TEST_ASSERT_TRUE(close_delay > far_delay);
 }
 
 void test_pursuit_delay_very_close() {
     // <1mm: minimum speed (60% of max)
-    unsigned long d1 = calculatePursuitStepDelay(0.5f, 10.0f);
-    unsigned long d2 = calculatePursuitStepDelay(0.1f, 10.0f);
+    unsigned long d1 = MovementMath::pursuitStepDelay(0.5f, 10.0f);
+    unsigned long d2 = MovementMath::pursuitStepDelay(0.1f, 10.0f);
     // Same delay (both <1mm → same speed)
     TEST_ASSERT_EQUAL_UINT32(d1, d2);
 }
 
 void test_pursuit_delay_minimum_clamp() {
-    unsigned long delay = calculatePursuitStepDelay(100.0f, MAX_SPEED_LEVEL);
+    unsigned long delay = MovementMath::pursuitStepDelay(100.0f, MAX_SPEED_LEVEL);
     TEST_ASSERT_TRUE(delay >= 20);
 }
 
 // ============================================================================
-// 4. ZONE EFFECT CURVES
+// 4. ZONE EFFECT CURVES — uses MovementMath::zoneSpeedFactor (real production)
 // ============================================================================
-// Verify curve math for all 4 curve types × 2 effect modes.
-// ============================================================================
-
-// Mirror of BaseMovementController::calculateSpeedFactor
-static float calculateSpeedFactor(SpeedEffect effect, SpeedCurve curve,
-                                   float intensity, float zoneProgress) {
-    if (effect == SPEED_NONE) return 1.0f;
-    
-    float maxIntensity = 1.0f + (intensity / 100.0f) * 9.0f;
-    float curveValue;
-    
-    switch (curve) {
-        case CURVE_LINEAR:
-            curveValue = 1.0f - zoneProgress;
-            break;
-        case CURVE_SINE: {
-            float sp = (1.0f - cosf(zoneProgress * (float)PI)) / 2.0f;
-            curveValue = 1.0f - sp;
-            break;
-        }
-        case CURVE_TRIANGLE_INV: {
-            float inv = 1.0f - zoneProgress;
-            curveValue = inv * inv;
-            break;
-        }
-        case CURVE_SINE_INV: {
-            float inv = 1.0f - zoneProgress;
-            curveValue = sinf(inv * (float)PI / 2.0f);
-            break;
-        }
-        default:
-            curveValue = 1.0f - zoneProgress;
-            break;
-    }
-    
-    if (effect == SPEED_DECEL) {
-        return 1.0f + curveValue * (maxIntensity - 1.0f);
-    } else {
-        float accelCurve = 1.0f - curveValue;
-        float minFactor = 1.0f / maxIntensity;
-        return 1.0f - accelCurve * (1.0f - minFactor);
-    }
-}
 
 // ---- DECEL LINEAR ----
 
 void test_zone_decel_linear_at_boundary() {
-    // zoneProgress=0 (entering zone): max deceleration
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 100.0f, 0.0f);
-    // intensity=100% → maxIntensity=10.0, curveValue=1.0 → factor=10.0
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(10.0f, f, 0.01f);
 }
 
 void test_zone_decel_linear_at_extremity() {
-    // zoneProgress=1 (at extremity): normal speed
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 100.0f, 1.0f);
-    // curveValue=0.0 → factor=1.0
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_decel_linear_monotonic() {
-    // Factor must decrease monotonically as zoneProgress increases
-    float prev = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 75.0f, 0.0f);
+    float prev = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 75.0f, 0.0f);
     for (float p = 0.1f; p <= 1.0f; p += 0.1f) {
-        float curr = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 75.0f, p);
-        TEST_ASSERT_TRUE(curr <= prev + 0.001f);  // Allow float tolerance
+        float curr = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 75.0f, p);
+        TEST_ASSERT_TRUE(curr <= prev + 0.001f);
         prev = curr;
     }
 }
@@ -566,61 +453,50 @@ void test_zone_decel_linear_monotonic() {
 // ---- DECEL SINE ----
 
 void test_zone_decel_sine_at_boundary() {
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE, 100.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(10.0f, f, 0.01f);
 }
 
 void test_zone_decel_sine_at_extremity() {
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE, 100.0f, 1.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_decel_sine_monotonic() {
-    float prev = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE, 75.0f, 0.0f);
-    for (float p = 0.05f; p <= 1.0f; p += 0.05f) {
-        float curr = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE, p, p);
-        // Sine curve is monotonic for decel
-    }
-    // Just verify boundary relationship
-    float start = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE, 75.0f, 0.0f);
-    float end = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE, 75.0f, 1.0f);
+    float start = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE, 75.0f, 0.0f);
+    float end   = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE, 75.0f, 1.0f);
     TEST_ASSERT_TRUE(start > end);
 }
 
 // ---- DECEL TRIANGLE_INV ----
 
 void test_zone_decel_triangle_inv_at_boundary() {
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_TRIANGLE_INV, 100.0f, 0.0f);
-    // curveValue = (1-0)^2 = 1.0 → same as LINEAR start
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_TRIANGLE_INV, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(10.0f, f, 0.01f);
 }
 
 void test_zone_decel_triangle_inv_at_extremity() {
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_TRIANGLE_INV, 100.0f, 1.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_TRIANGLE_INV, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 // ---- ACCEL ----
 
 void test_zone_accel_linear_at_boundary() {
-    // At zone entry (zoneProgress=0): normal speed (factor=1.0)
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_LINEAR, 100.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_LINEAR, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_accel_linear_at_extremity() {
-    // At extremity (zoneProgress=1): max speed
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_LINEAR, 100.0f, 1.0f);
-    // maxIntensity=10, minFactor=0.1, factor=0.1 (10× faster)
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_LINEAR, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(0.1f, f, 0.01f);
 }
 
 void test_zone_accel_factor_less_than_one() {
-    // Accel factors should always be ≤ 1.0 (faster = shorter delay)
     for (float p = 0.0f; p <= 1.0f; p += 0.1f) {
-        float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_LINEAR, 50.0f, p);
-        TEST_ASSERT_TRUE(f <= 1.001f);  // Allow float tolerance
-        TEST_ASSERT_TRUE(f > 0.0f);     // Never zero
+        float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_LINEAR, 50.0f, p);
+        TEST_ASSERT_TRUE(f <= 1.001f);
+        TEST_ASSERT_TRUE(f > 0.0f);
     }
 }
 
@@ -628,7 +504,7 @@ void test_zone_accel_factor_less_than_one() {
 
 void test_zone_none_always_one() {
     for (float p = 0.0f; p <= 1.0f; p += 0.2f) {
-        float f = calculateSpeedFactor(SPEED_NONE, CURVE_LINEAR, 100.0f, p);
+        float f = MovementMath::zoneSpeedFactor(SPEED_NONE, CURVE_LINEAR, 100.0f, p);
         TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.001f);
     }
 }
@@ -636,59 +512,40 @@ void test_zone_none_always_one() {
 // ---- INTENSITY SCALING ----
 
 void test_zone_zero_intensity_no_effect() {
-    // 0% intensity → maxIntensity=1.0 → no speed change
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 0.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 0.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_higher_intensity_stronger_effect() {
-    float f25 = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 25.0f, 0.0f);
-    float f75 = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 75.0f, 0.0f);
-    float f100 = calculateSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 100.0f, 0.0f);
-    TEST_ASSERT_TRUE(f75 > f25);    // Higher intensity = bigger decel factor
+    float f25  = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 25.0f, 0.0f);
+    float f75  = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 75.0f, 0.0f);
+    float f100 = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_LINEAR, 100.0f, 0.0f);
+    TEST_ASSERT_TRUE(f75 > f25);
     TEST_ASSERT_TRUE(f100 > f75);
 }
 
 // ============================================================================
-// 5. CHAOS SAFE DURATION CALCULATION
+// 5. CHAOS SAFE DURATION — uses MovementMath::safeDurationCalc (real production)
 // ============================================================================
-
-// Mirror of ChaosController::safeDurationCalc (static function)
-static void safeDurationCalc(const ChaosBaseConfig& cfg, float craziness, float maxFactor,
-                              unsigned long& outMin, unsigned long& outMax) {
-    long minVal = (long)cfg.durationMin - (long)(cfg.durationCrazinessReduction * craziness);
-    long maxVal = (long)cfg.durationMax - (long)((cfg.durationMax - cfg.durationMin) * craziness * maxFactor);
-    
-    if (minVal < 100) minVal = 100;
-    if (maxVal < 100) maxVal = 100;
-    if (minVal >= maxVal) maxVal = minVal + 100;
-    
-    outMin = (unsigned long)minVal;
-    outMax = (unsigned long)maxVal;
-}
 
 void test_safe_duration_normal() {
     unsigned long outMin, outMax;
-    // ZIGZAG: durationMin=2000, durationMax=4000, reduction=600
-    // craziness=0 → min=2000, max=4000
-    safeDurationCalc(ZIGZAG_CONFIG, 0.0f, 0.375f, outMin, outMax);
+    MovementMath::safeDurationCalc(ZIGZAG_CONFIG, 0.0f, 0.375f, outMin, outMax);
     TEST_ASSERT_EQUAL_UINT32(2000, outMin);
     TEST_ASSERT_EQUAL_UINT32(4000, outMax);
 }
 
 void test_safe_duration_min_less_than_max() {
     unsigned long outMin, outMax;
-    // For any config and craziness, min must always be < max
     for (float c = 0.0f; c <= 1.0f; c += 0.1f) {
-        safeDurationCalc(ZIGZAG_CONFIG, c, 0.375f, outMin, outMax);
+        MovementMath::safeDurationCalc(ZIGZAG_CONFIG, c, 0.375f, outMin, outMax);
         TEST_ASSERT_TRUE(outMin < outMax);
     }
 }
 
 void test_safe_duration_floor_clamping() {
     unsigned long outMin, outMax;
-    // Extreme craziness: should clamp to 100ms minimum
-    safeDurationCalc(ZIGZAG_CONFIG, 100.0f, 100.0f, outMin, outMax);
+    MovementMath::safeDurationCalc(ZIGZAG_CONFIG, 100.0f, 100.0f, outMin, outMax);
     TEST_ASSERT_TRUE(outMin >= 100);
     TEST_ASSERT_TRUE(outMax >= 100);
     TEST_ASSERT_TRUE(outMin < outMax);
@@ -696,14 +553,12 @@ void test_safe_duration_floor_clamping() {
 
 void test_safe_duration_burst_extreme() {
     unsigned long outMin, outMax;
-    // BURST: short durations — verify they don't underflow
-    safeDurationCalc(BURST_CONFIG, 1.0f, 0.5f, outMin, outMax);
+    MovementMath::safeDurationCalc(BURST_CONFIG, 1.0f, 0.5f, outMin, outMax);
     TEST_ASSERT_TRUE(outMin >= 100);
     TEST_ASSERT_TRUE(outMin < outMax);
 }
 
 void test_safe_duration_all_patterns_valid() {
-    // Verify all pattern configs produce valid durations at craziness=0 and =1
     const ChaosBaseConfig* configs[] = {
         &ZIGZAG_CONFIG, &SWEEP_CONFIG, &PULSE_CONFIG, &DRIFT_CONFIG,
         &BURST_CONFIG, &WAVE_CONFIG, &PENDULUM_CONFIG, &SPIRAL_CONFIG,
@@ -711,11 +566,11 @@ void test_safe_duration_all_patterns_valid() {
     };
     for (auto* cfg : configs) {
         unsigned long outMin, outMax;
-        safeDurationCalc(*cfg, 0.0f, 0.5f, outMin, outMax);
+        MovementMath::safeDurationCalc(*cfg, 0.0f, 0.5f, outMin, outMax);
         TEST_ASSERT_TRUE(outMin < outMax);
         TEST_ASSERT_TRUE(outMin >= 100);
         
-        safeDurationCalc(*cfg, 1.0f, 0.5f, outMin, outMax);
+        MovementMath::safeDurationCalc(*cfg, 1.0f, 0.5f, outMin, outMax);
         TEST_ASSERT_TRUE(outMin < outMax);
         TEST_ASSERT_TRUE(outMin >= 100);
     }
@@ -1134,160 +989,134 @@ void test_cycle_pause_random_inverted_bounds() {
 // ============================================================================
 
 void test_zone_decel_sine_inv_at_boundary() {
-    // zoneProgress=0: curveValue = sin(1.0 * PI/2) = 1.0 → max decel
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 100.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(10.0f, f, 0.01f);
 }
 
 void test_zone_decel_sine_inv_at_extremity() {
-    // zoneProgress=1: curveValue = sin(0 * PI/2) = 0.0 → normal speed
-    float f = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 100.0f, 1.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_decel_sine_inv_monotonic() {
-    float prev = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 75.0f, 0.0f);
+    float prev = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 75.0f, 0.0f);
     for (float p = 0.1f; p <= 1.0f; p += 0.1f) {
-        float curr = calculateSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 75.0f, p);
+        float curr = MovementMath::zoneSpeedFactor(SPEED_DECEL, CURVE_SINE_INV, 75.0f, p);
         TEST_ASSERT_TRUE(curr <= prev + 0.001f);
         prev = curr;
     }
 }
 
 void test_zone_accel_sine_inv_at_boundary() {
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_SINE_INV, 100.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_SINE_INV, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_accel_sine_inv_at_extremity() {
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_SINE_INV, 100.0f, 1.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_SINE_INV, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(0.1f, f, 0.01f);
 }
 
 void test_zone_accel_sine_at_boundary() {
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_SINE, 100.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_SINE, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_accel_sine_at_extremity() {
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_SINE, 100.0f, 1.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_SINE, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(0.1f, f, 0.01f);
 }
 
 void test_zone_accel_triangle_inv_at_boundary() {
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_TRIANGLE_INV, 100.0f, 0.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_TRIANGLE_INV, 100.0f, 0.0f);
     TEST_ASSERT_FLOAT_NEAR(1.0f, f, 0.01f);
 }
 
 void test_zone_accel_triangle_inv_at_extremity() {
-    float f = calculateSpeedFactor(SPEED_ACCEL, CURVE_TRIANGLE_INV, 100.0f, 1.0f);
+    float f = MovementMath::zoneSpeedFactor(SPEED_ACCEL, CURVE_TRIANGLE_INV, 100.0f, 1.0f);
     TEST_ASSERT_FLOAT_NEAR(0.1f, f, 0.01f);
 }
 
 // ============================================================================
-// 12. OSCILLATION WAVEFORM MATH
+// 12. OSCILLATION WAVEFORM MATH — uses MovementMath::waveformPosition (real)
 // ============================================================================
-// Re-implement and test position calculation for all 3 waveforms.
-// Pure math, no hardware.
+// Production convention:
+//   SINE:     −cos(phase × 2π)  → phase=0: −1 (bottom), 0.25: 0, 0.5: +1, 0.75: 0
+//   TRIANGLE: starts at +1, falls to −1 (phase=0.5), rises back to +1
+//   SQUARE:   +1 first half, −1 second half
 // ============================================================================
-
-// Mirror of OscillationController::calculatePosition waveform logic
-static float calculateWaveformPosition(OscillationWaveform waveform, float phase,
-                                        float centerMM, float amplitudeMM) {
-    float normalizedPos;  // -1.0 to +1.0
-
-    switch (waveform) {
-        case OscillationWaveform::OSC_SINE:
-            normalizedPos = sinf(phase * 2.0f * (float)PI);
-            break;
-        case OscillationWaveform::OSC_TRIANGLE: {
-            // Triangle wave: linear up/down
-            float mod = fmodf(phase, 1.0f);
-            if (mod < 0) mod += 1.0f;
-            if (mod < 0.25f) normalizedPos = mod * 4.0f;
-            else if (mod < 0.75f) normalizedPos = 2.0f - mod * 4.0f;
-            else normalizedPos = -4.0f + mod * 4.0f;
-            break;
-        }
-        case OscillationWaveform::OSC_SQUARE:
-            normalizedPos = (fmodf(phase, 1.0f) < 0.5f) ? 1.0f : -1.0f;
-            break;
-        default:
-            normalizedPos = 0.0f;
-    }
-
-    return centerMM + normalizedPos * amplitudeMM;
-}
 
 void test_osc_sine_at_zero_phase() {
-    // sin(0) = 0 → center position
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_SINE, 0.0f, 100.0f, 50.0f);
-    TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
+    // -cos(0) = -1 → center - amplitude
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, 0.0f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(50.0f, pos, 0.1f);
 }
 
 void test_osc_sine_at_quarter() {
-    // sin(PI/2) = 1 → center + amplitude
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_SINE, 0.25f, 100.0f, 50.0f);
-    TEST_ASSERT_FLOAT_NEAR(150.0f, pos, 0.1f);
+    // -cos(PI/2) = 0 → center
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, 0.25f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
 }
 
 void test_osc_sine_at_half() {
-    // sin(PI) = 0 → center
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_SINE, 0.5f, 100.0f, 50.0f);
-    TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
-}
-
-void test_osc_sine_at_three_quarter() {
-    // sin(3PI/2) = -1 → center - amplitude
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_SINE, 0.75f, 100.0f, 50.0f);
-    TEST_ASSERT_FLOAT_NEAR(50.0f, pos, 0.1f);
-}
-
-void test_osc_triangle_at_zero() {
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.0f, 100.0f, 50.0f);
-    TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
-}
-
-void test_osc_triangle_at_quarter() {
-    // Phase 0.25 → peak (+1)
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.25f, 100.0f, 50.0f);
+    // -cos(PI) = +1 → center + amplitude
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, 0.5f, 100.0f, 50.0f);
     TEST_ASSERT_FLOAT_NEAR(150.0f, pos, 0.1f);
 }
 
-void test_osc_triangle_at_half() {
-    // Phase 0.5 → back to center (0)
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.5f, 100.0f, 50.0f);
+void test_osc_sine_at_three_quarter() {
+    // -cos(3PI/2) = 0 → center
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, 0.75f, 100.0f, 50.0f);
     TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
 }
 
-void test_osc_triangle_at_three_quarter() {
-    // Phase 0.75 → trough (-1)
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.75f, 100.0f, 50.0f);
+void test_osc_triangle_at_zero() {
+    // phase=0 → waveValue = 1.0 - 0 = +1 → center + amplitude
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.0f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(150.0f, pos, 0.1f);
+}
+
+void test_osc_triangle_at_quarter() {
+    // phase=0.25 → waveValue = 1.0 - 1.0 = 0 → center
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.25f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
+}
+
+void test_osc_triangle_at_half() {
+    // phase=0.5 → waveValue = -3.0 + 2.0 = −1 → center - amplitude
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.5f, 100.0f, 50.0f);
     TEST_ASSERT_FLOAT_NEAR(50.0f, pos, 0.1f);
 }
 
+void test_osc_triangle_at_three_quarter() {
+    // phase=0.75 → waveValue = -3.0 + 3.0 = 0 → center
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.75f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.1f);
+}
+
 void test_osc_square_first_half() {
-    // First half of cycle → +1
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_SQUARE, 0.1f, 100.0f, 50.0f);
+    // First half of cycle → +1 → center + amplitude
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_SQUARE, 0.1f, 100.0f, 50.0f);
     TEST_ASSERT_FLOAT_NEAR(150.0f, pos, 0.1f);
 }
 
 void test_osc_square_second_half() {
-    // Second half of cycle → -1
-    float pos = calculateWaveformPosition(OscillationWaveform::OSC_SQUARE, 0.6f, 100.0f, 50.0f);
+    // Second half of cycle → -1 → center - amplitude
+    float pos = MovementMath::waveformPosition(OscillationWaveform::OSC_SQUARE, 0.6f, 100.0f, 50.0f);
     TEST_ASSERT_FLOAT_NEAR(50.0f, pos, 0.1f);
 }
 
 void test_osc_all_waveforms_bounded() {
-    // For any phase, position must be within [center-amplitude, center+amplitude]
+    // For any phase in [0,1), position must be within [center-amplitude, center+amplitude]
+    // Note: waveformValue is designed for phase ∈ [0,1) — production fmods before calling
     OscillationWaveform wfs[] = { OscillationWaveform::OSC_SINE,
                                    OscillationWaveform::OSC_TRIANGLE,
                                    OscillationWaveform::OSC_SQUARE };
     for (auto wf : wfs) {
-        for (float phase = 0.0f; phase < 2.0f; phase += 0.05f) {
-            float pos = calculateWaveformPosition(wf, phase, 100.0f, 50.0f);
-            TEST_ASSERT_TRUE(pos >= 49.9f);   // center - amplitude (with tolerance)
-            TEST_ASSERT_TRUE(pos <= 150.1f);   // center + amplitude (with tolerance)
+        for (float phase = 0.0f; phase < 1.0f; phase += 0.05f) {
+            float pos = MovementMath::waveformPosition(wf, phase, 100.0f, 50.0f);
+            TEST_ASSERT_TRUE(pos >= 49.9f);
+            TEST_ASSERT_TRUE(pos <= 150.1f);
         }
     }
 }
@@ -1598,36 +1427,36 @@ void test_oscillation_config_ramp_defaults() {
 
 void test_vaet_step_delay_very_short_distance() {
     // 1mm distance, low speed: should still produce valid delay
-    unsigned long delay = calculateVaetStepDelay(1.0f, 1.0f);
+    unsigned long delay = MovementMath::vaetStepDelay(1.0f, 1.0f);
     TEST_ASSERT_TRUE(delay >= 20);
     TEST_ASSERT_TRUE(delay < 1000000);  // Not absurd
 }
 
 void test_vaet_step_delay_max_distance() {
     // Max reasonable distance with medium speed
-    unsigned long delay = calculateVaetStepDelay(5.0f, HARD_MAX_DISTANCE_MM);
+    unsigned long delay = MovementMath::vaetStepDelay(5.0f, HARD_MAX_DISTANCE_MM);
     TEST_ASSERT_TRUE(delay >= 20);
 }
 
 void test_chaos_step_delay_mid_range() {
     // speed=15 → 150mm/s → 1200 steps/s → ~833µs
-    unsigned long delay = calculateChaosStepDelay(15.0f);
+    unsigned long delay = MovementMath::chaosStepDelay(15.0f);
     TEST_ASSERT_TRUE(delay > 20);
     TEST_ASSERT_TRUE(delay < 2000);
 }
 
 void test_pursuit_delay_exact_threshold() {
     // At exactly 5mm: uses max speed
-    unsigned long d5 = calculatePursuitStepDelay(5.0f, 10.0f);
-    unsigned long d5_1 = calculatePursuitStepDelay(5.1f, 10.0f);
+    unsigned long d5 = MovementMath::pursuitStepDelay(5.0f, 10.0f);
+    unsigned long d5_1 = MovementMath::pursuitStepDelay(5.1f, 10.0f);
     // At 5mm and above, should give full speed (same delay)
     TEST_ASSERT_EQUAL_UINT32(d5_1, d5_1);  // Both > 5mm
 }
 
 void test_pursuit_delay_at_1mm_boundary() {
     // At exactly 1mm: bottom of ramp zone
-    unsigned long d1 = calculatePursuitStepDelay(1.0f, 10.0f);
-    unsigned long d09 = calculatePursuitStepDelay(0.9f, 10.0f);
+    unsigned long d1 = MovementMath::pursuitStepDelay(1.0f, 10.0f);
+    unsigned long d09 = MovementMath::pursuitStepDelay(0.9f, 10.0f);
     // Below 1mm uses constant 60% speed, at 1mm uses ramp (also 60%)
     // d1: ratio = (1-1)/(5-1) = 0 → speed = 10 * (0.6+0) = 6.0
     // d09: speed = 10 * 0.6 = 6.0
@@ -1697,6 +1526,234 @@ void test_oscillation_waveform_values() {
     TEST_ASSERT_EQUAL_INT(0, (int)OscillationWaveform::OSC_SINE);
     TEST_ASSERT_EQUAL_INT(1, (int)OscillationWaveform::OSC_TRIANGLE);
     TEST_ASSERT_EQUAL_INT(2, (int)OscillationWaveform::OSC_SQUARE);
+}
+
+// ============================================================================
+// 24. VALIDATOR COMPOSITION CHAINS (real Validators:: namespace)
+// ============================================================================
+// Tests that exercise validator combination logic with production code.
+// These test the actual code path used when the API validates commands.
+// ============================================================================
+
+void test_validator_motion_range_at_rail_edge() {
+    // Start at 180mm on a 200mm rail, distance 20mm → exactly at limit → valid
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_TRUE(Validators::motionRange(180.0f, 20.0f, err));
+}
+
+void test_validator_motion_range_overflows_rail() {
+    // Start at 180mm, distance 21mm → 201mm → exceeds 200mm rail
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_FALSE(Validators::motionRange(180.0f, 21.0f, err));
+    // The error message should mention the end position
+    TEST_ASSERT_TRUE(err.length() > 0);
+}
+
+void test_validator_motion_range_with_limit_percent() {
+    // 200mm rail but limited to 50% → effectiveMax = 100mm
+    String err;
+    effectiveMaxDistanceMM = 100.0f;  // 50% of 200mm
+    maxDistanceLimitPercent = 50.0f;
+    // Start=0, distance=100 → valid (exactly at limit)
+    TEST_ASSERT_TRUE(Validators::motionRange(0.0f, 100.0f, err));
+    // Start=0, distance=101 → invalid
+    TEST_ASSERT_FALSE(Validators::motionRange(0.0f, 101.0f, err));
+    // Restore
+    effectiveMaxDistanceMM = 200.0f;
+    maxDistanceLimitPercent = 100.0f;
+}
+
+void test_validator_oscillation_at_center_of_rail() {
+    // Center at 100mm, amplitude 100mm → range [0, 200] → exactly valid
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_TRUE(Validators::oscillationParams(100.0f, 100.0f, 1.0f, err));
+}
+
+void test_validator_oscillation_center_near_start() {
+    // Center at 30mm, amplitude 31mm → 30-31 = -1 → invalid (below 0)
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_FALSE(Validators::oscillationParams(30.0f, 31.0f, 1.0f, err));
+}
+
+void test_validator_oscillation_center_near_end() {
+    // Center at 180mm, amplitude 21mm → 180+21 = 201 → exceeds 200mm
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_FALSE(Validators::oscillationParams(180.0f, 21.0f, 1.0f, err));
+}
+
+void test_validator_chaos_center_plus_amplitude_at_limit() {
+    // Center at 150mm, amplitude 50mm → [100, 200] → exactly valid
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_TRUE(Validators::chaosParams(150.0f, 50.0f, 5.0f, 50.0f, err));
+}
+
+void test_validator_chaos_center_minus_amplitude_below_zero() {
+    // Center at 40mm, amplitude 41mm → 40-41 = -1 → invalid
+    String err;
+    effectiveMaxDistanceMM = 200.0f;
+    TEST_ASSERT_FALSE(Validators::chaosParams(40.0f, 41.0f, 5.0f, 50.0f, err));
+}
+
+// ============================================================================
+// 25. MOVEMENTMATH CROSS-FUNCTION INVARIANTS
+// ============================================================================
+// Test relationships between different formulas — properties that MUST hold.
+// ============================================================================
+
+void test_speed_monotonicity_vaet() {
+    // Higher speed level → shorter step delay (faster movement)
+    for (float spd = 1.0f; spd < 19.0f; spd += 1.0f) {
+        unsigned long d1 = MovementMath::vaetStepDelay(spd, 100.0f);
+        unsigned long d2 = MovementMath::vaetStepDelay(spd + 1.0f, 100.0f);
+        TEST_ASSERT_TRUE_MESSAGE(d2 <= d1, "vaetStepDelay not monotonically decreasing with speed");
+    }
+}
+
+void test_speed_monotonicity_chaos() {
+    // Higher speed → shorter delay
+    for (float spd = 1.0f; spd < 19.0f; spd += 1.0f) {
+        unsigned long d1 = MovementMath::chaosStepDelay(spd);
+        unsigned long d2 = MovementMath::chaosStepDelay(spd + 1.0f);
+        TEST_ASSERT_TRUE_MESSAGE(d2 <= d1, "chaosStepDelay not monotonically decreasing with speed");
+    }
+}
+
+void test_speed_monotonicity_pursuit() {
+    // Farther from target → faster (shorter delay), within ramp zone
+    for (float err = 1.5f; err < 4.5f; err += 0.5f) {
+        unsigned long d1 = MovementMath::pursuitStepDelay(err, 10.0f);
+        unsigned long d2 = MovementMath::pursuitStepDelay(err + 0.5f, 10.0f);
+        TEST_ASSERT_TRUE_MESSAGE(d2 <= d1, "pursuitStepDelay not monotonically decreasing with error");
+    }
+}
+
+void test_distance_monotonicity_vaet() {
+    // Longer distance → shorter step delay (more distance to cover per cycle)
+    for (float dist = 10.0f; dist < 190.0f; dist += 20.0f) {
+        unsigned long d1 = MovementMath::vaetStepDelay(5.0f, dist);
+        unsigned long d2 = MovementMath::vaetStepDelay(5.0f, dist + 20.0f);
+        TEST_ASSERT_TRUE_MESSAGE(d2 <= d1, "vaetStepDelay should decrease with longer distance");
+    }
+}
+
+void test_all_delays_above_minimum() {
+    // No formula should produce delay below 20µs (hardcoded floor in all formulas)
+    for (float spd = 0.1f; spd <= MAX_SPEED_LEVEL; spd += 2.0f) {
+        unsigned long dv = MovementMath::vaetStepDelay(spd, 100.0f);
+        unsigned long dc = MovementMath::chaosStepDelay(spd);
+        TEST_ASSERT_TRUE(dv >= 20);
+        TEST_ASSERT_TRUE(dc >= 20);
+    }
+    for (float err = 0.1f; err <= 10.0f; err += 1.0f) {
+        unsigned long dp = MovementMath::pursuitStepDelay(err, 10.0f);
+        TEST_ASSERT_TRUE(dp >= 20);
+    }
+}
+
+void test_zone_decel_reduces_speed() {
+    // Decel factor >= 1.0 (larger factor = longer delay = slower motor)
+    // At boundary(0), curveValue=1 → factor = maxIntensity (maximum slowdown)
+    // At extremity(1), curveValue=0 → factor = 1.0 (normal speed)
+    for (float progress = 0.0f; progress <= 1.0f; progress += 0.1f) {
+        float f = MovementMath::zoneSpeedFactor(SpeedEffect::SPEED_DECEL, SpeedCurve::CURVE_LINEAR, 100.0f, progress);
+        TEST_ASSERT_TRUE(f >= 1.0f - 0.001f);  // Always >= 1.0
+    }
+    // Verify extremity returns to normal speed
+    float fExt = MovementMath::zoneSpeedFactor(SpeedEffect::SPEED_DECEL, SpeedCurve::CURVE_LINEAR, 100.0f, 1.0f);
+    TEST_ASSERT_FLOAT_NEAR(1.0f, fExt, 0.001f);
+}
+
+void test_zone_accel_increases_speed() {
+    // Accel factor: at boundary(0) → 1.0 (full speed entering zone)
+    //               at extremity(1) → minFactor < 1.0 (slow at start of travel)
+    float fBoundary = MovementMath::zoneSpeedFactor(SpeedEffect::SPEED_ACCEL, SpeedCurve::CURVE_LINEAR, 100.0f, 0.0f);
+    float fExtremity = MovementMath::zoneSpeedFactor(SpeedEffect::SPEED_ACCEL, SpeedCurve::CURVE_LINEAR, 100.0f, 1.0f);
+    TEST_ASSERT_FLOAT_NEAR(1.0f, fBoundary, 0.001f);
+    TEST_ASSERT_TRUE(fExtremity < 1.0f);  // Reduced speed at extremity
+    TEST_ASSERT_TRUE(fExtremity > 0.0f);  // But not zero
+}
+
+// ============================================================================
+// 26. WAVEFORM FULL-CYCLE PROPERTIES
+// ============================================================================
+// Verify mathematical properties of waveforms over complete cycles.
+// ============================================================================
+
+void test_sine_waveform_period_one() {
+    // Phase 0 and phase 1 should give the same position (one full period)
+    float p0 = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, 0.0f, 100.0f, 50.0f);
+    float p1 = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, 1.0f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(p0, p1, 0.5f);
+}
+
+void test_triangle_waveform_period_one() {
+    float p0 = MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, 0.0f, 100.0f, 50.0f);
+    float p1 = MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, 1.0f, 100.0f, 50.0f);
+    TEST_ASSERT_FLOAT_NEAR(p0, p1, 0.5f);
+}
+
+void test_sine_average_is_center() {
+    // Average of sine over one period should be the center position
+    float sum = 0.0f;
+    int N = 100;
+    for (int i = 0; i < N; i++) {
+        float phase = (float)i / (float)N;
+        sum += MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, phase, 100.0f, 50.0f);
+    }
+    float avg = sum / N;
+    TEST_ASSERT_FLOAT_NEAR(100.0f, avg, 1.0f);  // Average ≈ center
+}
+
+void test_triangle_average_is_center() {
+    float sum = 0.0f;
+    int N = 100;
+    for (int i = 0; i < N; i++) {
+        float phase = (float)i / (float)N;
+        sum += MovementMath::waveformPosition(OscillationWaveform::OSC_TRIANGLE, phase, 100.0f, 50.0f);
+    }
+    float avg = sum / N;
+    TEST_ASSERT_FLOAT_NEAR(100.0f, avg, 1.5f);  // Average ≈ center
+}
+
+void test_square_average_is_center() {
+    float sum = 0.0f;
+    int N = 100;
+    for (int i = 0; i < N; i++) {
+        float phase = (float)i / (float)N;
+        sum += MovementMath::waveformPosition(OscillationWaveform::OSC_SQUARE, phase, 100.0f, 50.0f);
+    }
+    float avg = sum / N;
+    TEST_ASSERT_FLOAT_NEAR(100.0f, avg, 1.5f);  // Average ≈ center
+}
+
+void test_sine_symmetry_half_period() {
+    // Value at phase and at phase+0.5 should be symmetric around center
+    // For -cos: -cos(φ·2π) + -cos((φ+0.5)·2π) = -cos(φ·2π) + cos(φ·2π) = 0
+    // So pos(phase) + pos(phase+0.5) = 2*center
+    for (float phase = 0.0f; phase < 0.5f; phase += 0.05f) {
+        float p1 = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, phase, 100.0f, 50.0f);
+        float p2 = MovementMath::waveformPosition(OscillationWaveform::OSC_SINE, phase + 0.5f, 100.0f, 50.0f);
+        TEST_ASSERT_FLOAT_NEAR(200.0f, p1 + p2, 0.5f);  // p1+p2 = 2*center
+    }
+}
+
+void test_waveform_extreme_amplitude_zero() {
+    // With amplitude 0, all waveforms should return center regardless of phase
+    OscillationWaveform wfs[] = { OscillationWaveform::OSC_SINE,
+                                   OscillationWaveform::OSC_TRIANGLE,
+                                   OscillationWaveform::OSC_SQUARE };
+    for (auto wf : wfs) {
+        for (float phase = 0.0f; phase < 1.0f; phase += 0.1f) {
+            float pos = MovementMath::waveformPosition(wf, phase, 100.0f, 0.0f);
+            TEST_ASSERT_FLOAT_NEAR(100.0f, pos, 0.01f);
+        }
+    }
 }
 
 // ============================================================================
@@ -1923,6 +1980,34 @@ int main(int argc, char **argv) {
     RUN_TEST(test_speed_effect_values);
     RUN_TEST(test_speed_curve_values);
     RUN_TEST(test_oscillation_waveform_values);
+
+    // 24. Validator composition chains (8 tests)
+    RUN_TEST(test_validator_motion_range_at_rail_edge);
+    RUN_TEST(test_validator_motion_range_overflows_rail);
+    RUN_TEST(test_validator_motion_range_with_limit_percent);
+    RUN_TEST(test_validator_oscillation_at_center_of_rail);
+    RUN_TEST(test_validator_oscillation_center_near_start);
+    RUN_TEST(test_validator_oscillation_center_near_end);
+    RUN_TEST(test_validator_chaos_center_plus_amplitude_at_limit);
+    RUN_TEST(test_validator_chaos_center_minus_amplitude_below_zero);
+
+    // 25. MovementMath cross-function invariants (8 tests)
+    RUN_TEST(test_speed_monotonicity_vaet);
+    RUN_TEST(test_speed_monotonicity_chaos);
+    RUN_TEST(test_speed_monotonicity_pursuit);
+    RUN_TEST(test_distance_monotonicity_vaet);
+    RUN_TEST(test_all_delays_above_minimum);
+    RUN_TEST(test_zone_decel_reduces_speed);
+    RUN_TEST(test_zone_accel_increases_speed);
+
+    // 26. Waveform full-cycle properties (7 tests)
+    RUN_TEST(test_sine_waveform_period_one);
+    RUN_TEST(test_triangle_waveform_period_one);
+    RUN_TEST(test_sine_average_is_center);
+    RUN_TEST(test_triangle_average_is_center);
+    RUN_TEST(test_square_average_is_center);
+    RUN_TEST(test_sine_symmetry_half_period);
+    RUN_TEST(test_waveform_extreme_amplitude_zero);
 
     return UNITY_END();
 }

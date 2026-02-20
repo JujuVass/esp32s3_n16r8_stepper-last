@@ -5,6 +5,7 @@
 #include "movement/BaseMovementController.h"
 #include "communication/StatusBroadcaster.h"  // For Status.sendError()
 #include "core/GlobalState.h"
+#include "core/MovementMath.h"
 #include "core/UtilityEngine.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
@@ -191,59 +192,42 @@ void BaseMovementControllerClass::setCyclePause(bool enabled, float durationSec,
 // ============================================================================
 
 void BaseMovementControllerClass::calculateStepDelay() {
-    // FIXED CYCLE TIME - speed adapts to distance
+    // Delegate core math to MovementMath (testable pure functions)
+    stepDelayMicrosForward  = MovementMath::vaetStepDelay(motion.speedLevelForward,  motion.targetDistanceMM);
+    stepDelayMicrosBackward = MovementMath::vaetStepDelay(motion.speedLevelBackward, motion.targetDistanceMM);
+    
+    // Early exit guard — bad input already handled by vaetStepDelay (returns 1000)
     if (motion.targetDistanceMM <= 0 || motion.speedLevelForward <= 0 || motion.speedLevelBackward <= 0) {
-        stepDelayMicrosForward = 1000;
-        stepDelayMicrosBackward = 1000;
         return;
     }
-    
-    // Convert speed levels to cycles/min
-    float cyclesPerMinuteForward = speedLevelToCyclesPerMin(motion.speedLevelForward);
-    float cyclesPerMinuteBackward = speedLevelToCyclesPerMin(motion.speedLevelBackward);
-    
-    // Safety: prevent division by zero
-    if (cyclesPerMinuteForward <= 0.1) cyclesPerMinuteForward = 0.1;
-    if (cyclesPerMinuteBackward <= 0.1) cyclesPerMinuteBackward = 0.1;
     
     long stepsPerDirection = (long)(motion.targetDistanceMM * STEPS_PER_MM);
     
-    // 🛡️ CRITICAL SAFETY: Prevent division by zero (can happen with corrupted config data)
+    // 🛡️ CRITICAL SAFETY: Log if stepsPerDirection was zero (vaetStepDelay already returned 1000)
     if (stepsPerDirection <= 0) {
         engine->error("⚠️ DIVISION BY ZERO PREVENTED! stepsPerDirection=" + String(stepsPerDirection) + 
               " (distance=" + String(motion.targetDistanceMM, 3) + "mm)");
-        stepDelayMicrosForward = 1000;
-        stepDelayMicrosBackward = 1000;
         return;
     }
     
-    // Calculate forward delay with compensation for system overhead
-    float halfCycleForwardMs = (60000.0 / cyclesPerMinuteForward) / 2.0;
-    float rawDelayForward = (halfCycleForwardMs * 1000.0) / (float)stepsPerDirection;
-    float delayForward = (rawDelayForward - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
+    // Warn if speeds were clamped to minimum (20µs)
+    float cyclesPerMinuteForward  = MovementMath::speedLevelToCPM(motion.speedLevelForward);
+    float cyclesPerMinuteBackward = MovementMath::speedLevelToCPM(motion.speedLevelBackward);
     
-    // Calculate backward delay (can be different) with compensation
-    float halfCycleBackwardMs = (60000.0 / cyclesPerMinuteBackward) / 2.0;
-    float rawDelayBackward = (halfCycleBackwardMs * 1000.0) / (float)stepsPerDirection;
-    float delayBackward = (rawDelayBackward - STEP_EXECUTION_TIME_MICROS) / SPEED_COMPENSATION_FACTOR;
-    
-    stepDelayMicrosForward = (unsigned long)delayForward;
-    stepDelayMicrosBackward = (unsigned long)delayBackward;
-    
-    // Minimum delay for HSS86 safety (50kHz max = 20µs period)
-    if (stepDelayMicrosForward < 20) {
-        stepDelayMicrosForward = 20;
+    if (stepDelayMicrosForward <= 20) {
         engine->warn("⚠️ Forward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
               "mm too long for speed " + String(motion.speedLevelForward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
               String(cyclesPerMinuteForward, 0) + " c/min)");
     }
-    if (stepDelayMicrosBackward < 20) {
-        stepDelayMicrosBackward = 20;
+    if (stepDelayMicrosBackward <= 20) {
         engine->warn("⚠️ Backward speed limited! Distance " + String(motion.targetDistanceMM, 0) + 
               "mm too long for speed " + String(motion.speedLevelBackward, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
               String(cyclesPerMinuteBackward, 0) + " c/min)");
     }
     
+    // Diagnostics log (intermediate values recomputed for display only)
+    float halfCycleForwardMs = (60000.0f / max(cyclesPerMinuteForward, 0.1f)) / 2.0f;
+    float rawDelayForward = (halfCycleForwardMs * 1000.0f) / (float)stepsPerDirection;
     engine->info("⚙️ CALC: dist=" + String(motion.targetDistanceMM, 1) + "mm → " + 
           String(stepsPerDirection) + " steps | speed=" + String(motion.speedLevelForward, 1) + 
           " → " + String(cyclesPerMinuteForward, 0) + " c/min | halfCycle=" + 
@@ -252,14 +236,7 @@ void BaseMovementControllerClass::calculateStepDelay() {
 }
 
 float BaseMovementControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
-    // Convert 0-20 scale to cycles/min (0-200)
-    float cpm = speedLevel * 10.0;
-    
-    // Safety limits
-    if (cpm < 0) cpm = 0;
-    if (cpm > MAX_SPEED_LEVEL * 10.0) cpm = MAX_SPEED_LEVEL * 10.0;
-    
-    return cpm;
+    return MovementMath::speedLevelToCPM(speedLevel);
 }
 
 // ============================================================================
@@ -267,68 +244,8 @@ float BaseMovementControllerClass::speedLevelToCyclesPerMin(float speedLevel) {
 // ============================================================================
 
 float BaseMovementControllerClass::calculateSpeedFactor(float zoneProgress) {
-    // zoneProgress: 0.0 = at zone boundary (entering), 1.0 = at extremity
-    
-    // If no speed effect, return normal speed
-    if (zoneEffect.speedEffect == SPEED_NONE) {
-        return 1.0;
-    }
-    
-    // Calculate max intensity based on percentage
-    // 0% = factor 1.0 (no change)
-    // 100% = factor 10.0 (10× slower for DECEL, 10× faster for ACCEL)
-    float maxIntensity = 1.0 + (zoneEffect.speedIntensity / 100.0) * 9.0;
-    
-    float curveValue;
-    
-    // Calculate curve value based on curve type
-    switch (zoneEffect.speedCurve) {
-        case CURVE_LINEAR:
-            // Linear: constant rate
-            curveValue = 1.0 - zoneProgress;
-            break;
-            
-        case CURVE_SINE:
-            // Sinusoidal: smooth S-curve
-            {
-                float smoothProgress = (1.0 - cos(zoneProgress * PI)) / 2.0;
-                curveValue = 1.0 - smoothProgress;
-            }
-            break;
-            
-        case CURVE_TRIANGLE_INV:
-            // Triangle inverted: weak at start, strong at end
-            {
-                float invProgress = 1.0 - zoneProgress;
-                curveValue = invProgress * invProgress;
-            }
-            break;
-            
-        case CURVE_SINE_INV:
-            // Sine inverted: weak at start, strong at end
-            {
-                float invProgress = 1.0 - zoneProgress;
-                curveValue = sin(invProgress * PI / 2.0);
-            }
-            break;
-            
-        default:
-            curveValue = 1.0 - zoneProgress;
-            break;
-    }
-    
-    // Apply based on effect type
-    if (zoneEffect.speedEffect == SPEED_DECEL) {
-        // Deceleration: factor > 1.0 = longer delay = slower
-        return 1.0 + curveValue * (maxIntensity - 1.0);
-    } else {
-        // Acceleration (punch): factor < 1.0 = shorter delay = faster
-        // Invert: at zone entry (zoneProgress=0), normal speed
-        //         at extremity (zoneProgress=1), max speed (factor = 1/maxIntensity)
-        float accelCurve = 1.0 - curveValue;  // Invert curve for accel
-        float minFactor = 1.0 / maxIntensity;  // e.g., 0.1 for 10× faster
-        return 1.0 - accelCurve * (1.0 - minFactor);
-    }
+    return MovementMath::zoneSpeedFactor(zoneEffect.speedEffect, zoneEffect.speedCurve,
+                                         zoneEffect.speedIntensity, zoneProgress);
 }
 
 int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM, float movementStartMM, 

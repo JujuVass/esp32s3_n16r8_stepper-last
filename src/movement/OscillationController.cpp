@@ -11,6 +11,7 @@
 #include "movement/OscillationController.h"
 #include "communication/StatusBroadcaster.h"  // For Status.sendError()
 #include "core/Validators.h"
+#include "core/MovementMath.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
 #include "movement/SequenceExecutor.h"
@@ -317,34 +318,15 @@ float OscillationControllerClass::calculatePosition() {
     // Calculate phase (0.0 to 1.0 per cycle) using modulo
     float phase = fmod(oscillationState.accumulatedPhase, 1.0);
     
-    // Calculate waveform value (-1.0 to +1.0)
-    float waveValue = 0.0;
-    
-    switch (oscillation.waveform) {
-        case OSC_SINE:
-            // Use -cos to start at maximum (like a wave crest)
-            // cos(0) = 1, cos(PI) = -1, cos(2*PI) = 1
-            #ifdef USE_SINE_LOOKUP_TABLE
-            waveValue = fastSine(phase);  // Lookup table (2µs)
-            #else
-            waveValue = -cos(phase * 2.0 * PI);  // Hardware FPU (15µs)
-            #endif
-            break;
-            
-        case OSC_TRIANGLE:
-            // Symmetric triangle: starts at +1, goes to -1, back to +1
-            if (phase < 0.5) {
-                waveValue = 1.0 - (phase * 4.0);  // Fall: +1 to -1
-            } else {
-                waveValue = -3.0 + (phase * 4.0);  // Rise: -1 to +1
-            }
-            break;
-            
-        case OSC_SQUARE:
-            // Square wave: starts at +1, switches to -1 at halfway
-            waveValue = (phase < 0.5) ? 1.0 : -1.0;
-            break;
+    // Calculate waveform value (-1.0 to +1.0) — delegates to MovementMath for testability
+    #ifdef USE_SINE_LOOKUP_TABLE
+    float waveValue = fastSine(phase);  // Lookup table (2µs) — only for SINE on ESP32
+    if (oscillation.waveform != OSC_SINE) {
+        waveValue = MovementMath::waveformValue(oscillation.waveform, phase);
     }
+    #else
+    float waveValue = MovementMath::waveformValue(oscillation.waveform, phase);
+    #endif
     
     // Track completed cycles
     // ⚠️ Don't increment during ramp out - we've already reached target cycle count

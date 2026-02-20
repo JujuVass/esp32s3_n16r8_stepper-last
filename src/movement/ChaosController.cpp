@@ -9,6 +9,7 @@
 #include "movement/ChaosController.h"
 #include "communication/StatusBroadcaster.h"  // For Status.sendError()
 #include "core/UtilityEngine.h"
+#include "core/MovementMath.h"
 #include "core/Validators.h"
 #include "hardware/MotorDriver.h"
 #include "movement/SequenceExecutor.h"
@@ -57,22 +58,10 @@ static const char* executionContextName(ExecutionContext ctx) {
     }
 }
 
-// Safe duration calculation: prevents unsigned underflow and guarantees min < max for random()
+// Delegate to MovementMath::safeDurationCalc (testable pure function)
 static void safeDurationCalc(const ChaosBaseConfig& cfg, float craziness, float maxFactor,
                               unsigned long& outMin, unsigned long& outMax) {
-    // Compute as signed to detect underflow
-    long minVal = (long)cfg.durationMin - (long)(cfg.durationCrazinessReduction * craziness);
-    long maxVal = (long)cfg.durationMax - (long)((cfg.durationMax - cfg.durationMin) * craziness * maxFactor);
-    
-    // Clamp to safe minimum (100ms floor)
-    if (minVal < 100) minVal = 100;
-    if (maxVal < 100) maxVal = 100;
-    
-    // Guarantee min < max for random()
-    if (minVal >= maxVal) maxVal = minVal + 100;
-    
-    outMin = (unsigned long)minVal;
-    outMax = (unsigned long)maxVal;
+    MovementMath::safeDurationCalc(cfg, craziness, maxFactor, outMin, outMax);
 }
 
 // ============================================================================
@@ -250,22 +239,7 @@ void ChaosController::doStep() {
 // ============================================================================
 
 void ChaosController::calculateStepDelay() {
-    float mmPerSecond = chaosState.currentSpeedLevel * 10.0;
-    float stepsPerSecond = mmPerSecond * STEPS_PER_MM;
-    
-    if (stepsPerSecond > 0) {
-        chaosState.stepDelay = (unsigned long)((1000000.0 / stepsPerSecond) / SPEED_COMPENSATION_FACTOR);
-    } else {
-        chaosState.stepDelay = 10000;
-    }
-    
-    if (chaosState.stepDelay < 20) {
-        chaosState.stepDelay = 20;
-    }
-    
-    if (chaosState.stepDelay > CHAOS_MAX_STEP_DELAY_MICROS) {
-        chaosState.stepDelay = CHAOS_MAX_STEP_DELAY_MICROS;
-    }
+    chaosState.stepDelay = MovementMath::chaosStepDelay(chaosState.currentSpeedLevel);
 }
 
 // ============================================================================
