@@ -110,7 +110,12 @@ void FilesystemManager::registerRoutes() {
   // POST /api/fs/upload - Upload file (multipart)
   server.on("/api/fs/upload", HTTP_POST,
     [this]() {
-      sendJsonSuccess("File uploaded");
+      if (_uploadFailed) {
+        sendJsonError(500, "Upload failed: incomplete write");
+        _uploadFailed = false;
+      } else {
+        sendJsonSuccess("File uploaded");
+      }
     },
     [this]() {
       handleUploadFile();
@@ -342,6 +347,7 @@ void FilesystemManager::handleUploadFile() {
       if (written != upload.currentSize) {
         uploadFile.close();
         uploadFile = File();  // Invalidate to prevent further writes
+        _uploadFailed = true;
       }
     }
   } else if (upload.status == UPLOAD_FILE_END) {

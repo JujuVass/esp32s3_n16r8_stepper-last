@@ -138,6 +138,13 @@ void OscillationControllerClass::start() {
     catchUpWarningLogged_ = false;
     lastStepMicros_ = micros();
     
+    // Reset log throttle timestamps (prevent stale values from previous run)
+    lastSpeedLimitLogMs_ = 0;
+    lastTransitionLogMs_ = 0;
+    lastAmpTransitionLogMs_ = 0;
+    lastDebugLogMs_ = 0;
+    lastCenterTransitionLogMs_ = 0;
+    
     String waveformName = "SINE";
     if (oscillation.waveform == OSC_TRIANGLE) waveformName = "TRIANGLE";
     if (oscillation.waveform == OSC_SQUARE) waveformName = "SQUARE";
@@ -265,12 +272,11 @@ float OscillationControllerClass::calculatePosition() {
             effectiveFrequency = maxAllowedFreq;
             
             // Log warning (throttled to avoid spam)
-            static unsigned long lastSpeedLimitLog = 0;
-            if (currentMs - lastSpeedLimitLog > 5000) {
+            if (currentMs - lastSpeedLimitLogMs_ > 5000) {
                 engine->warn("⚠️ Frequency reduced: " + String(oscillation.frequencyHz, 2) + " Hz → " + 
                       String(effectiveFrequency, 2) + " Hz (max speed: " + 
                       String(OSC_MAX_SPEED_MM_S, 0) + " mm/s)");
-                lastSpeedLimitLog = currentMs;
+                lastSpeedLimitLogMs_ = currentMs;
             }
         }
     }
@@ -302,10 +308,9 @@ float OscillationControllerClass::calculatePosition() {
                                 (oscillationState.targetFrequencyHz - oscillationState.oldFrequencyHz) * progress;
             
             // Reduced logging: every 200ms (was 100ms)
-            static unsigned long lastTransitionLog = 0;
-            if (currentMs - lastTransitionLog > OSC_TRANSITION_LOG_INTERVAL_MS) {
+            if (currentMs - lastTransitionLogMs_ > OSC_TRANSITION_LOG_INTERVAL_MS) {
                 engine->debug("🔄 Transition: " + String(effectiveFrequency, 3) + " Hz (" + String(progress * 100, 0) + "%)");
-                lastTransitionLog = currentMs;
+                lastTransitionLogMs_ = currentMs;
             }
         } else {
             // Transition complete
@@ -394,10 +399,9 @@ float OscillationControllerClass::calculatePosition() {
                                 (oscillationState.targetAmplitudeMM - oscillationState.oldAmplitudeMM) * progress;
             
             // Log transition progress (every 200ms)
-            static unsigned long lastAmpTransitionLog = 0;
-            if (currentMs - lastAmpTransitionLog > OSC_TRANSITION_LOG_INTERVAL_MS) {
+            if (currentMs - lastAmpTransitionLogMs_ > OSC_TRANSITION_LOG_INTERVAL_MS) {
                 engine->debug("🔄 Amplitude transition: " + String(effectiveAmplitude, 1) + " mm (" + String(progress * 100, 0) + "%)");
-                lastAmpTransitionLog = currentMs;
+                lastAmpTransitionLogMs_ = currentMs;
             }
         } else {
             // Transition complete
@@ -408,13 +412,12 @@ float OscillationControllerClass::calculatePosition() {
     }
     
     // Consolidated debug logging: every 5s (reduced from multiple 2s logs)
-    static unsigned long lastDebugMs = 0;
-    if (currentMs - lastDebugMs > OSC_DEBUG_LOG_INTERVAL_MS) {
+    if (currentMs - lastDebugLogMs_ > OSC_DEBUG_LOG_INTERVAL_MS) {
         engine->debug("🌊 OSC: amp=" + String(effectiveAmplitude, 1) + "/" + String(oscillation.amplitudeMM, 1) + 
               "mm, center=" + String(oscillation.centerPositionMM, 1) + 
               "mm, rampIn=" + String(oscillationState.isRampingIn) + 
               ", rampOut=" + String(oscillationState.isRampingOut));
-        lastDebugMs = currentMs;
+        lastDebugLogMs_ = currentMs;
     }
     
     if (oscillationState.isRampingIn) [[unlikely]] {
@@ -468,10 +471,9 @@ float OscillationControllerClass::calculatePosition() {
                                 (oscillationState.targetCenterMM - oscillationState.oldCenterMM) * progress;
             
             // Log transition progress (every 200ms)
-            static unsigned long lastCenterTransitionLog = 0;
-            if (currentMs - lastCenterTransitionLog > OSC_TRANSITION_LOG_INTERVAL_MS) {
+            if (currentMs - lastCenterTransitionLogMs_ > OSC_TRANSITION_LOG_INTERVAL_MS) {
                 engine->debug("🎯 Centre transition: " + String(effectiveCenterMM, 1) + " mm (" + String(progress * 100, 0) + "%)");
-                lastCenterTransitionLog = currentMs;
+                lastCenterTransitionLogMs_ = currentMs;
             }
         } else {
             // Transition complete

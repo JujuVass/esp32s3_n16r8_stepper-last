@@ -37,9 +37,8 @@ struct LogEntry {
   unsigned long timestamp;  // millis() when log was created
   LogLevel level;
   String message;
-  bool valid;
 
-  LogEntry() : timestamp(0), level((LogLevel)2), message(""), valid(false) {}
+  LogEntry() : timestamp(0), level((LogLevel)2), message("") {}
 };
 
 // ============================================================================
@@ -134,8 +133,10 @@ private:
   bool _loggingEnabled;
 
   // Circular log buffer (protected by _logMutex for cross-core safety)
+  // Head/tail ring buffer: _head = next write position, _count = valid entries
   LogEntry _logBuffer[LOG_BUFFER_SIZE];
-  int _logBufferWriteIndex;
+  int _logBufferHead;            // Next write position (0..LOG_BUFFER_SIZE-1)
+  int _logBufferCount;           // Number of valid entries (0..LOG_BUFFER_SIZE)
   unsigned long _lastLogFlush;
   SemaphoreHandle_t _logMutex;
 

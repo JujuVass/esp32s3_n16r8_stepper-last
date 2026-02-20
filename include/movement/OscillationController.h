@@ -157,6 +157,13 @@ private:
     bool catchUpWarningLogged_ = false;      // Prevent duplicate catch-up warnings
     unsigned long lastStepMicros_ = 0;       // Own step timing (decoupled from BaseMovement global)
     
+    // Log throttle timestamps (member vars — reset in start(), not static)
+    unsigned long lastSpeedLimitLogMs_ = 0;
+    unsigned long lastTransitionLogMs_ = 0;
+    unsigned long lastAmpTransitionLogMs_ = 0;
+    unsigned long lastDebugLogMs_ = 0;
+    unsigned long lastCenterTransitionLogMs_ = 0;
+    
     // ========================================================================
     // INTERNAL HELPERS
     // ========================================================================

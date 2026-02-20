@@ -32,6 +32,12 @@ public:
    */
   void begin(uint16_t size = 128);
 
+  /**
+   * Close NVS namespace handle
+   * Call during shutdown to release resources
+   */
+  void end();
+
   // ========================================================================
   // LOGGING PREFERENCES
   // ========================================================================

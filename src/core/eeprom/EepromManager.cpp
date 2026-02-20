@@ -25,6 +25,10 @@ void EepromManager::begin(uint16_t size) {
   Serial.println("[EepromManager] Preferences (NVS) initialized");
 }
 
+void EepromManager::end() {
+  _prefs.end();
+}
+
 // ============================================================================
 // LOGGING PREFERENCES
 // ============================================================================

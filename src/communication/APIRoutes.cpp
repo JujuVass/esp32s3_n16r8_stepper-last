@@ -892,7 +892,7 @@ void setupAPIRoutes() {
   // POST /api/system/logging/preferences - Update logging preferences
   server.on("/api/system/logging/preferences", HTTP_POST, []() {
     if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"Missing body\"}");
+      sendJsonError(400, "Missing body");
       return;
     }
     
@@ -901,7 +901,7 @@ void setupAPIRoutes() {
     DeserializationError err = deserializeJson(doc, body);
     
     if (err) {
-      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      sendJsonError(400, "Invalid JSON");
       return;
     }
     
@@ -985,7 +985,7 @@ void setupAPIRoutes() {
   // POST /api/wifi/save - Save WiFi credentials to NVS without testing
   server.on("/api/wifi/save", HTTP_POST, []() {
     if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing body\"}");
+      sendJsonError(400, "Missing body");
       return;
     }
     
@@ -994,7 +994,7 @@ void setupAPIRoutes() {
     DeserializationError err = deserializeJson(doc, body);
     
     if (err) {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid JSON\"}");
+      sendJsonError(400, "Invalid JSON");
       return;
     }
     
@@ -1002,7 +1002,7 @@ void setupAPIRoutes() {
     String password = doc["password"] | "";
     
     if (ssid.length() == 0) {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"SSID required\"}");
+      sendJsonError(400, "SSID required");
       return;
     }
     
@@ -1023,7 +1023,7 @@ void setupAPIRoutes() {
       
       engine->info("✅ WiFi config saved successfully");
     } else {
-      server.send(500, "application/json", "{\"success\":false,\"error\":\"Failed to save WiFi config\"}");
+      sendJsonError(500, "Failed to save WiFi config");
     }
   });
   
@@ -1032,13 +1032,12 @@ void setupAPIRoutes() {
   server.on("/api/wifi/connect", HTTP_POST, []() {
     // Block if in STA+AP mode - must use AP_SETUP mode to configure
     if (StepperNetwork.isSTAMode()) {
-      server.send(403, "application/json", 
-        "{\"success\":false,\"error\":\"WiFi config disabled when connected. Use AP_SETUP mode (GPIO 19 to GND) to change settings.\",\"hint\":\"Set GPIO19 to GND and reboot.\"}");
+      sendJsonError(403, "WiFi config disabled when connected. Use AP_SETUP mode (GPIO 19 to GND) to change settings.");
       return;
     }
     
     if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing body\"}");
+      sendJsonError(400, "Missing body");
       return;
     }
     
@@ -1047,7 +1046,7 @@ void setupAPIRoutes() {
     DeserializationError err = deserializeJson(doc, body);
     
     if (err) {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid JSON\"}");
+      sendJsonError(400, "Invalid JSON");
       return;
     }
     
@@ -1055,7 +1054,7 @@ void setupAPIRoutes() {
     String password = doc["password"] | "";
     
     if (ssid.length() == 0) {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"SSID required\"}");
+      sendJsonError(400, "SSID required");
       return;
     }
     
@@ -1071,7 +1070,7 @@ void setupAPIRoutes() {
       bool saved = WiFiConfig.saveConfig(ssid, password);
       
       if (!saved) {
-        server.send(500, "application/json", "{\"success\":false,\"error\":\"Failed to save WiFi config\"}");
+        sendJsonError(500, "Failed to save WiFi config");
         return;
       }
       
@@ -1149,7 +1148,7 @@ void setupAPIRoutes() {
   // ===== IMPORT SEQUENCE VIA HTTP POST (Bypass WebSocket size limit) =====
   server.on("/api/sequence/import", HTTP_POST, []() {
     if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"No JSON body provided\"}");
+      sendJsonError(400, "No JSON body provided");
       return;
     }
 

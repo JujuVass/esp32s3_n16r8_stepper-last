@@ -43,6 +43,7 @@
 class FilesystemManager {
 private:
   WebServer& server;
+  bool _uploadFailed = false;  // Track upload failure across multipart callbacks
 
   // Binary file extensions that cannot be edited
   static const char* binaryExtensions[8];

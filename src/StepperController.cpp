@@ -139,7 +139,9 @@ void setup() {
   // ============================================================================
   // 1. FILESYSTEM & LOGGING (First for early logging capability)
   // ============================================================================
-  engine = new UtilityEngine(webSocket);
+  // Static instance: lives forever (ESP32 never frees — reboot = cleanup)
+  static UtilityEngine engineInstance(webSocket);
+  engine = &engineInstance;
   if (!engine->initialize()) {
     Serial.println("❌ UtilityEngine initialization failed!");
   } else {

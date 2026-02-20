@@ -104,9 +104,13 @@ void StatsManager::incrementDailyStats(float distanceMM) {
     return;
   }
 
-  // Get current date (YYYY-MM-DD format)
+  // Guard against NTP not synced yet (would record under "1970-01-01")
   time_t now = time(nullptr);
   struct tm* timeinfo = localtime(&now);
+  if (timeinfo->tm_year <= (2020 - 1900)) {
+    if (engine) engine->debug("📊 NTP not synced - deferring stats save");
+    return;
+  }
   char dateStr[11];
   strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", timeinfo);
 
