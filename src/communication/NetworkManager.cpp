@@ -13,6 +13,8 @@
 #include "hardware/MotorDriver.h"
 #include "movement/SequenceExecutor.h"
 #include <sys/time.h>
+#include <esp_ping.h>
+#include <ping/ping_sock.h>
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -397,11 +399,45 @@ void StepperNetworkManager::safeShutdown() {
 
 // ============================================================================
 // CONNECTION WATCHDOG (STA+AP mode only)
-// Three-tier escalation with gateway ping + DNS + self-mDNS checks:
+// Three-tier escalation with gateway ping + mDNS checks:
 //   Tier 1: WiFi.reconnect() (soft)
 //   Tier 2: Full WiFi.disconnect() + WiFi.begin() (hard re-association)
 //   Tier 3: ESP.restart() (emergency reboot)
 // ============================================================================
+
+// Synchronous gateway ping (blocks ~1s max)
+static bool pingGateway() {
+    IPAddress gw = WiFi.gatewayIP();
+    if (gw == IPAddress(0, 0, 0, 0)) return false;
+    
+    esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
+    cfg.target_addr.u_addr.ip4.addr = gw;
+    cfg.target_addr.type = ESP_IPADDR_TYPE_V4;
+    cfg.count = 1;
+    cfg.timeout_ms = 1000;
+    cfg.interval_ms = 0;
+    
+    volatile bool got_reply = false;
+    esp_ping_callbacks_t cbs = {};
+    cbs.cb_args = (void*)&got_reply;
+    cbs.on_ping_success = [](esp_ping_handle_t h, void* arg) {
+        *(volatile bool*)arg = true;
+    };
+    
+    esp_ping_handle_t handle = nullptr;
+    if (esp_ping_new_session(&cfg, &cbs, &handle) != ESP_OK) return false;
+    esp_ping_start(handle);
+    
+    // Wait for ping to complete (max ~1.2s)
+    unsigned long start = millis();
+    while (!got_reply && (millis() - start) < 1500) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    
+    esp_ping_stop(handle);
+    esp_ping_delete_session(handle);
+    return got_reply;
+}
 
 void StepperNetworkManager::checkConnectionHealth() {
     // Only in STA+AP mode (AP_DIRECT and AP_SETUP don't need health checks)
@@ -421,11 +457,11 @@ void StepperNetworkManager::checkConnectionHealth() {
     
     if (wifiConnected) {
         // ═══════════════════════════════════════════════════════════════════
-        // STEP 2: DNS resolution check (L3/L7 — tests gateway + DNS + internet)
+        // STEP 2: Gateway ping (L3 — tests local network reachability)
+        // More reliable than DNS: doesn't depend on external services
         // WiFi.status() can return WL_CONNECTED even when IP stack is dead
         // ═══════════════════════════════════════════════════════════════════
-        IPAddress resolvedIP;
-        bool dnsOk = (WiFi.hostByName("pool.ntp.org", resolvedIP) == 1);
+        bool networkOk = pingGateway();
         
         // ═══════════════════════════════════════════════════════════════════
         // STEP 3: Proactive mDNS refresh (ESP32 can't self-query .local)
@@ -441,12 +477,12 @@ void StepperNetworkManager::checkConnectionHealth() {
             engine->debug("🔄 Watchdog: Proactive mDNS refresh");
         }
         
-        if (dnsOk) {
+        if (networkOk) {
             // ═══════════════════════════════════════════════════════════════
-            // HEALTHY — WiFi up + DNS resolves + mDNS maintained
+            // HEALTHY — WiFi up + gateway reachable + mDNS maintained
             // ═══════════════════════════════════════════════════════════════
             if (_wdState != WD_HEALTHY) {
-                engine->info("✅ Watchdog: Connection fully restored (WiFi + DNS OK) after " +
+                engine->info("✅ Watchdog: Connection fully restored (WiFi + gateway OK) after " +
                              String(_wdSoftRetries) + " soft + " + String(_wdHardRetries) + " hard retries");
                 
                 // Re-sync NTP after recovery
@@ -460,8 +496,8 @@ void StepperNetworkManager::checkConnectionHealth() {
             return;
         }
         
-        // WiFi says connected but DNS fails → half-dead connection
-        engine->warn("⚠️ Watchdog: WiFi connected but DNS resolution FAILED → treating as disconnected");
+        // WiFi says connected but gateway unreachable → half-dead connection
+        engine->warn("⚠️ Watchdog: WiFi connected but gateway ping FAILED → treating as disconnected");
         wifiConnected = false;  // Force into recovery path
     }
     
