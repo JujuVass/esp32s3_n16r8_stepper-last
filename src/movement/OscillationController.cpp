@@ -206,7 +206,7 @@ void OscillationControllerClass::process() {
     }
     
     // Convert to steps
-    long targetStep = (long)(targetPositionMM * STEPS_PER_MM);
+    long targetStep = MovementMath::mmToSteps(targetPositionMM);
     
     // Safety check contacts near limits
     if (!checkSafetyContacts(targetStep)) [[unlikely]] {
@@ -236,7 +236,7 @@ void OscillationControllerClass::process() {
     
     // Catch-up only on critical error (>3mm), otherwise 1 smooth step following the sine formula
     long absErrorSteps = abs(errorSteps);
-    float errorMM = absErrorSteps / STEPS_PER_MM;
+    float errorMM = MovementMath::stepsToMM(absErrorSteps);
     bool isCatchUp = (errorMM > OSC_CATCH_UP_THRESHOLD_MM);
     
     if (isCatchUp && !catchUpWarningLogged_) {
@@ -458,8 +458,8 @@ float OscillationControllerClass::calculatePosition() {
     float targetPositionMM = effectiveCenterMM + (waveValue * effectiveAmplitude);
     
     // Clamp to physical limits with warning
-    float minPositionMM = config.minStep / STEPS_PER_MM;
-    float maxPositionMM = config.maxStep / STEPS_PER_MM;
+    float minPositionMM = MovementMath::stepsToMM(config.minStep);
+    float maxPositionMM = MovementMath::stepsToMM(config.maxStep);
     
     if (targetPositionMM < minPositionMM) {
         engine->warn("⚠️ OSC: Limited by START (" + String(targetPositionMM, 1) + "→" + String(minPositionMM, 1) + "mm)");
@@ -527,16 +527,16 @@ bool OscillationControllerClass::handleCyclePause() {
 bool OscillationControllerClass::handleInitialPositioning() {
     // Target = center (no sine wave during initial positioning)
     float targetPositionMM = oscillation.centerPositionMM;
-    long targetStep = (long)(targetPositionMM * STEPS_PER_MM);
+    long targetStep = MovementMath::mmToSteps(targetPositionMM);
     long errorSteps = targetStep - currentStep;
     
     // Log current position on first call
     if (firstPositioningCall_) {
-        float currentMM = currentStep / STEPS_PER_MM;
+        float currentMM = MovementMath::stepsToMM(currentStep);
         engine->debug("🚀 Start positioning: Position=" + String(currentMM, 1) + 
               "mm → Target=" + String(targetPositionMM, 1) + 
               "mm (error=" + String(errorSteps) + " steps = " + 
-              String(errorSteps / STEPS_PER_MM, 1) + "mm)");
+              String(MovementMath::stepsToMM(errorSteps), 1) + "mm)");
         firstPositioningCall_ = false;
     }
     
@@ -569,7 +569,7 @@ bool OscillationControllerClass::handleInitialPositioning() {
     
     // Disable initial positioning when at center
     long absErrorSteps = abs(errorSteps);
-    if (absErrorSteps < (long)(OSC_INITIAL_POSITIONING_TOLERANCE_MM * STEPS_PER_MM)) {
+    if (absErrorSteps < MovementMath::mmToSteps(OSC_INITIAL_POSITIONING_TOLERANCE_MM)) {
         oscillationState.isInitialPositioning = false;
         oscillationState.startTimeMs = millis();  // Reset timer for oscillation
         oscillationState.rampStartMs = millis();  // 🔧 FIX: Reset ramp timer AFTER positioning

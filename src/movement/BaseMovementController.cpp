@@ -43,6 +43,11 @@ BaseMovementControllerClass::BaseMovementControllerClass()
     // are initialized in main.ino - no member initialization needed
 }
 
+// DRY helper: recalculate startStep/targetStep from current motion config
+inline void BaseMovementControllerClass::recalcStepPositions() {
+    startStep = MovementMath::mmToSteps(motion.startPositionMM);
+    targetStep = MovementMath::mmToSteps(motion.startPositionMM + motion.targetDistanceMM);
+}
 // ============================================================================
 // PARAMETER UPDATE METHODS
 // ============================================================================
@@ -69,8 +74,7 @@ void BaseMovementControllerClass::setDistance(float distMM) {
     } else {
         // Apply immediately
         motion.targetDistanceMM = distMM;
-        startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-        targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
+        recalcStepPositions();
         calculateStepDelay();
     }
 }
@@ -111,8 +115,7 @@ void BaseMovementControllerClass::setStartPosition(float startMM) {
     } else {
         // Apply immediately
         motion.startPositionMM = startMM;
-        startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-        targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
+        recalcStepPositions();
         calculateStepDelay();
         
         engine->debug(String("✓ Start position updated: ") + String(motion.startPositionMM) + " mm");
@@ -201,7 +204,7 @@ void BaseMovementControllerClass::calculateStepDelay() {
         return;
     }
     
-    long stepsPerDirection = (long)(motion.targetDistanceMM * STEPS_PER_MM);
+    long stepsPerDirection = MovementMath::mmToSteps(motion.targetDistanceMM);
     
     // 🛡️ CRITICAL SAFETY: Log if stepsPerDirection was zero (vaetStepDelay already returned 1000)
     if (stepsPerDirection <= 0) {
@@ -485,8 +488,7 @@ void BaseMovementControllerClass::applyPendingChanges() {
     pendingMotion.hasChanges = false;
     
     calculateStepDelay();
-    startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-    targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
+    recalcStepPositions();
 }
 
 void BaseMovementControllerClass::resetCycleTiming() {
@@ -641,8 +643,7 @@ void BaseMovementControllerClass::start(float distMM, float speedLevel) {
     lastStepMicros = micros();
     
     // Calculate step positions
-    startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-    targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
+    recalcStepPositions();
     
     // NOW set running state - lastStepMicros is properly initialized
     // config.currentState is single source of truth (no separate isPaused variable)
@@ -756,7 +757,7 @@ void BaseMovementControllerClass::process() {
     
     // Apply zone effects if enabled
     if (zoneEffect.enabled && hasReachedStartStep) {
-        float currentPositionMM = (currentStep - startStep) / STEPS_PER_MM;
+        float currentPositionMM = MovementMath::stepsToMM(currentStep - startStep);
         
         // Mirror mode: swap enableStart/enableEnd on return trip
         // Affects SPATIAL zone effects (speed curve + random turnback)
@@ -853,7 +854,7 @@ void BaseMovementControllerClass::doStep() {
         if (currentStep + 1 > targetStep) [[unlikely]] {
             if (engine->isDebugEnabled()) {
                 engine->debug("🎯 Reached targetStep=" + String(targetStep) + " (currentStep=" + 
-                      String(currentStep) + ", pos=" + String(currentStep / STEPS_PER_MM, 1) + "mm)");
+                      String(currentStep) + ", pos=" + String(MovementMath::stepsToMM(currentStep), 1) + "mm)");
             }
             // Trigger end pause if enabled (at END extremity)
             // Note: end pause uses PHYSICAL zone flags (no mirror swap)
@@ -911,7 +912,7 @@ void BaseMovementControllerClass::doStep() {
         if (currentStep <= startStep && hasReachedStartStep) [[unlikely]] {
             if (engine->isDebugEnabled()) {
                 engine->debug("🏠 Reached startStep=" + String(startStep) + " (currentStep=" + 
-                      String(currentStep) + ", pos=" + String(currentStep / STEPS_PER_MM, 1) + "mm)");
+                      String(currentStep) + ", pos=" + String(MovementMath::stepsToMM(currentStep), 1) + "mm)");
             }
             // Trigger end pause if enabled (at START extremity)
             // Note: end pause uses PHYSICAL zone flags (no mirror swap)

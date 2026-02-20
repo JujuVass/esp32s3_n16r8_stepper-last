@@ -148,6 +148,18 @@ private:
     inline void setDirectionalTarget(float amplitude, float minLimit, float maxLimit);
     
     /**
+     * DRY helper: random jump pattern (Zigzag/Drift/Burst share identical logic)
+     */
+    inline void handleRandomJump(const ChaosBaseConfig& cfg, float durationMaxFactor,
+                                  float craziness, float effectiveMinLimit, float effectiveMaxLimit,
+                                  float& speedMultiplier, unsigned long& patternDuration);
+    
+    /**
+     * DRY helper: set targetPositionMM + sync targetStep atomically
+     */
+    inline void setTargetMM(float mm);
+    
+    /**
      * DRY helper: shared multi-phase pattern handler (BruteForce/Liberator)
      */
     void handleMultiPhase(const ChaosBaseConfig& cfg, const ChaosMultiPhaseExt& multi_cfg,

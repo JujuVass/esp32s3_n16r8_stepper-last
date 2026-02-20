@@ -10,6 +10,7 @@
 #include "movement/SequenceTableManager.h"
 #include "communication/StatusBroadcaster.h"  // For Status.sendError()
 #include "core/GlobalState.h"
+#include "core/MovementMath.h"
 #include "core/UtilityEngine.h"
 #include "core/Validators.h"
 #include "hardware/MotorDriver.h"
@@ -271,7 +272,7 @@ void SequenceExecutor::positionForNextLine() {
     }
     
     // Calculate current position
-    float currentPosMM = currentStep / (float)STEPS_PER_MM;
+    float currentPosMM = MovementMath::stepsToMM(currentStep);
     
     // Only move if we're not already at target (tolerance: 1mm)
     if (abs(currentPosMM - targetPositionMM) > 1.0) {
@@ -286,11 +287,11 @@ void SequenceExecutor::positionForNextLine() {
             currentMovement = MOVEMENT_VAET;  // Force back to VAET
         }
         
-        long targetStepPos = (long)(targetPositionMM * STEPS_PER_MM);
+        long targetStepPos = MovementMath::mmToSteps(targetPositionMM);
         
         // Blocking move to target position (D4: uses shared helper)
         if (!blockingMoveToStep(targetStepPos)) {
-            engine->warn("⚠️ Repositioning timeout - position: " + String(currentStep / (float)STEPS_PER_MM, 1) + "mm");
+            engine->warn("⚠️ Repositioning timeout - position: " + String(MovementMath::stepsToMM(currentStep), 1) + "mm");
         } else {
             engine->info("✅ Repositioning complete");
         }
@@ -374,12 +375,12 @@ void SequenceExecutor::completeSequence(bool autoReturnToStart) {
     // Auto-return to START (position 0.0mm) if requested and not already there
     if (autoReturnToStart && currentStep != 0) {
         engine->info("🏠 Auto-return to START contact...");
-        float startPosMM = currentStep / (float)STEPS_PER_MM;
+        float startPosMM = MovementMath::stepsToMM(currentStep);
         
         if (blockingMoveToStep(0)) {
             engine->info("✓ Return complete: " + String(startPosMM, 1) + "mm → Position 0.0mm");
         } else {
-            engine->warn("⚠️ Return timeout at " + String(currentStep / (float)STEPS_PER_MM, 1) + "mm - position NOT reset");
+            engine->warn("⚠️ Return timeout at " + String(MovementMath::stepsToMM(currentStep), 1) + "mm - position NOT reset");
         }
     }
     
@@ -492,8 +493,8 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     lastStepMicros = micros();
     
     // Calculate step positions
-    startStep = (long)(motion.startPositionMM * STEPS_PER_MM);
-    targetStep = (long)((motion.startPositionMM + motion.targetDistanceMM) * STEPS_PER_MM);
+    startStep = MovementMath::mmToSteps(motion.startPositionMM);
+    targetStep = MovementMath::mmToSteps(motion.startPositionMM + motion.targetDistanceMM);
     
     // Set running state (config.currentState is single source of truth)
     config.currentState = STATE_RUNNING;
@@ -558,7 +559,7 @@ void SequenceExecutor::startOscillationLine(SequenceLine* line) {
     oscillationState.isRampingIn = false;
     
     // Calculate where we are in the wave cycle based on current position
-    float currentPosMM = currentStep / (float)STEPS_PER_MM;
+    float currentPosMM = MovementMath::stepsToMM(currentStep);
     float relativePos = (currentPosMM - oscillation.centerPositionMM) / oscillation.amplitudeMM;
     
     // Clamp to [-1, 1] range (in case positioning wasn't perfect)

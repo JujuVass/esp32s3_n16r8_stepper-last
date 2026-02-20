@@ -8,6 +8,7 @@
 
 #include "hardware/ContactSensors.h"
 #include "hardware/MotorDriver.h"
+#include "core/MovementMath.h"
 #include "communication/StatusBroadcaster.h"
 #include "core/GlobalState.h"
 #include "core/UtilityEngine.h"
@@ -93,9 +94,9 @@ bool ContactSensors::checkAndCorrectDriftEnd() {
         int correctionSteps = currentStep - config.maxStep;
         
         engine->debug(String("🔧 LEVEL 3 - Soft drift END: ") + String(currentStep) + 
-              " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
+              " steps (" + String(MovementMath::stepsToMM(currentStep), 2) + "mm) → " +
               "Backing " + String(correctionSteps) + " steps to config.maxStep (" + 
-              String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
+              String(MovementMath::stepsToMM(config.maxStep), 2) + "mm)");
         
         Motor.setDirection(false);  // Backward (includes 50µs delay)
         for (int i = 0; i < correctionSteps; i++) {
@@ -106,7 +107,7 @@ bool ContactSensors::checkAndCorrectDriftEnd() {
         // Now physically synchronized at config.maxStep
         currentStep = config.maxStep;
         engine->debug(String("✓ Position physically corrected to config.maxStep (") + 
-              String(config.maxStep / STEPS_PER_MM, 2) + "mm)");
+              String(MovementMath::stepsToMM(config.maxStep), 2) + "mm)");
         
         return true;  // Drift corrected, caller should reverse direction
     }
@@ -123,7 +124,7 @@ bool ContactSensors::checkAndCorrectDriftStart() {
         int correctionSteps = abs(currentStep);
         
         engine->debug(String("🔧 LEVEL 1 - Soft drift START: ") + String(currentStep) + 
-              " steps (" + String(currentStep / STEPS_PER_MM, 2) + "mm) → " +
+              " steps (" + String(MovementMath::stepsToMM(currentStep), 2) + "mm) → " +
               "Advancing " + String(correctionSteps) + " steps to position 0");
         
         Motor.setDirection(true);  // Forward (includes 50µs delay)
@@ -148,12 +149,12 @@ bool ContactSensors::checkHardDriftEnd() {
     // OPTIMIZATION: Only test when close to config.maxStep (reduces false positives + CPU overhead)
     
     long stepsToLimit = config.maxStep - currentStep;
-    float distanceToLimitMM = stepsToLimit / STEPS_PER_MM;
+    float distanceToLimitMM = MovementMath::stepsToMM(stepsToLimit);
     
     if (distanceToLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
         // Close to limit → activate opto sensor test (no debounce needed)
         if (isEndActive()) {
-            float currentPos = currentStep / STEPS_PER_MM;
+            float currentPos = MovementMath::stepsToMM(currentStep);
             
             engine->error(String("🔴 Hard drift END! Opto triggered at ") + 
                   String(currentPos, 1) + "mm (currentStep: " + String(currentStep) + 
@@ -176,12 +177,12 @@ bool ContactSensors::checkHardDriftStart() {
     // HARD DRIFT at START: Physical contact reached = critical error
     // OPTIMIZATION: Only test when close to position 0 (reduces false positives + CPU overhead)
     
-    float distanceToStartMM = currentStep / STEPS_PER_MM;
+    float distanceToStartMM = MovementMath::stepsToMM(currentStep);
     
     if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {
         // Close to start → activate opto sensor test (no debounce needed)
         if (isStartActive()) {
-            float currentPos = currentStep / STEPS_PER_MM;
+            float currentPos = MovementMath::stepsToMM(currentStep);
             
             engine->error(String("🔴 Hard drift START! Opto triggered at ") +
                   String(currentPos, 1) + "mm (currentStep: " + String(currentStep) + 

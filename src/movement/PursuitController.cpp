@@ -53,12 +53,12 @@ void PursuitControllerClass::move(float targetPositionMM, float maxSpeedLevel) {
     if (targetPositionMM > maxAllowed) targetPositionMM = maxAllowed;
     
     // Convert to steps and CLAMP to calibrated limits (config.minStep/config.maxStep)
-    pursuit.targetStep = (long)(targetPositionMM * STEPS_PER_MM);
+    pursuit.targetStep = MovementMath::mmToSteps(targetPositionMM);
     if (pursuit.targetStep < config.minStep) pursuit.targetStep = config.minStep;
     if (pursuit.targetStep > config.maxStep) pursuit.targetStep = config.maxStep;
     
     long errorSteps = pursuit.targetStep - currentStep;
-    float errorMM = abs(errorSteps) / STEPS_PER_MM;
+    float errorMM = MovementMath::stepsToMM(abs(errorSteps));
     
     // If already at target, don't do anything
     if (errorSteps == 0) {
@@ -155,7 +155,7 @@ bool PursuitControllerClass::checkSafetyContacts(bool moveForward) {
     // Hard drift detection: only test contacts when near limits
     if (moveForward) {
         long stepsToLimit = config.maxStep - currentStep;
-        float distanceToLimitMM = stepsToLimit / STEPS_PER_MM;
+        float distanceToLimitMM = MovementMath::stepsToMM(stepsToLimit);
         
         if (distanceToLimitMM <= HARD_DRIFT_TEST_ZONE_MM) {
             if (Contacts.isEndActive()) {
@@ -168,7 +168,7 @@ bool PursuitControllerClass::checkSafetyContacts(bool moveForward) {
         }
     } else {
         // Test START contact when pursuing toward lower limit
-        float distanceToStartMM = currentStep / STEPS_PER_MM;
+        float distanceToStartMM = MovementMath::stepsToMM(currentStep);
         
         if (distanceToStartMM <= HARD_DRIFT_TEST_ZONE_MM) {
             if (Contacts.isStartActive()) {

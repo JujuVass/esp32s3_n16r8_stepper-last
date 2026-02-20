@@ -6,6 +6,7 @@
 
 #include "movement/CalibrationManager.h"
 #include "core/GlobalState.h"
+#include "core/MovementMath.h"
 #include "core/UtilityEngine.h"
 
 extern UtilityEngine* engine;
@@ -137,7 +138,7 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
     // Validate END contact distance (sanity check - not a retry loop)
     if (contactPin == PIN_END_CONTACT) {
         long detectedSteps = abs(currentStep);
-        long minExpectedSteps = (long)(HARD_MIN_DISTANCE_MM * STEPS_PER_MM);
+        long minExpectedSteps = MovementMath::mmToSteps(HARD_MIN_DISTANCE_MM);
         
         if (detectedSteps < minExpectedSteps) {
             engine->error("❌ Opto END detected too early (" + 
@@ -251,7 +252,7 @@ bool CalibrationManager::startCalibration() {
     
     // This position = maxStep
     m_maxStep = currentStep;
-    m_totalDistanceMM = m_maxStep / STEPS_PER_MM;
+    m_totalDistanceMM = MovementMath::stepsToMM(m_maxStep);
     config.maxStep = m_maxStep;
     config.totalDistanceMM = m_totalDistanceMM;
     
@@ -277,7 +278,7 @@ bool CalibrationManager::startCalibration() {
     if (m_totalDistanceMM > HARD_MAX_DISTANCE_MM) {
         engine->warn("⚠️ Distance limited to " + String(HARD_MAX_DISTANCE_MM, 1) + " mm");
         m_totalDistanceMM = HARD_MAX_DISTANCE_MM;
-        m_maxStep = (long)(m_totalDistanceMM * STEPS_PER_MM);
+        m_maxStep = MovementMath::mmToSteps(m_totalDistanceMM);
         config.maxStep = m_maxStep;
         config.totalDistanceMM = m_totalDistanceMM;
     }
@@ -324,7 +325,7 @@ bool CalibrationManager::startCalibration() {
     // (rounded up to nearest mm)
     // ========================================
     float tenPercentMM = ceil(m_totalDistanceMM * 0.1f);  // 10% rounded up
-    long targetSteps = (long)(tenPercentMM * STEPS_PER_MM);
+    long targetSteps = MovementMath::mmToSteps(tenPercentMM);
     
     engine->info("📍 Positioning at 10% (" + String(tenPercentMM, 0) + " mm)...");
     

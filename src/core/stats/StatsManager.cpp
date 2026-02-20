@@ -6,6 +6,7 @@
 #include "core/filesystem/FileSystem.h"
 #include "core/eeprom/EepromManager.h"
 #include "core/Config.h"        // For STEPS_PER_MM
+#include "core/MovementMath.h"  // For mmToSteps/stepsToMM
 #include "core/GlobalState.h"   // For stats (StatsTracking), statsMutex, effectiveMaxDistanceMM, etc.
 #include "core/UtilityEngine.h" // For engine->info/debug/error logging
 #include <time.h>
@@ -51,7 +52,7 @@ void StatsManager::saveCurrentSessionStats() {
   unsigned long incrementSteps = stats.getIncrementSteps();
 
   // Convert to millimeters
-  float incrementMM = incrementSteps / STEPS_PER_MM;
+  float incrementMM = MovementMath::stepsToMM(incrementSteps);
 
   if (incrementMM <= 0) {
     if (engine) engine->debug("📊 No new distance to save (no increment since last save)");
@@ -63,7 +64,7 @@ void StatsManager::saveCurrentSessionStats() {
 
   if (engine) {
     engine->debug(String("💾 Session stats saved: +") + String(incrementMM, 1) +
-      "mm (total session: " + String(stats.totalDistanceTraveled / STEPS_PER_MM, 1) + "mm)");
+      "mm (total session: " + String(MovementMath::stepsToMM(stats.totalDistanceTraveled), 1) + "mm)");
   }
 
   // Mark as saved

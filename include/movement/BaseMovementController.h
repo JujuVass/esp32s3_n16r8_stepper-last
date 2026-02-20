@@ -264,6 +264,11 @@ private:
     unsigned long _cycleCounter = 0;
     
     /**
+     * Recalculate startStep/targetStep from current motion config (DRY)
+     */
+    inline void recalcStepPositions();
+    
+    /**
      * Internal helper for setSpeedForward/setSpeedBackward (DRY)
      */
     void setSpeedInternal(float speedLevel, bool isForward);

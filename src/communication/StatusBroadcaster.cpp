@@ -85,8 +85,8 @@ void StatusBroadcaster::send() {
     // ============================================================================
     
     // Calculate derived values
-    float positionMM = currentStep / STEPS_PER_MM;
-    float totalTraveledMM = stats.totalDistanceTraveled / STEPS_PER_MM;
+    float positionMM = MovementMath::stepsToMM(currentStep);
+    float totalTraveledMM = MovementMath::stepsToMM(stats.totalDistanceTraveled);
     
     // Validation state - canStart controls UI visibility (tabs shown after calibration)
     bool canStart = (config.totalDistanceMM > 0);  // Show UI after calibration
