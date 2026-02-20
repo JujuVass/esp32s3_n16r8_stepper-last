@@ -43,25 +43,32 @@ const NotificationManager = {
     return this.container;
   },
 
+  BUMP_COOLDOWN_MS: 400, // Min interval between visual bumps (> animation duration 250ms)
+
   /**
    * Find an active notification with the same message.
    * If found, reset its timeout (extend its lifetime) and return true.
+   * Visual bump is throttled to avoid flicker during rapid-fire duplicates.
    */
   extendIfDuplicate(message, duration) {
     const entry = this.activeNotifications.find(n => n.message === message);
     if (!entry) return false;
 
-    // Cancel current timeout, restart with full duration
+    const now = Date.now();
+
+    // Cancel current timeout, restart with full duration (always — silent, no visual)
     if (entry.timeoutId) clearTimeout(entry.timeoutId);
     if (duration > 0) {
       entry.timeoutId = setTimeout(entry.removeFunc, duration);
     }
 
-    // Visual bump: brief scale pulse so user sees it was refreshed
-    entry.element.classList.remove('notif-bump');
-    // Force reflow so re-adding the class triggers the animation again
-    void entry.element.offsetWidth;
-    entry.element.classList.add('notif-bump');
+    // Visual bump only if cooldown elapsed (prevents flicker on burst)
+    if (now - (entry.lastBumpTime || 0) >= this.BUMP_COOLDOWN_MS) {
+      entry.lastBumpTime = now;
+      entry.element.classList.remove('notif-bump');
+      void entry.element.offsetWidth;
+      entry.element.classList.add('notif-bump');
+    }
 
     return true;
   },
