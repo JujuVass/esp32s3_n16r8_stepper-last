@@ -127,9 +127,32 @@ void networkTask(void* param);
 // ============================================================================
 // SETUP - INITIALIZATION
 // ============================================================================
+// Reset reason decoder (runs before logging is ready → Serial only)
+static const char* getResetReasonName(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_POWERON:  return "POWER_ON";
+    case ESP_RST_EXT:      return "EXTERNAL_PIN";
+    case ESP_RST_SW:       return "SOFTWARE (ESP.restart)";
+    case ESP_RST_PANIC:    return "PANIC (crash/exception)";
+    case ESP_RST_INT_WDT:  return "INTERRUPT_WDT (task starved)";
+    case ESP_RST_TASK_WDT: return "TASK_WDT (task hung)";
+    case ESP_RST_WDT:      return "OTHER_WDT";
+    case ESP_RST_DEEPSLEEP:return "DEEP_SLEEP";
+    case ESP_RST_BROWNOUT: return "BROWNOUT (power dip!)";
+    case ESP_RST_SDIO:     return "SDIO";
+    default:               return "UNKNOWN";
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(100);  // Brief pause for Serial stability
+  
+  // ============================================================================
+  // RESET REASON (logged ASAP — before anything else, helps diagnose reboots)
+  // ============================================================================
+  esp_reset_reason_t resetReason = esp_reset_reason();
+  Serial.printf("\n🔄 RESET REASON: %s (code %d)\n", getResetReasonName(resetReason), (int)resetReason);
   
   // ============================================================================
   // 0. RGB LED INITIALIZATION (Early for visual feedback) - OFF initially
@@ -146,6 +169,16 @@ void setup() {
     Serial.println("❌ UtilityEngine initialization failed!");
   } else {
     engine->info("✅ UtilityEngine initialized (LittleFS + Logging ready)");
+  }
+  
+  // Log reset reason to file too (persistent across reboots)
+  engine->warn(String("🔄 RESET REASON: ") + getResetReasonName(resetReason) + " (code " + String((int)resetReason) + ")");
+  if (resetReason == ESP_RST_BROWNOUT) {
+    engine->error("⚡ BROWNOUT detected! Check power supply (USB cable, PSU capacity, motor current draw)");
+  } else if (resetReason == ESP_RST_PANIC) {
+    engine->error("💥 PANIC crash! Check Serial monitor for backtrace on next occurrence");
+  } else if (resetReason == ESP_RST_TASK_WDT || resetReason == ESP_RST_INT_WDT) {
+    engine->error("⏱️ WATCHDOG timeout! A task is blocked or starving other tasks");
   }
   
   engine->info("\n=== ESP32-S3 Stepper Controller ===");
