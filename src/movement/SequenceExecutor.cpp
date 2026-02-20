@@ -339,7 +339,10 @@ bool SequenceExecutor::blockingMoveToStep(long targetStepPos, unsigned long time
             lastWsService = nowMs;
         }
         if (nowMs - lastStatusUpdate >= BLOCKING_MOVE_STATUS_INTERVAL_MS) {
-            Status.send();
+            if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+                Status.send();
+                xSemaphoreGive(wsMutex);
+            }
             lastStatusUpdate = nowMs;
         }
     }

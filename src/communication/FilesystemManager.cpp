@@ -336,7 +336,7 @@ void FilesystemManager::handleUploadFile() {
     uploadFile = LittleFS.open(filename, "w");
     totalWritten = 0;
     if (!uploadFile) {
-      // Error will be caught on WRITE attempt
+      _uploadFailed = true;
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (uploadFile) {
