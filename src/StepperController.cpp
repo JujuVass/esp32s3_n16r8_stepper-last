@@ -305,7 +305,7 @@ void setup() {
   motionMutex = xSemaphoreCreateMutex();
   stateMutex = xSemaphoreCreateMutex();
   statsMutex = xSemaphoreCreateMutex();
-  wsMutex = xSemaphoreCreateMutex();
+  wsMutex = xSemaphoreCreateRecursiveMutex();  // Recursive: Logger::log() may re-enter from WS callback
   
   if (motionMutex == NULL || stateMutex == NULL || statsMutex == NULL || wsMutex == NULL) {
     engine->error("❌ Failed to create FreeRTOS mutexes!");
@@ -525,10 +525,10 @@ void networkTask(void* param) {
     // HTTP server and WebSocket - skip during calibration or blocking moves
     // (CalibrationManager/blocking loops handle them internally via serviceWebSocket())
     if (!calibrationInProgress && !blockingMoveInProgress) {
-      if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+      if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
         server.handleClient();
         webSocket.loop();
-        xSemaphoreGive(wsMutex);
+        xSemaphoreGiveRecursive(wsMutex);
       }
     
       // ═══════════════════════════════════════════════════════════════════════
@@ -537,9 +537,9 @@ void networkTask(void* param) {
       static unsigned long lastUpdate = 0;
       if (millis() - lastUpdate > Status.getAdaptiveBroadcastInterval()) {
         lastUpdate = millis();
-        if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
           sendStatus();  // Uses webSocket.broadcastTXT - must not run concurrently with Core 1
-          xSemaphoreGive(wsMutex);
+          xSemaphoreGiveRecursive(wsMutex);
         }
       }
     }

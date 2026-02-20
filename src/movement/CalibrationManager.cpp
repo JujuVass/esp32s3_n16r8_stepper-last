@@ -49,10 +49,10 @@ void CalibrationManager::serviceWebSocket(unsigned long durationMs) {
     
     unsigned long start = millis();
     while (millis() - start < durationMs) {
-        if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
             m_webSocket->loop();
             m_server->handleClient();
-            xSemaphoreGive(wsMutex);
+            xSemaphoreGiveRecursive(wsMutex);
         }
         yield();
         delay(1);
@@ -116,10 +116,10 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
         // Service WebSocket periodically
         if (stepCount % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
             yield();
-            if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
                 if (m_webSocket) m_webSocket->loop();
                 if (m_server) m_server->handleClient();
-                xSemaphoreGive(wsMutex);
+                xSemaphoreGiveRecursive(wsMutex);
             }
         }
         
@@ -338,10 +338,10 @@ bool CalibrationManager::startCalibration() {
         // Service WebSocket periodically
         if (currentStep % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
             yield();
-            if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
                 if (m_webSocket) m_webSocket->loop();
                 if (m_server) m_server->handleClient();
-                xSemaphoreGive(wsMutex);
+                xSemaphoreGiveRecursive(wsMutex);
             }
         }
     }
@@ -413,10 +413,10 @@ bool CalibrationManager::returnToStart() {
         
         if (currentStep % WEBSOCKET_SERVICE_INTERVAL_STEPS == 0) {
             yield();
-            if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
                 if (m_webSocket) m_webSocket->loop();
                 if (m_server) m_server->handleClient();
-                xSemaphoreGive(wsMutex);
+                xSemaphoreGiveRecursive(wsMutex);
             }
         }
         

@@ -119,7 +119,7 @@ void Logger::log(LogLevel level, const String& message) {
   // 2. WebSocket broadcast (if clients connected)
   // Guard with wsMutex to prevent cross-core race (Core 1 motor logging vs Core 0 network)
   if (_ws.connectedClients() > 0 && wsMutex != nullptr) {
-    if (xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+    if (xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
       static const char* levelNames[] = {"ERROR", "WARN", "INFO", "DEBUG"};
       const char* levelName = (level >= 0 && level <= 3) ? levelNames[level] : "INFO";
       
@@ -131,7 +131,7 @@ void Logger::log(LogLevel level, const String& message) {
       String payload;
       serializeJson(doc, payload);
       _ws.broadcastTXT(payload);
-      xSemaphoreGive(wsMutex);
+      xSemaphoreGiveRecursive(wsMutex);
     }
     // If mutex not available, skip WS broadcast (Serial + ring buffer still capture it)
   }

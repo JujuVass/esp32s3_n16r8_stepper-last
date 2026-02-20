@@ -332,17 +332,17 @@ bool SequenceExecutor::blockingMoveToStep(long targetStepPos, unsigned long time
         
         unsigned long nowMs = millis();
         if (nowMs - lastWsService >= BLOCKING_MOVE_WS_SERVICE_MS) {
-            if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
                 if (_webSocket) _webSocket->loop();
                 server.handleClient();
-                xSemaphoreGive(wsMutex);
+                xSemaphoreGiveRecursive(wsMutex);
             }
             lastWsService = nowMs;
         }
         if (nowMs - lastStatusUpdate >= BLOCKING_MOVE_STATUS_INTERVAL_MS) {
-            if (wsMutex && xSemaphoreTake(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
                 Status.send();
-                xSemaphoreGive(wsMutex);
+                xSemaphoreGiveRecursive(wsMutex);
             }
             lastStatusUpdate = nowMs;
         }
