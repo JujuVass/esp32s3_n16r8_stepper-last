@@ -13,7 +13,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
-#include <esp_debug_helpers.h>
+#include <esp_core_dump.h>
 
 // ============================================================================
 // PROJECT HEADERS
@@ -47,22 +47,7 @@
 // Global UtilityEngine instance (initialized in setup)
 UtilityEngine* engine = nullptr;
 
-// ============================================================================
-// CRASH DIAGNOSTICS - RTC memory survives panic resets (not power-on)
-// ============================================================================
-#define CRASH_MAGIC 0xDEADC0DE
-#define CRASH_BT_MAX 16
 
-struct CrashInfo {
-  uint32_t magic;
-  uint32_t pc;          // Program counter at crash
-  uint32_t coreId;      // Which core crashed
-  uint32_t btDepth;     // Backtrace depth
-  uint32_t bt[CRASH_BT_MAX]; // Backtrace addresses
-};
-
-// RTC_NOINIT_ATTR: preserved across software resets, cleared on power-on
-RTC_NOINIT_ATTR static CrashInfo savedCrash;
 
 // ============================================================================
 // ONBOARD RGB LED (WS2812 on GPIO 48 - Freenove ESP32-S3)
@@ -162,34 +147,9 @@ static const char* getResetReasonName(esp_reset_reason_t reason) {
   }
 }
 
-// ============================================================================
-// CRASH HANDLER - Saves backtrace to RTC memory on panic
-// Called by ESP-IDF's panic handler before reboot
-// ============================================================================
-static void IRAM_ATTR saveCrashToRTC() {
-  savedCrash.magic = CRASH_MAGIC;
-  savedCrash.coreId = xPortGetCoreID();
-  
-  // Walk the backtrace from current frame
-  esp_backtrace_frame_t frame;
-  esp_backtrace_get_start(&frame.pc, &frame.sp, &frame.next_pc);
-  
-  savedCrash.pc = frame.pc;
-  savedCrash.btDepth = 0;
-  
-  for (uint32_t i = 0; i < CRASH_BT_MAX; i++) {
-    savedCrash.bt[i] = frame.pc;
-    savedCrash.btDepth = i + 1;
-    if (!esp_backtrace_get_next_frame(&frame)) break;
-  }
-}
-
 void setup() {
   Serial.begin(115200);
   delay(100);  // Brief pause for Serial stability
-  
-  // Register crash handler ASAP — saves backtrace to RTC memory on any panic/abort
-  esp_register_shutdown_handler(saveCrashToRTC);
   
   // ============================================================================
   // RESET REASON (logged ASAP — before anything else, helps diagnose reboots)
@@ -219,30 +179,29 @@ void setup() {
   if (resetReason == ESP_RST_BROWNOUT) {
     engine->error("⚡ BROWNOUT detected! Check power supply (USB cable, PSU capacity, motor current draw)");
   } else if (resetReason == ESP_RST_PANIC) {
-    engine->error("💥 PANIC crash detected!");
-    // Check RTC memory for crash backtrace saved by panic handler
-    if (savedCrash.magic == CRASH_MAGIC) {
-      engine->error(String("💥 Crash on Core ") + String(savedCrash.coreId) +
-                    " | PC=0x" + String(savedCrash.pc, HEX));
-      // Log backtrace addresses (decode with: xtensa-esp32s3-elf-addr2line -e .pio/build/esp32s3_n16r8/firmware.elf <addr>)
+    engine->error("💥 PANIC crash detected! Reading coredump from flash...");
+    // Coredump-to-flash: the panic handler writes crash state to the coredump partition
+    // automatically. On next boot we read the summary.
+    esp_core_dump_summary_t summary;
+    esp_err_t cdErr = esp_core_dump_get_summary(&summary);
+    if (cdErr == ESP_OK) {
+      engine->error(String("💥 Crashed task: ") + summary.exc_task);
+      engine->error(String("💥 Exception PC: 0x") + String(summary.exc_pc, HEX));
+      // Log backtrace addresses
       String bt = "💥 Backtrace:";
-      for (uint32_t i = 0; i < savedCrash.btDepth && i < CRASH_BT_MAX; i++) {
-        bt += " 0x" + String(savedCrash.bt[i], HEX);
+      for (uint32_t i = 0; i < summary.exc_bt_info.depth && i < 16; i++) {
+        bt += " 0x" + String(summary.exc_bt_info.bt[i], HEX);
       }
       engine->error(bt);
-      engine->error("💥 Decode with: xtensa-esp32s3-elf-addr2line -pfiaC -e .pio/build/esp32s3_n16r8/firmware.elf <addresses>");
-      // Clear after reading to avoid stale reports
-      savedCrash.magic = 0;
+      if (summary.exc_bt_info.corrupted) {
+        engine->warn("⚠️ Backtrace may be corrupted");
+      }
+      engine->error("💥 Full decode: pio run -t coredump-info");
     } else {
-      engine->error("💥 No backtrace in RTC memory (power was lost or first boot after flash)");
+      engine->error(String("💥 Could not read coredump (err ") + String(cdErr) + ") — use Serial monitor for live backtrace");
     }
   } else if (resetReason == ESP_RST_TASK_WDT || resetReason == ESP_RST_INT_WDT) {
     engine->error("⏱️ WATCHDOG timeout! A task is blocked or starving other tasks");
-  }
-  
-  // Clear crash data on non-panic boots (fresh start)
-  if (resetReason != ESP_RST_PANIC) {
-    savedCrash.magic = 0;
   }
   
   engine->info("\n=== ESP32-S3 Stepper Controller ===");
