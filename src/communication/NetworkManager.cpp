@@ -415,9 +415,9 @@ static bool pingGateway() {
     esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
     cfg.target_addr.u_addr.ip4.addr = gw;
     cfg.target_addr.type = ESP_IPADDR_TYPE_V4;
-    cfg.count = 1;
+    cfg.count = 2;           // Send 2 pings — 1 success = pass
     cfg.timeout_ms = 1000;
-    cfg.interval_ms = 0;
+    cfg.interval_ms = 200;   // 200ms between attempts
     
     volatile bool got_reply = false;
     esp_ping_callbacks_t cbs = {};
@@ -430,9 +430,9 @@ static bool pingGateway() {
     if (esp_ping_new_session(&cfg, &cbs, &handle) != ESP_OK) return false;
     esp_ping_start(handle);
     
-    // Wait for ping to complete (max ~1.2s)
+    // Wait for ping to complete (max ~2.5s for 2 pings)
     unsigned long start = millis();
-    while (!got_reply && (millis() - start) < 1500) {
+    while (!got_reply && (millis() - start) < 2500) {
         vTaskDelay(pdMS_TO_TICKS(50));
     }
     
@@ -460,8 +460,15 @@ void StepperNetworkManager::checkConnectionHealth() {
         engine->info("\xF0\x9F\x94\x84 mDNS: Delayed re-announce (boot +" + String(now / 1000) + "s)");
     }
 
-    // Rate limit: faster during recovery, slower when healthy
-    uint32_t checkInterval = (_wdState == WD_HEALTHY) ? WATCHDOG_CHECK_INTERVAL_MS : WATCHDOG_RECOVERY_INTERVAL_MS;
+    // Rate limit: faster during recovery OR when ping failures are accumulating, slower when healthy
+    uint32_t checkInterval;
+    if (_wdState != WD_HEALTHY) {
+        checkInterval = WATCHDOG_RECOVERY_INTERVAL_MS;  // 20s during active recovery
+    } else if (_pingFailCount > 0) {
+        checkInterval = WATCHDOG_RECOVERY_INTERVAL_MS;  // 20s when verifying ping failures
+    } else {
+        checkInterval = WATCHDOG_CHECK_INTERVAL_MS;     // 60s when fully healthy
+    }
     if (now - _lastHealthCheck < checkInterval) return;
     _lastHealthCheck = now;
     
@@ -477,6 +484,17 @@ void StepperNetworkManager::checkConnectionHealth() {
         // WiFi.status() can return WL_CONNECTED even when IP stack is dead
         // ═══════════════════════════════════════════════════════════════════
         bool networkOk = pingGateway();
+        
+        if (!networkOk) {
+            _pingFailCount++;
+            if (_pingFailCount < WATCHDOG_PING_FAIL_THRESHOLD) {
+                engine->debug("⚠️ Watchdog: Gateway ping failed (" + String(_pingFailCount) + "/" + String(WATCHDOG_PING_FAIL_THRESHOLD) + ") — retrying next cycle");
+                return;  // Don't escalate yet, wait for consecutive failures
+            }
+            // Threshold reached — fall through to recovery
+        } else {
+            _pingFailCount = 0;  // Reset on success
+        }
         
         // ═══════════════════════════════════════════════════════════════════
         // STEP 3: Proactive mDNS refresh (ESP32 can't self-query .local)
@@ -506,13 +524,15 @@ void StepperNetworkManager::checkConnectionHealth() {
             _wdState = WD_HEALTHY;
             _wdSoftRetries = 0;
             _wdHardRetries = 0;
+            _pingFailCount = 0;
             _wasConnected = true;
             _cachedIP = WiFi.localIP().toString();
             return;
         }
         
-        // WiFi says connected but gateway unreachable → half-dead connection
-        engine->warn("⚠️ Watchdog: WiFi connected but gateway ping FAILED → treating as disconnected");
+        // WiFi says connected but gateway unreachable (3 consecutive fails) → half-dead connection
+        engine->warn("⚠️ Watchdog: WiFi connected but gateway ping FAILED " + String(WATCHDOG_PING_FAIL_THRESHOLD) + "x → treating as disconnected");
+        _pingFailCount = 0;  // Reset for next recovery cycle
         wifiConnected = false;  // Force into recovery path
     }
     

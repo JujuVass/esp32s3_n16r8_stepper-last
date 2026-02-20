@@ -249,6 +249,7 @@ constexpr uint32_t WEBSOCKET_RECONNECT_MS = 2000;       // Client-side WS reconn
 // Three-tier escalation: Soft reconnect → Hard re-association → Emergency reboot
 constexpr uint32_t WATCHDOG_CHECK_INTERVAL_MS          = 60000;  // Deep health check when healthy (60s)
 constexpr uint32_t WATCHDOG_RECOVERY_INTERVAL_MS       = 20000;  // Faster checks during active recovery (20s)
+constexpr uint8_t  WATCHDOG_PING_FAIL_THRESHOLD        = 3;      // Consecutive ping failures before escalating
 constexpr uint8_t  WATCHDOG_SOFT_MAX_RETRIES           = 5;      // Tier 1: WiFi.reconnect() attempts
 constexpr uint8_t  WATCHDOG_HARD_MAX_RETRIES           = 3;      // Tier 2: Full disconnect + re-associate attempts
 constexpr uint32_t WATCHDOG_HARD_RECONNECT_TIMEOUT_MS  = 15000;  // Timeout for WiFi.begin() during hard reconnect

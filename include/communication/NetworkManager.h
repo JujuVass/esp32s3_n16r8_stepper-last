@@ -198,6 +198,7 @@ private:
     WatchdogState _wdState = WD_HEALTHY;
     uint8_t _wdSoftRetries = 0;              // Tier 1 attempt counter
     uint8_t _wdHardRetries = 0;              // Tier 2 attempt counter
+    uint8_t _pingFailCount = 0;              // Consecutive gateway ping failures
     
     // Captive Portal DNS server (AP_SETUP mode only)
     DNSServer _dnsServer;
