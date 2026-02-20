@@ -1,9 +1,8 @@
 """
-PlatformIO extra script: adds 'coredump-info' and 'coredump-monitor' targets.
+PlatformIO extra script: adds 'coredump-info' target.
 
 Usage:
-  pio run -e esp32s3_usb -t coredump-info      # Read & decode coredump from flash
-  pio run -e esp32s3_usb -t coredump-monitor    # Live monitor that auto-decodes panic backtraces
+  pio run -e esp32s3_usb -t coredump-info   # Read & decode coredump from flash
 
 Requires: pip install esp-coredump  (installed once)
 """
@@ -19,21 +18,22 @@ Import("env")
 platform_packages = env.PioPlatform().get_package_dir("tool-xtensa-esp-elf-gdb")
 gdb_path = os.path.join(platform_packages, "bin", "xtensa-esp32s3-elf-gdb.exe")
 
-rom_elfs_dir = env.PioPlatform().get_package_dir("tool-esp-rom-elfs")
+rom_elf = os.path.join(
+    env.PioPlatform().get_package_dir("tool-esp-rom-elfs"),
+    "esp32s3_rev0_rom.elf",
+)
 
 # Firmware ELF (built by PlatformIO)
 firmware_elf = os.path.join(env.subst("$BUILD_DIR"), "firmware.elf")
 
-# Coredump partition: offset and size from partition table
+# Coredump partition offset (must match default_16MB.csv)
 COREDUMP_OFFSET = "0xFC0000"
-COREDUMP_SIZE   = "0x40000"
 
 # Serial port (from platformio.ini upload_port or auto-detect)
 def get_port():
     port = env.subst("$UPLOAD_PORT")
     if port:
         return port
-    # Try to auto-detect
     from platformio.device.finder import SerialPortFinder
     return SerialPortFinder(
         board_config=env.BoardConfig(),
@@ -52,14 +52,19 @@ def coredump_info_action(target, source, env):
     print(f"  ELF:  {firmware_elf}")
     print(f"{'='*70}\n")
 
+    # esp_coredump CLI v1.15+:
+    #   Global flags (--port, --chip) BEFORE subcommand
+    #   Subcommand flags (--gdb, --off, --rom-elf, prog) AFTER subcommand
     cmd = [
         sys.executable, "-m", "esp_coredump",
-        "info_corefile",
-        "--core-format", "elf",
-        "--gdb", gdb_path,
-        "--rom-elf-dir", rom_elfs_dir,
+        "--chip", "esp32s3",
         "--port", port,
-        "--partition-table-offset", "0x8000",
+        "info_corefile",
+        "--gdb", gdb_path,
+        "--off", COREDUMP_OFFSET,
+        "--parttable-off", "0x8000",
+        "--rom-elf", rom_elf,
+        "--core-format", "elf",
         firmware_elf,
     ]
 
