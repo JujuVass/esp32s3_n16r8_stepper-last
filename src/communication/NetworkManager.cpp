@@ -447,6 +447,19 @@ void StepperNetworkManager::checkConnectionHealth() {
     
     unsigned long now = millis();
     
+    // One-shot delayed mDNS re-announce after boot
+    // The initial MDNS.begin() fires before WiFi IGMP joins propagate,
+    // so the first multicast announcement is often lost. Re-announce once
+    // after the network stack has had time to settle.
+    if (!_mdnsBootReannounced && now >= MDNS_BOOT_REANNOUNCE_DELAY_MS) {
+        _mdnsBootReannounced = true;
+        MDNS.end();
+        delay(100);
+        setupMDNS(true);
+        _lastMdnsRefresh = now;
+        engine->info("\xF0\x9F\x94\x84 mDNS: Delayed re-announce (boot +" + String(now / 1000) + "s)");
+    }
+
     // Rate limit: faster during recovery, slower when healthy
     uint32_t checkInterval = (_wdState == WD_HEALTHY) ? WATCHDOG_CHECK_INTERVAL_MS : WATCHDOG_RECOVERY_INTERVAL_MS;
     if (now - _lastHealthCheck < checkInterval) return;

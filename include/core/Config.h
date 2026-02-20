@@ -254,6 +254,7 @@ constexpr uint8_t  WATCHDOG_HARD_MAX_RETRIES           = 3;      // Tier 2: Full
 constexpr uint32_t WATCHDOG_HARD_RECONNECT_TIMEOUT_MS  = 15000;  // Timeout for WiFi.begin() during hard reconnect
 constexpr uint32_t WATCHDOG_REBOOT_DELAY_MS            = 2000;   // Safety delay before ESP.restart()
 constexpr uint32_t WATCHDOG_MDNS_REFRESH_MS            = 60000;  // Proactive mDNS re-announce interval (60s)
+constexpr uint32_t MDNS_BOOT_REANNOUNCE_DELAY_MS       = 5000;   // Delayed re-announce after boot (IGMP settle)
 constexpr bool     WATCHDOG_AUTO_REBOOT_ENABLED        = true;   // Master switch for Tier 3 auto-reboot
 
 // ============================================================================

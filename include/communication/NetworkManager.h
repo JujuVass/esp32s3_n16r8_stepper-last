@@ -191,6 +191,7 @@ private:
     bool _wasConnected = false;              // Track connection state for recovery detection
     unsigned long _lastHealthCheck = 0;      // Last health check timestamp
     unsigned long _lastMdnsRefresh = 0;      // Last mDNS refresh timestamp
+    bool _mdnsBootReannounced = false;         // One-shot delayed re-announce after boot
     String _cachedIP;                        // Cached IP address string (avoids WiFi.localIP() calls)
     
     // Connection Watchdog state
