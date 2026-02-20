@@ -269,10 +269,10 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
   line.pauseAfterMs = obj["pauseAfterMs"] | 0;
   
   // VA-ET-VIENT fields
-  line.startPositionMM = obj["startPositionMM"] | 0.0;
-  line.distanceMM = obj["distanceMM"] | 100.0;
-  line.speedForward = obj["speedForward"] | 5.0;
-  line.speedBackward = obj["speedBackward"] | 5.0;
+  line.startPositionMM = obj["startPositionMM"] | 0.0f;
+  line.distanceMM = obj["distanceMM"] | 100.0f;
+  line.speedForward = obj["speedForward"] | 5.0f;
+  line.speedBackward = obj["speedBackward"] | 5.0f;
   
   // VA-ET-VIENT zone effects (embedded ZoneEffectConfig)
   JsonVariantConst ze = obj["vaetZoneEffect"];
@@ -282,23 +282,23 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
     line.vaetZoneEffect.enableStart = ze["enableStart"] | true;
     line.vaetZoneEffect.enableEnd = ze["enableEnd"] | true;
     line.vaetZoneEffect.mirrorOnReturn = ze["mirrorOnReturn"] | false;
-    line.vaetZoneEffect.zoneMM = ze["zoneMM"] | 50.0;
+    line.vaetZoneEffect.zoneMM = ze["zoneMM"] | 50.0f;
     line.vaetZoneEffect.speedEffect = (SpeedEffect)(ze["speedEffect"] | 1);
     line.vaetZoneEffect.speedCurve = (SpeedCurve)(ze["speedCurve"] | 0);
-    line.vaetZoneEffect.speedIntensity = ze["speedIntensity"] | 75.0;
+    line.vaetZoneEffect.speedIntensity = ze["speedIntensity"] | 75.0f;
     line.vaetZoneEffect.randomTurnbackEnabled = ze["randomTurnbackEnabled"] | false;
     line.vaetZoneEffect.turnbackChance = ze["turnbackChance"] | 30;
     line.vaetZoneEffect.endPauseEnabled = ze["endPauseEnabled"] | false;
     line.vaetZoneEffect.endPauseIsRandom = ze["endPauseIsRandom"] | false;
-    line.vaetZoneEffect.endPauseDurationSec = ze["endPauseDurationSec"] | 1.0;
-    line.vaetZoneEffect.endPauseMinSec = ze["endPauseMinSec"] | 0.5;
-    line.vaetZoneEffect.endPauseMaxSec = ze["endPauseMaxSec"] | 2.0;
+    line.vaetZoneEffect.endPauseDurationSec = ze["endPauseDurationSec"] | 1.0f;
+    line.vaetZoneEffect.endPauseMinSec = ze["endPauseMinSec"] | 0.5f;
+    line.vaetZoneEffect.endPauseMaxSec = ze["endPauseMaxSec"] | 2.0f;
   } else {
     // Legacy format: decel* fields - migrate to new format
     bool decelStartEnabled = obj["decelStartEnabled"] | false;
     bool decelEndEnabled = obj["decelEndEnabled"] | false;
-    float decelZoneMM = obj["decelZoneMM"] | 50.0;
-    float decelEffectPercent = obj["decelEffectPercent"] | 50.0;
+    float decelZoneMM = obj["decelZoneMM"] | 50.0f;
+    float decelEffectPercent = obj["decelEffectPercent"] | 50.0f;
     int decelMode = obj["decelMode"] | 0;
     
     // Convert to ZoneEffectConfig
@@ -317,33 +317,33 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
   // VA-ET-VIENT cycle pause (DRY: uses CyclePauseConfig struct)
   line.vaetCyclePause.enabled = obj["vaetCyclePauseEnabled"] | false;
   line.vaetCyclePause.isRandom = obj["vaetCyclePauseIsRandom"] | false;
-  line.vaetCyclePause.pauseDurationSec = obj["vaetCyclePauseDurationSec"] | 0.0;
-  line.vaetCyclePause.minPauseSec = obj["vaetCyclePauseMinSec"] | 0.5;
-  line.vaetCyclePause.maxPauseSec = obj["vaetCyclePauseMaxSec"] | 3.0;
+  line.vaetCyclePause.pauseDurationSec = obj["vaetCyclePauseDurationSec"] | 0.0f;
+  line.vaetCyclePause.minPauseSec = obj["vaetCyclePauseMinSec"] | 0.5f;
+  line.vaetCyclePause.maxPauseSec = obj["vaetCyclePauseMaxSec"] | 3.0f;
   
   // OSCILLATION fields
   float effectiveMax = Validators::getMaxAllowedMM();
-  line.oscCenterPositionMM = obj["oscCenterPositionMM"] | (effectiveMax / 2.0);
-  line.oscAmplitudeMM = obj["oscAmplitudeMM"] | 50.0;
+  line.oscCenterPositionMM = obj["oscCenterPositionMM"] | (effectiveMax / 2.0f);
+  line.oscAmplitudeMM = obj["oscAmplitudeMM"] | 50.0f;
   line.oscWaveform = (OscillationWaveform)(obj["oscWaveform"] | 0);
-  line.oscFrequencyHz = obj["oscFrequencyHz"] | 1.0;
+  line.oscFrequencyHz = obj["oscFrequencyHz"] | 1.0f;
   line.oscEnableRampIn = obj["oscEnableRampIn"] | false;
   line.oscEnableRampOut = obj["oscEnableRampOut"] | false;
-  line.oscRampInDurationMs = obj["oscRampInDurationMs"] | 1000.0;
-  line.oscRampOutDurationMs = obj["oscRampOutDurationMs"] | 1000.0;
+  line.oscRampInDurationMs = obj["oscRampInDurationMs"] | 1000.0f;
+  line.oscRampOutDurationMs = obj["oscRampOutDurationMs"] | 1000.0f;
   
   // OSCILLATION cycle pause (DRY: uses CyclePauseConfig struct)
   line.oscCyclePause.enabled = obj["oscCyclePauseEnabled"] | false;
   line.oscCyclePause.isRandom = obj["oscCyclePauseIsRandom"] | false;
-  line.oscCyclePause.pauseDurationSec = obj["oscCyclePauseDurationSec"] | 0.0;
-  line.oscCyclePause.minPauseSec = obj["oscCyclePauseMinSec"] | 0.5;
-  line.oscCyclePause.maxPauseSec = obj["oscCyclePauseMaxSec"] | 3.0;
+  line.oscCyclePause.pauseDurationSec = obj["oscCyclePauseDurationSec"] | 0.0f;
+  line.oscCyclePause.minPauseSec = obj["oscCyclePauseMinSec"] | 0.5f;
+  line.oscCyclePause.maxPauseSec = obj["oscCyclePauseMaxSec"] | 3.0f;
   
   // CHAOS fields
-  line.chaosCenterPositionMM = obj["chaosCenterPositionMM"] | (effectiveMax / 2.0);
-  line.chaosAmplitudeMM = obj["chaosAmplitudeMM"] | 50.0;
-  line.chaosMaxSpeedLevel = obj["chaosMaxSpeedLevel"] | 10.0;
-  line.chaosCrazinessPercent = obj["chaosCrazinessPercent"] | 50.0;
+  line.chaosCenterPositionMM = obj["chaosCenterPositionMM"] | (effectiveMax / 2.0f);
+  line.chaosAmplitudeMM = obj["chaosAmplitudeMM"] | 50.0f;
+  line.chaosMaxSpeedLevel = obj["chaosMaxSpeedLevel"] | 10.0f;
+  line.chaosCrazinessPercent = obj["chaosCrazinessPercent"] | 50.0f;
   line.chaosDurationSeconds = obj["chaosDurationSeconds"] | 30UL;
   line.chaosSeed = obj["chaosSeed"] | 0UL;
   

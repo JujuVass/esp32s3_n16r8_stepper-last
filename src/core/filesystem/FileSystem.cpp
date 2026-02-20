@@ -69,7 +69,7 @@ bool FileSystem::mount() {
     size_t usedBytes = LittleFS.usedBytes();
     String msg = "LittleFS: " + String(totalBytes / 1024) + " KB total, " +
                  String(usedBytes / 1024) + " KB used (" +
-                 String((usedBytes * 100.0) / totalBytes, 1) + "%)";
+                 String((usedBytes * 100.0f) / totalBytes, 1) + "%)";
     if (engine) engine->info(msg);
     else Serial.println("[FileSystem] " + msg);
   }
@@ -187,9 +187,9 @@ uint32_t FileSystem::getUsedBytes() const {
 
 float FileSystem::getDiskUsagePercent() const {
   uint32_t total = getTotalBytes();
-  if (total == 0) return 0.0;
+  if (total == 0) return 0.0f;
   uint32_t used = getUsedBytes();
-  return (used * 100.0) / total;
+  return (used * 100.0f) / total;
 }
 
 // ============================================================================

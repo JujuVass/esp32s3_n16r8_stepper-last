@@ -84,7 +84,7 @@ void StatsManager::resetTotalDistance() {
 }
 
 void StatsManager::updateEffectiveMaxDistance() {
-  effectiveMaxDistanceMM = config.totalDistanceMM * (maxDistanceLimitPercent / 100.0);
+  effectiveMaxDistanceMM = config.totalDistanceMM * (maxDistanceLimitPercent / 100.0f);
   if (engine) {
     engine->debug(String("📏 Effective max distance: ") + String(effectiveMaxDistanceMM, 1) +
       " mm (" + String(maxDistanceLimitPercent, 0) + "% of " +
@@ -129,7 +129,7 @@ void StatsManager::incrementDailyStats(float distanceMM) {
   bool found = false;
   for (JsonObject entry : statsArray) {
     if (strcmp(entry["date"], dateStr) == 0) {
-      float current = entry["distanceMM"] | 0.0;
+      float current = entry["distanceMM"] | 0.0f;
       entry["distanceMM"] = current + distanceMM;
       found = true;
       break;
@@ -162,16 +162,16 @@ float StatsManager::getTodayDistance() {
   // Load stats
   JsonDocument statsDoc;
   if (!_fs.loadJsonFile("/stats.json", statsDoc)) {
-    return 0.0;
+    return 0.0f;
   }
 
   // Find today's entry
   JsonArray statsArray = statsDoc.as<JsonArray>();
   for (JsonObject entry : statsArray) {
     if (strcmp(entry["date"], dateStr) == 0) {
-      return entry["distanceMM"] | 0.0;
+      return entry["distanceMM"] | 0.0f;
     }
   }
 
-  return 0.0;
+  return 0.0f;
 }

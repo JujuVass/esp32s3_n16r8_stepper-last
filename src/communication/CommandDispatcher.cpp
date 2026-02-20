@@ -211,9 +211,9 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
     }
     
     if (strcmp(cmd, "setMaxDistanceLimit") == 0) {
-        float percent = doc["percent"] | 100.0;
+        float percent = doc["percent"] | 100.0f;
         
-        if (percent < 50.0 || percent > 100.0) {
+        if (percent < 50.0f || percent > 100.0f) {
             Status.sendError("⚠️ Limit must be between 50% and 100% (received: " + String(percent, 0) + "%)");
             return true;
         }
@@ -293,7 +293,7 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
 
 bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc) {
     if (strcmp(cmd, "setDistance") == 0) {
-        float dist = doc["distance"] | 0.0;
+        float dist = doc["distance"] | 0.0f;
         
         String errorMsg;
         if (!validateAndReport(Validators::distance(dist, errorMsg), errorMsg)) return true;
@@ -304,7 +304,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
     }
     
     if (strcmp(cmd, "setStartPosition") == 0) {
-        float startPos = doc["startPosition"] | 0.0;
+        float startPos = doc["startPosition"] | 0.0f;
         
         String errorMsg;
         if (!validateAndReport(Validators::position(startPos, errorMsg), errorMsg)) return true;
@@ -315,7 +315,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
     }
     
     if (strcmp(cmd, "setSpeedForward") == 0) {
-        float spd = doc["speed"] | 5.0;
+        float spd = doc["speed"] | 5.0f;
         
         String errorMsg;
         if (!validateAndReport(Validators::speed(spd, errorMsg), errorMsg)) return true;
@@ -326,7 +326,7 @@ bool CommandDispatcher::handleConfigCommands(const char* cmd, JsonDocument& doc)
     }
     
     if (strcmp(cmd, "setSpeedBackward") == 0) {
-        float spd = doc["speed"] | 5.0;
+        float spd = doc["speed"] | 5.0f;
         
         String errorMsg;
         if (!validateAndReport(Validators::speed(spd, errorMsg), errorMsg)) return true;
@@ -408,11 +408,11 @@ bool CommandDispatcher::handleDecelZoneCommands(const char* cmd, JsonDocument& d
             zoneEffect.endPauseIsRandom = doc["endPauseIsRandom"].as<bool>();
         }
         float endPauseDuration = doc["endPauseDurationSec"] | zoneEffect.endPauseDurationSec;
-        if (endPauseDuration >= 0.1) zoneEffect.endPauseDurationSec = endPauseDuration;
+        if (endPauseDuration >= 0.1f) zoneEffect.endPauseDurationSec = endPauseDuration;
         
         float endPauseMin = doc["endPauseMinSec"] | zoneEffect.endPauseMinSec;
         float endPauseMax = doc["endPauseMaxSec"] | zoneEffect.endPauseMaxSec;
-        if (endPauseMin >= 0.1) zoneEffect.endPauseMinSec = endPauseMin;
+        if (endPauseMin >= 0.1f) zoneEffect.endPauseMinSec = endPauseMin;
         if (endPauseMax >= endPauseMin) zoneEffect.endPauseMaxSec = endPauseMax;
         
         // Validate zone
@@ -470,13 +470,13 @@ bool CommandDispatcher::handleCyclePauseCommands(const char* cmd, JsonDocument& 
 void CommandDispatcher::applyCyclePauseConfig(CyclePauseConfig& target, JsonDocument& doc, const char* label) {
     bool enabled = doc["enabled"] | false;
     bool isRandom = doc["isRandom"] | false;
-    float pauseDurationSec = doc["pauseDurationSec"] | 1.5;
-    float minPauseSec = doc["minPauseSec"] | 1.5;
-    float maxPauseSec = doc["maxPauseSec"] | 5.0;
+    float pauseDurationSec = doc["pauseDurationSec"] | 1.5f;
+    float minPauseSec = doc["minPauseSec"] | 1.5f;
+    float maxPauseSec = doc["maxPauseSec"] | 5.0f;
     
-    if (minPauseSec < 0.1) minPauseSec = 0.1;
-    if (maxPauseSec < minPauseSec) maxPauseSec = minPauseSec + 0.5;
-    if (pauseDurationSec < 0.1) pauseDurationSec = 0.1;
+    if (minPauseSec < 0.1f) minPauseSec = 0.1f;
+    if (maxPauseSec < minPauseSec) maxPauseSec = minPauseSec + 0.5f;
+    if (pauseDurationSec < 0.1f) pauseDurationSec = 0.1f;
     
     target.enabled = enabled;
     target.isRandom = isRandom;
@@ -553,8 +553,8 @@ bool CommandDispatcher::handlePursuitCommands(const char* cmd, JsonDocument& doc
             return true;
         }
         
-        float targetPos = doc["targetPosition"] | 0.0;
-        float maxSpd = doc["maxSpeed"] | 10.0;
+        float targetPos = doc["targetPosition"] | 0.0f;
+        float maxSpd = doc["maxSpeed"] | 10.0f;
         
         String errorMsg;
         if (!validateAndReport(Validators::speed(maxSpd, errorMsg), errorMsg)) return true;
@@ -582,10 +582,10 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
         }
         
         float effectiveMax = Validators::getMaxAllowedMM();
-        chaos.centerPositionMM = doc["centerPositionMM"] | (effectiveMax / 2.0);
-        chaos.amplitudeMM = doc["amplitudeMM"] | 50.0;
-        chaos.maxSpeedLevel = doc["maxSpeedLevel"] | 10.0;
-        chaos.crazinessPercent = doc["crazinessPercent"] | 50.0;
+        chaos.centerPositionMM = doc["centerPositionMM"] | (effectiveMax / 2.0f);
+        chaos.amplitudeMM = doc["amplitudeMM"] | 50.0f;
+        chaos.maxSpeedLevel = doc["maxSpeedLevel"] | 10.0f;
+        chaos.crazinessPercent = doc["crazinessPercent"] | 50.0f;
         // Don't use | operator for durationSeconds as 0 means infinite (falsy but valid)
         if (!doc["durationSeconds"].isNull()) {
             chaos.durationSeconds = doc["durationSeconds"].as<int>();
@@ -828,7 +828,7 @@ bool CommandDispatcher::handleSequencerCommands(const char* cmd, JsonDocument& d
             if (!validateAndReport(Validators::speed(newLine.speedForward, errorMsg), errorMsg)) return true;
             if (!validateAndReport(Validators::speed(newLine.speedBackward, errorMsg), errorMsg)) return true;
         } else if (newLine.movementType == MOVEMENT_OSC) {
-            if (newLine.oscFrequencyHz <= 0 || newLine.oscFrequencyHz > 10.0) {
+            if (newLine.oscFrequencyHz <= 0 || newLine.oscFrequencyHz > 10.0f) {
                 Status.sendError("❌ Frequency must be 0.01-10 Hz");
                 return true;
             }

@@ -27,7 +27,7 @@ using enum ExecutionContext;
 constinit OscillationConfig oscillation;
 constinit OscillationState oscillationState;
 constinit CyclePauseState oscPauseState;
-float actualOscillationSpeedMMS = 0.0;
+float actualOscillationSpeedMMS = 0.0f;
 
 // ============================================================================
 // LOCAL SINE LOOKUP TABLE (for fast oscillation waveform calculation)
@@ -40,7 +40,7 @@ static bool sineTableInitialized = false;
 static void initSineTable() {
     if (sineTableInitialized) return;
     for (int i = 0; i < SINE_TABLE_SIZE; i++) {
-        sineTable[i] = -cos((i / (float)SINE_TABLE_SIZE) * 2.0 * PI);
+        sineTable[i] = -cos((i / (float)SINE_TABLE_SIZE) * 2.0f * PI);
     }
     sineTableInitialized = true;
 }
@@ -103,9 +103,9 @@ void OscillationControllerClass::start() {
     oscillationState.isInitialPositioning = true;  // 🚀 Active le positionnement progressif initial
     
     // 🎯 RESET PHASE TRACKING for smooth transitions
-    oscillationState.accumulatedPhase = 0.0;
+    oscillationState.accumulatedPhase = 0.0f;
     oscillationState.lastPhaseUpdateMs = 0;  // Will be initialized on first calculatePosition() call
-    oscillationState.lastPhase = 0.0;  // Reset cycle counter tracking
+    oscillationState.lastPhase = 0.0f;  // Reset cycle counter tracking
     oscillationState.isTransitioning = false;
     
     // 🎯 RESET CENTER TRANSITION for fresh start
@@ -121,7 +121,7 @@ void OscillationControllerClass::start() {
     oscillationState.targetAmplitudeMM = 0;
     
     // 🎯 CALCULATE INITIAL ACTUAL SPEED for display
-    float theoreticalPeakSpeed = 2.0 * PI * oscillation.frequencyHz * oscillation.amplitudeMM;
+    float theoreticalPeakSpeed = 2.0f * PI * oscillation.frequencyHz * oscillation.amplitudeMM;
     actualSpeedMMS_ = min(theoreticalPeakSpeed, OSC_MAX_SPEED_MM_S);
     
     // NOTE: Don't stop sequencer here - start() can be called BY the sequencer (P4 translation)
@@ -224,7 +224,7 @@ void OscillationControllerClass::process() {
     float effectiveFrequency = MovementMath::effectiveFrequency(oscillation.frequencyHz, oscillation.amplitudeMM);
     
     // Calculate actual peak speed using effective frequency
-    actualSpeedMMS_ = 2.0 * PI * effectiveFrequency * oscillation.amplitudeMM;
+    actualSpeedMMS_ = 2.0f * PI * effectiveFrequency * oscillation.amplitudeMM;
     
     // Use minimum step delay (speed is controlled by effective frequency, not delay)
     unsigned long currentMicros = micros();
@@ -261,7 +261,7 @@ float OscillationControllerClass::calculatePosition() {
     float effectiveFrequency = MovementMath::effectiveFrequency(oscillation.frequencyHz, oscillation.amplitudeMM);
     
     // 🚀 SPEED LIMIT: Log if frequency was capped
-    if (oscillation.amplitudeMM > 0.0 && effectiveFrequency < oscillation.frequencyHz) {
+    if (oscillation.amplitudeMM > 0.0f && effectiveFrequency < oscillation.frequencyHz) {
         // Log warning (throttled to avoid spam)
         if (currentMs - lastSpeedLimitLogMs_ > 5000) {
             engine->warn("⚠️ Frequency reduced: " + String(oscillation.frequencyHz, 2) + " Hz → " + 
@@ -274,7 +274,7 @@ float OscillationControllerClass::calculatePosition() {
     // Initialize phase tracking on first call or after reset
     if (oscillationState.lastPhaseUpdateMs == 0) {
         oscillationState.lastPhaseUpdateMs = currentMs;
-        oscillationState.accumulatedPhase = 0.0;
+        oscillationState.accumulatedPhase = 0.0f;
     }
     
     // Calculate time delta since last update
@@ -312,11 +312,11 @@ float OscillationControllerClass::calculatePosition() {
     
     // 🔥 ACCUMULATE PHASE: Add phase increment based on time delta and current frequency
     // phase increment = frequency (cycles/sec) × time (sec)
-    float phaseIncrement = effectiveFrequency * (deltaMs / 1000.0);
+    float phaseIncrement = effectiveFrequency * (deltaMs / 1000.0f);
     oscillationState.accumulatedPhase += phaseIncrement;
     
     // Calculate phase (0.0 to 1.0 per cycle) using modulo
-    float phase = fmod(oscillationState.accumulatedPhase, 1.0);
+    float phase = fmod(oscillationState.accumulatedPhase, 1.0f);
     
     // Calculate waveform value (-1.0 to +1.0) — delegates to MovementMath for testability
     #ifdef USE_SINE_LOOKUP_TABLE
@@ -410,7 +410,7 @@ float OscillationControllerClass::calculatePosition() {
     } else if (oscillationState.isRampingOut) [[unlikely]] {
         unsigned long rampElapsed = currentMs - oscillationState.rampStartMs;
         if (rampElapsed < oscillation.rampOutDurationMs) {
-            float rampProgress = 1.0 - ((float)rampElapsed / (float)oscillation.rampOutDurationMs);
+            float rampProgress = 1.0f - ((float)rampElapsed / (float)oscillation.rampOutDurationMs);
             effectiveAmplitude = oscillation.amplitudeMM * rampProgress;
         } else {
             // Ramp out complete, stop oscillation
@@ -492,7 +492,7 @@ bool OscillationControllerClass::validateAmplitude(float centerMM, float amplitu
     
     if (maxRequired > maxAllowed) {
         errorMsg = "Amplitude too large: maximum position > " + String(maxAllowed, 1) + " mm (" + String(maxRequired, 1) + "mm)";
-        if (maxDistanceLimitPercent < 100.0) {
+        if (maxDistanceLimitPercent < 100.0f) {
             errorMsg += " [Limitation " + String(maxDistanceLimitPercent, 0) + "%]";
         }
         return false;

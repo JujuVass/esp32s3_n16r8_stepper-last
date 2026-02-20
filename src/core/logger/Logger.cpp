@@ -175,10 +175,10 @@ void Logger::flushLogBuffer(bool forceFlush) {
 
   int validEntries = _logBufferCount;
 
-  float bufferUsagePercent = (validEntries * 100.0) / LOG_BUFFER_SIZE;
+  float bufferUsagePercent = (validEntries * 100.0f) / LOG_BUFFER_SIZE;
 
   // CRITICAL: Force flush if buffer is 80% full
-  bool shouldForce = (bufferUsagePercent >= 80.0);
+  bool shouldForce = (bufferUsagePercent >= 80.0f);
 
   // Flush every 5 seconds OR if forced/critical
   if (!forceFlush && !shouldForce && now - _lastLogFlush < 5000) {

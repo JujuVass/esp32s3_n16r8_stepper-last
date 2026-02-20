@@ -222,7 +222,7 @@ int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM,
     }
     
     // Safety: protect against division by zero
-    if (zoneEffect.zoneMM <= 0.0) {
+    if (zoneEffect.zoneMM <= 0.0f) {
         return baseDelayMicros;
     }
     
@@ -230,7 +230,7 @@ int BaseMovementControllerClass::calculateAdjustedDelay(float currentPositionMM,
     float distanceFromStart = abs(currentPositionMM - movementStartMM);
     float distanceFromEnd = abs(movementEndMM - currentPositionMM);
     
-    float speedFactor = 1.0;  // Default: normal speed
+    float speedFactor = 1.0f;  // Default: normal speed
     
     // Check if in START zone
     if (effectiveEnableStart && distanceFromStart <= zoneEffect.zoneMM) {
@@ -300,7 +300,7 @@ void BaseMovementControllerClass::checkAndTriggerRandomTurnback(float distanceIn
     }
     
     // We just entered the zone - roll the dice ONCE
-    if (distanceIntoZone < 2.0) {  // Just entered (within first 2mm)
+    if (distanceIntoZone < 2.0f) {  // Just entered (within first 2mm)
         // Mark that we've rolled for this zone entry
         zoneEffectState.hasRolledForTurnback = true;
         
@@ -327,7 +327,7 @@ void BaseMovementControllerClass::checkAndTriggerRandomTurnback(float distanceIn
 void BaseMovementControllerClass::resetRandomTurnback() {
     zoneEffectState.hasPendingTurnback = false;
     zoneEffectState.hasRolledForTurnback = false;  // Reset the roll flag too
-    zoneEffectState.turnbackPointMM = 0.0;
+    zoneEffectState.turnbackPointMM = 0.0f;
 }
 
 // ============================================================================
@@ -404,10 +404,10 @@ void BaseMovementControllerClass::validateZoneEffect() {
     
     // Enforce minimum zone size (10mm)
     if (zoneEffect.zoneMM < 0) {
-        zoneEffect.zoneMM = 10.0;
+        zoneEffect.zoneMM = 10.0f;
         engine->warn("⚠️ Negative zone detected, corrected to 10 mm");
-    } else if (zoneEffect.zoneMM < 10.0) {
-        zoneEffect.zoneMM = 10.0;
+    } else if (zoneEffect.zoneMM < 10.0f) {
+        zoneEffect.zoneMM = 10.0f;
         engine->warn("⚠️ Zone increased to 10 mm (minimum)");
     }
     
@@ -744,12 +744,12 @@ void BaseMovementControllerClass::process() {
         float movementStartMM;
         float movementEndMM;
         if (movingForward) {
-            movementStartMM = 0.0;
+            movementStartMM = 0.0f;
             movementEndMM = motion.targetDistanceMM;
         } else {
             // Inverted for backward movement
             movementStartMM = motion.targetDistanceMM;
-            movementEndMM = 0.0;
+            movementEndMM = 0.0f;
         }
         
         // Calculate distance into each zone
@@ -949,15 +949,15 @@ void BaseMovementControllerClass::measureCycleTime() {
     
     if (lastStartContactMillis > 0) {
         cycleTimeMillis = currentMillis - lastStartContactMillis;
-        measuredCyclesPerMinute = 60000.0 / cycleTimeMillis;
+        measuredCyclesPerMinute = 60000.0f / cycleTimeMillis;
         
         float avgTargetCPM = (MovementMath::speedLevelToCPM(motion.speedLevelForward) + 
-                             MovementMath::speedLevelToCPM(motion.speedLevelBackward)) / 2.0;
-        float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0;
-        float diffPercent = ((measuredCyclesPerMinute - avgTargetCPM) / avgTargetCPM) * 100.0;
+                             MovementMath::speedLevelToCPM(motion.speedLevelBackward)) / 2.0f;
+        float avgSpeedLevel = (motion.speedLevelForward + motion.speedLevelBackward) / 2.0f;
+        float diffPercent = ((measuredCyclesPerMinute - avgTargetCPM) / avgTargetCPM) * 100.0f;
         
         // Only log if difference is significant (> 15% after compensation)
-        if (abs(diffPercent) > 15.0 && engine->isDebugEnabled()) {
+        if (abs(diffPercent) > 15.0f && engine->isDebugEnabled()) {
             engine->debug(String("⏱️  Cycle timing: ") + String(cycleTimeMillis) + 
                   " ms | Target: " + String(avgSpeedLevel, 1) + "/" + String(MAX_SPEED_LEVEL, 0) + " (" + 
                   String(avgTargetCPM, 0) + " c/min) | Actual: " + 

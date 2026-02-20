@@ -275,7 +275,7 @@ void SequenceExecutor::positionForNextLine() {
     float currentPosMM = MovementMath::stepsToMM(currentStep);
     
     // Only move if we're not already at target (tolerance: 1mm)
-    if (abs(currentPosMM - targetPositionMM) > 1.0) {
+    if (abs(currentPosMM - targetPositionMM) > 1.0f) {
     engine->info("🎯 Repositioning: " + String(currentPosMM, 1) + "mm → " + String(targetPositionMM, 1) + "mm");
         
         // CRITICAL: Stop previous movement completely before repositioning
@@ -470,9 +470,9 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     motion.speedLevelBackward = line->speedBackward;
     
     // Clamp to valid range [1, MAX_SPEED_LEVEL]
-    if (motion.speedLevelForward < 1.0) motion.speedLevelForward = 1.0;
+    if (motion.speedLevelForward < 1.0f) motion.speedLevelForward = 1.0f;
     if (motion.speedLevelForward > MAX_SPEED_LEVEL) motion.speedLevelForward = MAX_SPEED_LEVEL;
-    if (motion.speedLevelBackward < 1.0) motion.speedLevelBackward = 1.0;
+    if (motion.speedLevelBackward < 1.0f) motion.speedLevelBackward = 1.0f;
     if (motion.speedLevelBackward > MAX_SPEED_LEVEL) motion.speedLevelBackward = MAX_SPEED_LEVEL;
     
     // Copy zone effect configuration from sequence line (DRY: embedded ZoneEffectConfig)
@@ -563,17 +563,17 @@ void SequenceExecutor::startOscillationLine(SequenceLine* line) {
     float relativePos = (currentPosMM - oscillation.centerPositionMM) / oscillation.amplitudeMM;
     
     // Clamp to [-1, 1] range (in case positioning wasn't perfect)
-    if (relativePos < -1.0) relativePos = -1.0;
-    if (relativePos > 1.0) relativePos = 1.0;
+    if (relativePos < -1.0f) relativePos = -1.0f;
+    if (relativePos > 1.0f) relativePos = 1.0f;
     
     // Calculate initial phase based on waveform type
-    float initialPhase = 0.0;
+    float initialPhase = 0.0f;
     if (line->oscWaveform == OSC_SINE) {
         // For sine: waveValue = -cos(phase * 2π)
-        initialPhase = acos(-relativePos) / (2.0 * PI);
+        initialPhase = acos(-relativePos) / (2.0f * PI);
     } else if (line->oscWaveform == OSC_TRIANGLE || line->oscWaveform == OSC_SQUARE) {
         // For triangle/square, approximate phase from position
-        initialPhase = (relativePos + 1.0) / 4.0;  // Maps [-1,+1] to [0, 0.5]
+        initialPhase = (relativePos + 1.0f) / 4.0f;  // Maps [-1,+1] to [0, 0.5]
     }
     
     oscillationState.accumulatedPhase = initialPhase;
@@ -691,7 +691,7 @@ void SequenceExecutor::process() {
                 seqState.isWaitingPause = true;
                 seqState.pauseEndTime = millis() + currentLine->pauseAfterMs;
                 
-                engine->info("⏸️ Line pause: " + String(currentLine->pauseAfterMs / 1000.0, 1) + "s");
+                engine->info("⏸️ Line pause: " + String(currentLine->pauseAfterMs / 1000.0f, 1) + "s");
                 
                 sendStatus();
                 return;

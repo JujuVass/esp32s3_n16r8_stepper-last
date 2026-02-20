@@ -100,7 +100,7 @@ inline void ChaosController::handleRandomJump(const ChaosBaseConfig& cfg, float 
     float maxPossibleAmplitude = calculateMaxAmplitude(effectiveMinLimit, effectiveMaxLimit);
     float currentPos = MovementMath::stepsToMM(currentStep);
     float maxJump = maxPossibleAmplitude * jumpMultiplier;
-    float targetOffset = (random(-100, 101) / 100.0) * maxJump;
+    float targetOffset = (random(-100, 101) / 100.0f) * maxJump;
     chaosState.targetPositionMM = constrain(currentPos + targetOffset, effectiveMinLimit, effectiveMaxLimit);
 }
 
@@ -254,7 +254,7 @@ inline void ChaosController::calcSpeedAndDuration(const ChaosBaseConfig& cfg, fl
                                                    float& speedMultiplier, unsigned long& patternDuration) {
     float speedMin = cfg.speedMin + (cfg.speedCrazinessBoost * craziness);
     float speedMax = cfg.speedMax + (cfg.speedCrazinessBoost * craziness);
-    speedMultiplier = (random(100) / 100.0) * (speedMax - speedMin) + speedMin;
+    speedMultiplier = (random(100) / 100.0f) * (speedMax - speedMin) + speedMin;
     
     unsigned long durationMin;
     unsigned long durationMax;
@@ -273,7 +273,7 @@ void ChaosController::handleSweep(float craziness, float effectiveMinLimit, floa
     calcSpeedAndDuration(cfg, craziness, 0.7f, speedMultiplier, patternDuration);
     
     float maxPossibleAmplitude = calculateMaxAmplitude(effectiveMinLimit, effectiveMaxLimit);
-    float sweepPercent = cfg.amplitudeJumpMin + ((cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * random(0, 101) / 100.0);
+    float sweepPercent = cfg.amplitudeJumpMin + ((cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * random(0, 101) / 100.0f);
     chaosState.waveAmplitude = maxPossibleAmplitude * sweepPercent;
     
     chaosState.movingForward = random(2) == 0;
@@ -300,7 +300,7 @@ void ChaosController::handlePulse(float craziness, float effectiveMinLimit, floa
     chaosState.patternStartTime = millis();
     
     float maxPossibleAmplitude = calculateMaxAmplitude(effectiveMinLimit, effectiveMaxLimit);
-    float pulseOffset = (random(-100, 101) / 100.0) * maxPossibleAmplitude * jumpMultiplier;
+    float pulseOffset = (random(-100, 101) / 100.0f) * maxPossibleAmplitude * jumpMultiplier;
     chaosState.targetPositionMM = constrain(
         chaos.centerPositionMM + pulseOffset,
         effectiveMinLimit,
@@ -331,8 +331,8 @@ void ChaosController::handleWave(float craziness, float effectiveMinLimit, float
     calcSpeedAndDuration(cfg, craziness, 0.33f, speedMultiplier, patternDuration);
     
     float maxPossibleAmplitude = calculateMaxAmplitude(effectiveMinLimit, effectiveMaxLimit);
-    chaosState.waveAmplitude = maxPossibleAmplitude * (cfg.amplitudeJumpMin + (cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * random(0, 101) / 100.0);
-    chaosState.waveFrequency = sin_cfg.cyclesOverDuration / (patternDuration / 1000.0);
+    chaosState.waveAmplitude = maxPossibleAmplitude * (cfg.amplitudeJumpMin + (cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * random(0, 101) / 100.0f);
+    chaosState.waveFrequency = sin_cfg.cyclesOverDuration / (patternDuration / 1000.0f);
     chaosState.patternStartTime = millis();
     chaosState.targetPositionMM = chaos.centerPositionMM;
     
@@ -349,7 +349,7 @@ void ChaosController::handlePendulum(float craziness, float effectiveMinLimit, f
     calcSpeedAndDuration(cfg, craziness, 0.4f, speedMultiplier, patternDuration);
     
     float maxPossibleAmplitude = calculateMaxAmplitude(effectiveMinLimit, effectiveMaxLimit);
-    float jumpMultiplier = cfg.amplitudeJumpMin + ((cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * random(0, 101) / 100.0);
+    float jumpMultiplier = cfg.amplitudeJumpMin + ((cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * random(0, 101) / 100.0f);
     chaosState.waveAmplitude = maxPossibleAmplitude * jumpMultiplier;
     chaosState.movingForward = true;
     chaosState.patternStartTime = millis();
@@ -397,12 +397,12 @@ void ChaosController::handleCalm(float craziness, float effectiveMinLimit, float
     float amplitudeRange = cfg.amplitudeJumpMax - cfg.amplitudeJumpMin;
     chaosState.waveAmplitude = maxPossibleAmplitude * (cfg.amplitudeJumpMin + amplitudeRange * craziness);
     
-    chaosState.waveFrequency = sin_cfg.frequencyMin + ((sin_cfg.frequencyMax - sin_cfg.frequencyMin) * random(0, 101) / 100.0);
-    chaosState.pauseDuration = pause_cfg.pauseMin + (unsigned long)((pause_cfg.pauseMax - pause_cfg.pauseMin) * (1.0 - craziness));
+    chaosState.waveFrequency = sin_cfg.frequencyMin + ((sin_cfg.frequencyMax - sin_cfg.frequencyMin) * random(0, 101) / 100.0f);
+    chaosState.pauseDuration = pause_cfg.pauseMin + (unsigned long)((pause_cfg.pauseMax - pause_cfg.pauseMin) * (1.0f - craziness));
     chaosState.isInPatternPause = false;
     chaosState.patternStartTime = millis();
     chaosState.targetPositionMM = chaos.centerPositionMM;
-    chaosState.lastCalmSineValue = 0.0;  // Reset sine tracking for fresh CALM start
+    chaosState.lastCalmSineValue = 0.0f;  // Reset sine tracking for fresh CALM start
 }
 
 // DRY helper for multi-phase patterns (BruteForce and Liberator share identical logic)
@@ -420,7 +420,7 @@ void ChaosController::handleMultiPhase(const ChaosBaseConfig& cfg, const ChaosMu
     
     setDirectionalTarget(chaosState.waveAmplitude, effectiveMinLimit, effectiveMaxLimit);
     
-    chaosState.pauseDuration = multi_cfg.pauseMin + (unsigned long)((multi_cfg.pauseMax - multi_cfg.pauseMin) * (1.0 - craziness));
+    chaosState.pauseDuration = multi_cfg.pauseMin + (unsigned long)((multi_cfg.pauseMax - multi_cfg.pauseMin) * (1.0f - craziness));
     chaosState.patternStartTime = millis();
 }
 
@@ -484,8 +484,8 @@ void ChaosController::generatePattern() {
         }
     }
     
-    float craziness = chaos.crazinessPercent / 100.0;
-    float speedMultiplier = 1.0;
+    float craziness = chaos.crazinessPercent / 100.0f;
+    float speedMultiplier = 1.0f;
     unsigned long patternDuration = 2000;
     
     // Dispatch to pattern handler via table
@@ -538,9 +538,9 @@ void ChaosController::generatePattern() {
 
 void ChaosController::processWave(float effectiveMinLimit, float effectiveMaxLimit) {
     unsigned long elapsed = millis() - chaosState.patternStartTime;
-    float t = elapsed / 1000.0;
+    float t = elapsed / 1000.0f;
     
-    float sineValue = sin(2.0 * PI * chaosState.waveFrequency * t);
+    float sineValue = sin(2.0f * PI * chaosState.waveFrequency * t);
     chaosState.targetPositionMM = chaos.centerPositionMM + (chaosState.waveAmplitude * sineValue);
     chaosState.targetPositionMM = constrain(chaosState.targetPositionMM, effectiveMinLimit, effectiveMaxLimit);
     targetStep = MovementMath::mmToSteps(chaosState.targetPositionMM);
@@ -558,9 +558,9 @@ void ChaosController::processCalm(float effectiveMinLimit, float effectiveMaxLim
     }
     
     unsigned long elapsed = millis() - chaosState.patternStartTime;
-    float t = elapsed / 1000.0;
+    float t = elapsed / 1000.0f;
     
-    float sineValue = sin(2.0 * PI * chaosState.waveFrequency * t);
+    float sineValue = sin(2.0f * PI * chaosState.waveFrequency * t);
     chaosState.targetPositionMM = chaos.centerPositionMM + (chaosState.waveAmplitude * sineValue);
     chaosState.targetPositionMM = constrain(chaosState.targetPositionMM, effectiveMinLimit, effectiveMaxLimit);
     targetStep = MovementMath::mmToSteps(chaosState.targetPositionMM);
@@ -624,10 +624,10 @@ void ChaosController::handleSpiralAtTarget(float effectiveMinLimit, float effect
     float progress = constrain((float)elapsed / (float)duration, 0.0f, 1.0f);
     
     float currentRadius;
-    if (progress < 0.5) {
-        currentRadius = maxPossibleAmplitude * (0.1 + 0.9 * (progress * 2.0));
+    if (progress < 0.5f) {
+        currentRadius = maxPossibleAmplitude * (0.1f + 0.9f * (progress * 2.0f));
     } else {
-        currentRadius = maxPossibleAmplitude * (1.0 - 0.9 * ((progress - 0.5) * 2.0));
+        currentRadius = maxPossibleAmplitude * (1.0f - 0.9f * ((progress - 0.5f) * 2.0f));
     }
     
     chaosState.movingForward = !chaosState.movingForward;
@@ -659,7 +659,7 @@ void ChaosController::handleMultiPhaseAtTarget(float effectiveMinLimit, float ef
                                                 uint8_t& phase, float speedBase0, float speedScale0,
                                                 float speedBase2, float speedScale2,
                                                 const char* emoji, const char* name) {
-    float craziness = chaos.crazinessPercent / 100.0;
+    float craziness = chaos.crazinessPercent / 100.0f;
     float amplitude = chaosState.waveAmplitude;
     
     if (phase == 0) {
@@ -908,7 +908,7 @@ void ChaosController::start() {
     
     // Move to center if needed
     float currentPosMM = MovementMath::stepsToMM(currentStep);
-    if (abs(currentPosMM - chaos.centerPositionMM) > 1.0) {
+    if (abs(currentPosMM - chaos.centerPositionMM) > 1.0f) {
         engine->info("🎯 Moving to center: " + String(chaos.centerPositionMM, 1) + " mm");
         targetStep = MovementMath::mmToSteps(chaos.centerPositionMM);
         
