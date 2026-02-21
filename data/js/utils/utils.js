@@ -257,6 +257,38 @@ function getISOWeek(date) {
 // ============================================================================
 
 /**
+ * Update linked checkbox ("=Centre") state and amplitude input.
+ * Extracted to reduce cognitive complexity of updateCenterAmplitudePresets (S3776).
+ */
+function updateLinkedCheckboxState(cfg, currentCenter, effectiveMax, isLinked) {
+  const ampInput = document.getElementById(cfg.amplitudeInputId);
+  if (ampInput) {
+    ampInput.disabled = isLinked;
+    ampInput.style.opacity = isLinked ? '0.5' : '1';
+  }
+
+  const linkedCheckbox = document.getElementById(cfg.linkedCheckboxId);
+  if (!linkedCheckbox) return;
+
+  const wouldBeValid = (currentCenter * 2) <= effectiveMax && currentCenter >= 1;
+  linkedCheckbox.disabled = !wouldBeValid;
+  linkedCheckbox.parentElement.style.opacity = wouldBeValid ? '1' : '0.5';
+  linkedCheckbox.parentElement.style.cursor = wouldBeValid ? 'pointer' : 'not-allowed';
+  linkedCheckbox.parentElement.title = wouldBeValid 
+    ? t(cfg.i18nPrefix + '.amplitudeLinked')
+    : '⚠️ ' + t(cfg.i18nPrefix + '.cannotLink', {val: currentCenter * 2, max: effectiveMax});
+
+  // If currently linked but now invalid, uncheck it
+  if (isLinked && !wouldBeValid) {
+    linkedCheckbox.checked = false;
+    if (ampInput) {
+      ampInput.disabled = false;
+      ampInput.style.opacity = '1';
+    }
+  }
+}
+
+/**
  * Update visual state of center/amplitude preset buttons.
  * Shared logic for both Oscillation and Chaos modes.
  * 
@@ -322,38 +354,41 @@ function updateCenterAmplitudePresets(cfg) {
     btn.style.cursor = (isValid && !isLinked) ? 'pointer' : 'not-allowed';
   });
   
-  // Handle amplitude input disabled state when linked
-  const ampInput = document.getElementById(cfg.amplitudeInputId);
-  if (ampInput) {
-    ampInput.disabled = isLinked;
-    ampInput.style.opacity = isLinked ? '0.5' : '1';
-  }
-  
-  // SAFETY: Validate and disable "=Centre" checkbox if center*2 > effectiveMax
-  const linkedCheckbox = document.getElementById(cfg.linkedCheckboxId);
-  if (linkedCheckbox) {
-    const wouldBeValid = (currentCenter * 2) <= effectiveMax && currentCenter >= 1;
-    linkedCheckbox.disabled = !wouldBeValid;
-    linkedCheckbox.parentElement.style.opacity = wouldBeValid ? '1' : '0.5';
-    linkedCheckbox.parentElement.style.cursor = wouldBeValid ? 'pointer' : 'not-allowed';
-    linkedCheckbox.parentElement.title = wouldBeValid 
-      ? t(cfg.i18nPrefix + '.amplitudeLinked')
-      : '⚠️ ' + t(cfg.i18nPrefix + '.cannotLink', {val: currentCenter * 2, max: effectiveMax});
-    
-    // If currently linked but now invalid, uncheck it
-    if (isLinked && !wouldBeValid) {
-      linkedCheckbox.checked = false;
-      if (ampInput) {
-        ampInput.disabled = false;
-        ampInput.style.opacity = '1';
-      }
-    }
-  }
+  // Handle amplitude input and linked checkbox state
+  updateLinkedCheckboxState(cfg, currentCenter, effectiveMax, isLinked);
 }
 
 // ============================================================================
 // CYCLE PAUSE UI SYNC (shared by Simple & Oscillation modes)
 // ============================================================================
+
+/**
+ * Sync pause radio buttons and input values to backend state.
+ * Extracted to reduce cognitive complexity of syncCyclePauseUI (S3776).
+ */
+function syncPauseControlsToBackend(cyclePauseData, suffix) {
+  // Sync radio buttons
+  if (cyclePauseData.isRandom) {
+    document.getElementById('pauseModeRandom' + suffix).checked = true;
+    document.getElementById('pauseFixedControls' + suffix).style.display = 'none';
+    document.getElementById('pauseRandomControls' + suffix).style.display = 'block';
+  } else {
+    document.getElementById('pauseModeFixed' + suffix).checked = true;
+    document.getElementById('pauseFixedControls' + suffix).style.display = 'flex';
+    document.getElementById('pauseRandomControls' + suffix).style.display = 'none';
+  }
+  
+  // Sync input values (avoid overwriting if user is editing)
+  if (document.activeElement !== document.getElementById('cyclePauseDuration' + suffix)) {
+    document.getElementById('cyclePauseDuration' + suffix).value = cyclePauseData.pauseDurationSec.toFixed(1);
+  }
+  if (document.activeElement !== document.getElementById('cyclePauseMin' + suffix)) {
+    document.getElementById('cyclePauseMin' + suffix).value = cyclePauseData.minPauseSec.toFixed(1);
+  }
+  if (document.activeElement !== document.getElementById('cyclePauseMax' + suffix)) {
+    document.getElementById('cyclePauseMax' + suffix).value = cyclePauseData.maxPauseSec.toFixed(1);
+  }
+}
 
 /**
  * Sync cycle pause UI elements with backend state data.
@@ -391,27 +426,8 @@ function syncCyclePauseUI(cyclePauseData, suffix, getSectionFn, i18nPrefix) {
       headerText.textContent = t(i18nPrefix + '.cyclePauseDisabled');
     }
     
-    // Sync radio buttons
-    if (cyclePauseData.isRandom) {
-      document.getElementById('pauseModeRandom' + suffix).checked = true;
-      document.getElementById('pauseFixedControls' + suffix).style.display = 'none';
-      document.getElementById('pauseRandomControls' + suffix).style.display = 'block';
-    } else {
-      document.getElementById('pauseModeFixed' + suffix).checked = true;
-      document.getElementById('pauseFixedControls' + suffix).style.display = 'flex';
-      document.getElementById('pauseRandomControls' + suffix).style.display = 'none';
-    }
-    
-    // Sync input values (avoid overwriting if user is editing)
-    if (document.activeElement !== document.getElementById('cyclePauseDuration' + suffix)) {
-      document.getElementById('cyclePauseDuration' + suffix).value = cyclePauseData.pauseDurationSec.toFixed(1);
-    }
-    if (document.activeElement !== document.getElementById('cyclePauseMin' + suffix)) {
-      document.getElementById('cyclePauseMin' + suffix).value = cyclePauseData.minPauseSec.toFixed(1);
-    }
-    if (document.activeElement !== document.getElementById('cyclePauseMax' + suffix)) {
-      document.getElementById('cyclePauseMax' + suffix).value = cyclePauseData.maxPauseSec.toFixed(1);
-    }
+    // Sync radio buttons and input values
+    syncPauseControlsToBackend(cyclePauseData, suffix);
   }
 }
 
@@ -674,6 +690,24 @@ function escapeHtml(str) {
 // ============================================================================
 
 /**
+ * Check if a fetch error is retryable (network issues, timeouts).
+ * Extracted to reduce cognitive complexity of fetchWithRetry (S3776).
+ */
+function isRetryableError(error) {
+  return (
+    error.name === 'TypeError' ||        // NetworkError
+    error.name === 'AbortError' ||       // Abort/Timeout via AbortController
+    error.name === 'DOMException' ||     // Timeout via AbortSignal.timeout()
+    error.name === 'TimeoutError' ||     // Explicit timeout
+    error.message?.includes('NetworkError') ||
+    error.message?.includes('Failed to fetch') ||
+    error.message?.includes('network') ||
+    error.message?.includes('timed out') ||
+    error.message?.includes('timeout')
+  );
+}
+
+/**
  * Fetch with automatic retry on network errors
  * Handles transient ESP32 network issues gracefully
  * 
@@ -720,20 +754,7 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
     } catch (error) {
       lastError = error;
       
-      // Check if it's a retryable error (network issues, timeouts)
-      const isRetryable = 
-        error.name === 'TypeError' ||        // NetworkError
-        error.name === 'AbortError' ||       // Abort/Timeout via AbortController
-        error.name === 'DOMException' ||     // Timeout via AbortSignal.timeout()
-        error.name === 'TimeoutError' ||     // Explicit timeout
-        error.message?.includes('NetworkError') ||
-        error.message?.includes('Failed to fetch') ||
-        error.message?.includes('network') ||
-        error.message?.includes('timed out') ||
-        error.message?.includes('timeout');
-      
-      if (!isRetryable || attempt >= maxRetries) {
-        // Not retryable or max retries reached
+      if (!isRetryableError(error) || attempt >= maxRetries) {
         throw error;
       }
       

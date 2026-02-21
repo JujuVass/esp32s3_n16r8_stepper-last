@@ -882,6 +882,50 @@ function initializeTrashZones() {
 // STATUS UPDATE
 // ========================================================================
 
+/**
+ * Update sequence control button states based on running status.
+ * Extracted to reduce cognitive complexity of updateSequenceStatus (S3776).
+ */
+function updateSequenceButtons(isRunning) {
+  if (!isRunning && seqState.isTestingLine) {
+    setTimeout(() => { restoreSequenceAfterTest(); }, 500);
+  }
+  
+  if (!isRunning && !seqState.isTestingLine) {
+    AppState.system.canStart = true;
+    const canStart = canStartOperation();
+    setButtonState(DOM.btnStartSequence, canStart);
+    setButtonState(DOM.btnLoopSequence, canStart);
+  } else {
+    setButtonState(DOM.btnStartSequence, false);
+    setButtonState(DOM.btnLoopSequence, false);
+  }
+  
+  setButtonState(DOM.btnPauseSequence, isRunning);
+  setButtonState(DOM.btnStopSequence, isRunning);
+  setButtonState(DOM.btnSkipLine, isRunning);
+}
+
+/**
+ * Highlight the active sequence line in the table.
+ * Extracted to reduce cognitive complexity of updateSequenceStatus (S3776).
+ */
+function highlightActiveSequenceLine(isRunning, status) {
+  const tbody = DOM.sequenceTableBody;
+  if (!tbody) return;
+  
+  const rows = tbody.querySelectorAll('tr');
+  rows.forEach(row => row.classList.remove('sequence-line-active'));
+  
+  if (isRunning && status.currentLineIndex !== undefined) {
+    const activeIndex = status.currentLineIndex;
+    if (activeIndex >= 0 && activeIndex < rows.length) {
+      rows[activeIndex].classList.add('sequence-line-active');
+      rows[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+}
+
 function updateSequenceStatus(status) {
   if (!status) return;
   
@@ -909,24 +953,7 @@ function updateSequenceStatus(status) {
   
   const isRunning = status.isRunning;
   
-  if (!isRunning && seqState.isTestingLine) {
-    setTimeout(() => { restoreSequenceAfterTest(); }, 500);
-  }
-  
-  if (!isRunning && !seqState.isTestingLine) {
-    // When sequence ends normally, force canStart to true (backend confirmed sequence is done)
-    AppState.system.canStart = true;
-    const canStart = canStartOperation();
-    setButtonState(DOM.btnStartSequence, canStart);
-    setButtonState(DOM.btnLoopSequence, canStart);
-  } else {
-    setButtonState(DOM.btnStartSequence, false);
-    setButtonState(DOM.btnLoopSequence, false);
-  }
-  
-  setButtonState(DOM.btnPauseSequence, isRunning);
-  setButtonState(DOM.btnStopSequence, isRunning);
-  setButtonState(DOM.btnSkipLine, isRunning);
+  updateSequenceButtons(isRunning);
   
   if (isRunning && status.isPaused) {
     DOM.btnPauseSequence.innerHTML = '▶️ ' + t('common.resume');
@@ -934,19 +961,7 @@ function updateSequenceStatus(status) {
     DOM.btnPauseSequence.innerHTML = '⏸️ ' + t('common.pause');
   }
   
-  const tbody = DOM.sequenceTableBody;
-  if (tbody) {
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach(row => row.classList.remove('sequence-line-active'));
-    
-    if (isRunning && status.currentLineIndex !== undefined) {
-      const activeIndex = status.currentLineIndex;
-      if (activeIndex >= 0 && activeIndex < rows.length) {
-        rows[activeIndex].classList.add('sequence-line-active');
-        rows[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  }
+  highlightActiveSequenceLine(isRunning, status);
 }
 
 // ========================================================================

@@ -1,7 +1,7 @@
 ================================================================================
  SONARQUBE COMPLEXITY ASSESSMENT — S3776 / S134 / S1188
- Generated: 2026-02-21
- Total: 19 C++ | 25 JS | 5 Python | 24 nesting | 17 lambdas = 90 issues
+ Updated: 2026-02-21 (post-Batch 14)
+ Original: 90 issues | Batch 13 fixed: 17 | Batch 14 fixed: 10 | Remaining: 63
 ================================================================================
 
 Legend:
@@ -9,6 +9,7 @@ Legend:
   ★★☆☆ MEDIUM    — Moderate effort, testable, 30min-2h
   ★★★☆ HARD      — Significant refactor, some regression risk, 2-4h
   ★★★★ VERY HARD — Major restructuring, high regression risk, skip recommended
+  ✅ FIXED        — Resolved in a previous batch
 
 ================================================================================
  C++ FILES (19 S3776 + 24 S134 + 17 S1188)
@@ -43,11 +44,8 @@ Legend:
     Each lambda → static void handleXxx(AsyncWebServerRequest*).
     But this is a coordinated batch: all-or-nothing for consistency.
 
-  S134   L820   inside /logs/clear            nesting=4         ★☆☆☆ EASY
-    if(dir) → while(file) → if(!isDir) → if(remove). Flatten with continue.
-
-  S134   L975   inside /dumps/latest          nesting=4         ★☆☆☆ EASY
-    Same nested file-iteration pattern. Flatten with early continue.
+  S134   L820   inside /logs/clear            nesting=4         ✅ FIXED (Batch 13)
+  S134   L975   inside /dumps/latest          nesting=4         ✅ FIXED (Batch 13)
 
 ─── src/movement/BaseMovementController.cpp ────────────────────────────────────
 
@@ -110,9 +108,8 @@ Legend:
     startChaos/stopChaos/setChaosConfig. 3 sub-commands.
     Split into handleStartChaos(), handleSetChaosConfig().
 
-  S134   L604   inside handleChaosCommands    nesting=4         ★☆☆☆ EASY
-  S134   L646   inside handleChaosCommands    nesting=4         ★☆☆☆ EASY
-    if(cmd) → for(patterns) → if(idx). Flatten with continue or extract.
+  S134   L604   inside handleChaosCommands    nesting=4         ✅ FIXED (Batch 13)
+  S134   L646   inside handleChaosCommands    nesting=4         ✅ FIXED (Batch 13)
 
   S3776  L676   handleOscillationCommands()   CC=42 (25)        ★★☆☆ MEDIUM
     Large config parsing + live-update transitions.
@@ -128,25 +125,19 @@ Legend:
     Mount LittleFS with fallback format+retry, health check.
     Sequential steps. Extract mountWithRetry() and healthCheck().
 
-  S134   L46    inside mount()                nesting=4         ★☆☆☆ EASY
-  S134   L49    inside mount()                nesting=4         ★☆☆☆ EASY
-    if(!mounted) → if(format) → if(mount). Flatten with early return.
+  S134   L46    inside mount()                nesting=4         ✅ FIXED (Batch 13)
+  S134   L49    inside mount()                nesting=4         ✅ FIXED (Batch 13)
 
 ─── src/communication/FilesystemManager.cpp ────────────────────────────────────
 
-  S1188  L138   λ listDir (recursive)         27 lines          ★☆☆☆ EASY
-    Recursive directory walk building JSON. Convert to named method.
+  S1188  L138   λ listDir (recursive)         27 lines          ✅ FIXED (Batch 13)
 
-  S134   L313   inside handleUploadFile       nesting=4         ★☆☆☆ EASY
-    Upload size validation nesting. Flatten with guard clause.
+  S134   L313   inside handleUploadFile       nesting=4         ✅ FIXED (Batch 13)
 
 ─── src/core/logger/Logger.cpp ─────────────────────────────────────────────────
 
-  S134   L58    inside initializeLogFile()    nesting=4         ★☆☆☆ EASY
-    if(dir) → while(file) → if(1970) → if(remove). Extract cleanupEpochFiles().
-
-  S134   L277   inside generateLogFilename()  nesting=4         ★☆☆☆ EASY
-    Directory scan pattern. Extract helper or flatten with continue.
+  S134   L58    inside initializeLogFile()    nesting=4         ✅ FIXED (Batch 13)
+  S134   L277   inside generateLogFilename()  nesting=4         ✅ FIXED (Batch 13)
 
 ─── src/communication/NetworkManager.cpp ───────────────────────────────────────
 
@@ -178,9 +169,8 @@ Legend:
     FreeRTOS task: calibration request + movement type switch.
     Extract dispatchMovement(type) helper.
 
-  S134   L425   inside motorTask              nesting=4         ★☆☆☆ EASY
-  S134   L511   inside motorTask              nesting=4         ★☆☆☆ EASY
-    case → if(RUNNING) nesting. Flatten with guard clauses.
+  S134   L425   inside motorTask              nesting=4         ✅ FIXED (Batch 13)
+  S134   L511   inside motorTask              nesting=4         ✅ FIXED (Batch 13)
 
 ─── src/communication/WiFiConfigManager.cpp ────────────────────────────────────
 
@@ -188,8 +178,7 @@ Legend:
     Scan + deduplicate by SSID + sort by signal.
     Extract deduplicateNetworks() helper.
 
-  S134   L180   inside scanNetworks           nesting=4         ★☆☆☆ EASY
-    Nested dedup loop. Extract to helper or restructure with std::find_if.
+  S134   L180   inside scanNetworks           nesting=4         ✅ FIXED (Batch 13)
 
 ================================================================================
  JAVASCRIPT FILES (25 S3776)
@@ -231,19 +220,25 @@ Legend:
     ~170 lines populating form. Split by param group:
     loadZoneEffects(), loadPauseConfig(), loadSpeedConfig().
 
-  S3776  L680   loadOscillationPreset(cfg)    CC=24 (15)        ★☆☆☆ EASY
-    ~70 lines populating oscillation form. Straightforward split.
+  S3776  L680   loadOscillationPreset(cfg)    CC=24 (15)        ✅ FIXED (Batch 14)
+    Extracted loadOscCyclePausePreset() for cycle pause logic.
 
   S3776  L877   loadPresetIntoSequencerModal  CC=31 (15)        ★★☆☆ MEDIUM
     Switch on mode, load preset. Extract per-mode loaders.
 
 ─── data/js/utils/PlaylistUtils.js ─────────────────────────────────────────────
 
-  S3776  L64    generatePresetTooltipPure()   CC=39 (15)        ★☆☆☆ EASY
-    Build tooltip string. Split: tooltipForSimple(), tooltipForOsc(), etc.
+  S3776  L64    generatePresetTooltipPure()   CC=39 (15)        ✅ FIXED (Batch 13)
+    Split into simplePresetTooltip, oscillationPresetTooltip, chaosPresetTooltip.
 
-  S3776  L114   generateSequenceLineTooltip() CC=42 (15)        ★☆☆☆ EASY
-    Build HTML tooltip per movement type. Same pattern.
+  S3776  L114   generateSequenceLineTooltip() CC=42 (15)        ✅ FIXED (Batch 13)
+    Split into simpleLineTooltip, oscillationLineTooltip, chaosLineTooltip.
+
+  S3776  NEW    simplePresetTooltip()         CC=19 (15)        ✅ FIXED (Batch 14)
+    Emerged from Batch 13 split. Extracted zoneEffectPresetTooltip().
+
+  S3776  NEW    simpleLineTooltip()           CC=21 (15)        ✅ FIXED (Batch 14)
+    Emerged from Batch 13 split. Extracted zoneEffectLineTooltip().
 
 ─── data/js/controllers/SequenceController.js ──────────────────────────────────
 
@@ -253,8 +248,8 @@ Legend:
   S3776  L549   validateEditForm()            CC=44 (15)        ★★☆☆ MEDIUM
     Validate fields by movement type. Extract per-type validators.
 
-  S3776  L885   updateSequenceStatus(status)  CC=24 (15)        ★☆☆☆ EASY
-    Update status bar. Extract updateProgressBar(), updateLineInfo().
+  S3776  L885   updateSequenceStatus(status)  CC=24 (15)        ✅ FIXED (Batch 14)
+    Extracted updateSequenceButtons() and highlightActiveSequenceLine().
 
 ─── data/js/utils/SequenceUtils.js ─────────────────────────────────────────────
 
@@ -281,8 +276,8 @@ Legend:
 
 ─── data/js/ui/StatsController.js ──────────────────────────────────────────────
 
-  S3776  L571   updateMilestones(totalMM)     CC=23 (15)        ★☆☆☆ EASY
-    ~50 lines. Update milestone badge + progress bar. Simple split.
+  S3776  L571   updateMilestones(totalMM)     CC=23 (15)        ✅ FIXED (Batch 14)
+    Extracted buildMilestoneTooltip() and trackMilestoneChange().
 
 ─── data/js/ui/ToolsController.js ──────────────────────────────────────────────
 
@@ -298,20 +293,19 @@ Legend:
 
 ─── data/js/utils/utils.js ─────────────────────────────────────────────────────
 
-  S3776  L270   updateCenterAmplitudePresets  CC=18 (15)        ★☆☆☆ EASY
-    Validate + disable preset buttons. Small, straightforward.
+  S3776  L270   updateCenterAmplitudePresets  CC=18 (15)        ✅ FIXED (Batch 14)
+    Extracted updateLinkedCheckboxState() helper.
 
-  S3776  L367   syncCyclePauseUI()            CC=19 (15)        ★☆☆☆ EASY
-    Sync cycle pause state. Small function, barely over limit.
+  S3776  L367   syncCyclePauseUI()            CC=19 (15)        ✅ FIXED (Batch 14)
+    Extracted syncPauseControlsToBackend() helper.
 
-  S3776  L689   fetchWithRetry()              CC=21 (15)        ★☆☆☆ EASY
-    Fetch with retry/backoff. Extract shouldRetry() helper.
+  S3776  L689   fetchWithRetry()              CC=21 (15)        ✅ FIXED (Batch 14)
+    Extracted isRetryableError() helper.
 
 ─── data/js/core/websocket.js ──────────────────────────────────────────────────
 
-  S3776  L163   handleWebSocketMessage(data)  CC=16 (15)        ★☆☆☆ EASY
-    Dispatch WS messages by type. Barely over (16/15).
-    Extract per-type handlers or use dispatch map.
+  S3776  L163   handleWebSocketMessage(data)  CC=16 (15)        ✅ FIXED (Batch 13)
+    Converted to dispatch map pattern (CC 16→5).
 
 ================================================================================
  PYTHON FILES (5 S3776)
@@ -319,14 +313,13 @@ Legend:
 
 ─── analyze_sonarqube.py ───────────────────────────────────────────────────────
 
-  S3776  L275   diff_reports()                CC=21 (15)        ★☆☆☆ EASY
-    Compare two reports, print delta. Extract format_delta() helper.
+  S3776  L275   diff_reports()                CC=21 (15)        ✅ FIXED (Batch 14)
+    Extracted format_rule_deltas() and format_file_changes().
 
 ─── find_dead_code.py ──────────────────────────────────────────────────────────
 
-  S3776  L110   extract_symbols()             CC=18 (15)        ★☆☆☆ EASY
-    Regex symbol extraction. Split by type: extract_functions(),
-    extract_defines(), extract_enums().
+  S3776  L110   extract_symbols()             CC=18 (15)        ✅ FIXED (Batch 14)
+    Split into _extract_functions(), _extract_defines(), _extract_classes().
 
   S3776  L181   analyze_header_includes()     CC=47 (15)        ★★☆☆ MEDIUM
     Check if headers are needed. Extract check_single_header().
@@ -342,25 +335,26 @@ Legend:
     Extract handle_watch(), handle_upload(), handle_sync(), etc.
 
 ================================================================================
- SUMMARY BY DIFFICULTY
+ SUMMARY BY DIFFICULTY (updated post-Batch 14)
 ================================================================================
 
-★☆☆☆ EASY (30 issues — quick wins, <30min each):
-  C++:  S1188 ×16 (APIRoutes lambdas), S1188 ×1 (FilesystemManager)
-        S134: L820, L975 (APIRoutes), L46/49 (FileSystem), L313 (FilesystemMgr)
-              L58/277 (Logger), L425/511 (StepperController), L604/646 (CmdDisp)
-              L180 (WiFiConfigMgr)
-  JS:   loadOscillationPreset, updateSequenceStatus, updateMilestones,
-        generatePresetTooltipPure, generateSequenceLineTooltipPure,
-        updateCenterAmplitudePresets, syncCyclePauseUI, fetchWithRetry,
-        handleWebSocketMessage
-  Py:   diff_reports, extract_symbols
+★☆☆☆ EASY — All 30 FIXED ✅ (Batch 13: 17, Batch 14: 10, new from split: 3→fixed)
+  C++:  [B13] S1188 ×1 (FilesystemManager), S134 ×13
+  JS:   [B13] generatePresetTooltipPure, generateSequenceLineTooltipPure,
+              handleWebSocketMessage
+        [B14] simplePresetTooltip (new→fixed), simpleLineTooltip (new→fixed),
+              loadOscillationPreset, updateSequenceStatus, updateMilestones,
+              updateCenterAmplitudePresets, syncCyclePauseUI, fetchWithRetry
+  Py:   [B14] diff_reports, extract_symbols
+
+  C++:  S1188 ×16 (APIRoutes lambdas) — moved to dedicated batch (Phase 1b)
 
 ★★☆☆ MEDIUM (37 issues — moderate effort, 30min-2h each):
-  C++:  checkAndTriggerRandomTurnback (+2 S134), process (BMC), mount (+2 S134),
+  C++:  checkAndTriggerRandomTurnback (+2 S134), process (BMC), mount,
         handleBasicCommands, handleDecelZoneCommands, handleChaosCommands,
         handleOscillationCommands, handleSequencerCommands, scanNetworks,
-        process (SequenceExec), blockingMoveToStep (S134), motorTask
+        process (SequenceExec), blockingMoveToStep (S134), motorTask,
+        S1188 ×4 MEDIUM APIRoutes lambdas
   JS:   updateChaosUI, updateSpeedDisplay, syncInputsFromBackend,
         updateControlsState, updateOscillationUI, loadSimplePreset,
         loadPresetIntoSequencerModal, editSequenceLine, validateEditForm,
@@ -376,25 +370,3 @@ Legend:
   C++:  setupAPIRoutes (CC=251), startCalibration (CC=57),
         ChaosController::process (CC=47), calculatePosition (CC=52)
   JS:   updateUI (CC=75, master dispatcher)
-
-================================================================================
- RECOMMENDED ACTION PLAN
-================================================================================
-
-Phase 1 — Quick wins (★☆☆☆): ~30 issues, low risk
-  → S1188 lambda extraction in APIRoutes.cpp (16 lambdas → named functions)
-  → S134 nesting flattening (early returns, guard clauses)
-  → JS tooltip/preset/utility functions
-
-Phase 2 — Medium refactors (★★☆☆): pick the highest-value ones
-  → CommandDispatcher handle* functions (5 functions, ~250 CC reduction)
-  → JS UI updaters (mechanical split-by-section)
-  → Python CLI mains
-
-Phase 3 — Hard (★★★☆): only if stability is confirmed after Phase 1-2
-  → NetworkManager watchdog, WiFiConfigManager scanNetworks
-  → JS pure validators (testable, lower risk)
-
-Skip — (★★★★): architectural, high regression risk
-  → setupAPIRoutes, startCalibration, ChaosController::process,
-    calculatePosition, updateUI

@@ -56,6 +56,20 @@ function generatePresetNamePure(mode, config) {
 // ============================================================================
 
 /**
+ * Generate zone effect tooltip summary (preset format, newline-separated)
+ */
+function zoneEffectPresetTooltip(ze) {
+  const pos = [];
+  if (ze.enableStart) pos.push('D');
+  if (ze.enableEnd) pos.push('F');
+  if (ze.mirrorOnReturn) pos.push('🔀');
+  let tip = `\n🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
+  if (ze.randomTurnbackEnabled) tip += ` 🔄${ze.turnbackChance}%`;
+  if (ze.endPauseEnabled) tip += ' ⏸';
+  return tip;
+}
+
+/**
  * Generate tooltip content for a preset (pure)
  * Split by mode to reduce cognitive complexity (S3776)
  */
@@ -69,15 +83,8 @@ function simplePresetTooltip(config) {
   // Zone Effects info (new format or legacy)
   const ze = config.vaetZoneEffect;
   if (ze?.enabled) {
-    const pos = [];
-    if (ze.enableStart) pos.push('D');
-    if (ze.enableEnd) pos.push('F');
-    if (ze.mirrorOnReturn) pos.push('🔀');
-    tooltip += `\n🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
-    if (ze.randomTurnbackEnabled) tooltip += ` 🔄${ze.turnbackChance}%`;
-    if (ze.endPauseEnabled) tooltip += ' ⏸';
+    tooltip += zoneEffectPresetTooltip(ze);
   } else if (config.decelStartEnabled || config.decelEndEnabled) {
-    // Legacy format
     const pos = [];
     if (config.decelStartEnabled) pos.push('D');
     if (config.decelEndEnabled) pos.push('F');
@@ -113,6 +120,29 @@ function generatePresetTooltipPure(mode, config) {
 }
 
 /**
+ * Generate zone effect tooltip details (line format, br-separated)
+ */
+function zoneEffectLineTooltip(ze) {
+  const pos = [];
+  if (ze.enableStart) pos.push('D');
+  if (ze.enableEnd) pos.push('F');
+  if (ze.mirrorOnReturn) pos.push('🔀');
+  let tip = `<br>🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
+  const effectNames = ['', t('seqUtils.decel'), t('seqUtils.accel')];
+  const curveNames = ['Lin', 'Sin', 'TriInv', 'SinInv'];
+  if (ze.speedEffect > 0) {
+    tip += `<br>🚀 ${effectNames[ze.speedEffect] || 'Eff'} ${curveNames[ze.speedCurve] || ''} ${ze.speedIntensity}%`;
+  }
+  if (ze.randomTurnbackEnabled) tip += `<br>🔄 ${t('utils.randomTurnback')} ${ze.turnbackChance || 30}%`;
+  if (ze.endPauseEnabled) {
+    tip += ze.endPauseIsRandom
+      ? `<br>⏸ Pause ${ze.endPauseMinSec}-${ze.endPauseMaxSec}s`
+      : `<br>⏸ Pause ${ze.endPauseDurationSec}s`;
+  }
+  return tip;
+}
+
+/**
  * Generate tooltip content for sequence line (pure)
  * Split by movement type to reduce cognitive complexity (S3776)
  */
@@ -124,27 +154,9 @@ function simpleLineTooltip(line) {
   if (line.cycleCount !== undefined) {
     tooltip += `<br>🔄 ${t('utils.cycles')}: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
   }
-  // Zone Effects
   const ze = line.vaetZoneEffect;
   if (ze && (ze.enableStart || ze.enableEnd)) {
-    const pos = [];
-    if (ze.enableStart) pos.push('D');
-    if (ze.enableEnd) pos.push('F');
-    if (ze.mirrorOnReturn) pos.push('🔀');
-    tooltip += `<br>🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
-    const effectNames = ['', t('seqUtils.decel'), t('seqUtils.accel')];
-    const curveNames = ['Lin', 'Sin', 'TriInv', 'SinInv'];
-    if (ze.speedEffect > 0) {
-      tooltip += `<br>🚀 ${effectNames[ze.speedEffect] || 'Eff'} ${curveNames[ze.speedCurve] || ''} ${ze.speedIntensity}%`;
-    }
-    if (ze.randomTurnbackEnabled) tooltip += `<br>🔄 ${t('utils.randomTurnback')} ${ze.turnbackChance || 30}%`;
-    if (ze.endPauseEnabled) {
-      if (ze.endPauseIsRandom) {
-        tooltip += `<br>⏸ Pause ${ze.endPauseMinSec}-${ze.endPauseMaxSec}s`;
-      } else {
-        tooltip += `<br>⏸ Pause ${ze.endPauseDurationSec}s`;
-      }
-    }
+    tooltip += zoneEffectLineTooltip(ze);
   }
   return tooltip;
 }

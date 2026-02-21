@@ -570,6 +570,63 @@ async function handleStatsFileImport(e) {
 // ============================================================================
 
 /**
+ * Build tooltip string for current milestone info.
+ * Extracted to reduce cognitive complexity of updateMilestones (S3776).
+ */
+function buildMilestoneTooltip(milestoneInfo) {
+  let tooltip = `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)`;
+  if (milestoneInfo.current.location !== "-") {
+    tooltip += ` - ${milestoneInfo.current.location}`;
+  }
+  if (milestoneInfo.next) {
+    tooltip += `\n\n⏭️ ${t('stats.next')}: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)`;
+    tooltip += `\n📊 ${t('stats.progression')}: ${milestoneInfo.progress.toFixed(0)}%`;
+  } else {
+    tooltip += `\n\n🎉 ${t('stats.lastMilestoneReached')}`;
+  }
+  return tooltip;
+}
+
+/**
+ * Track milestone changes and trigger notifications/animations.
+ * Extracted to reduce cognitive complexity of updateMilestones (S3776).
+ */
+function trackMilestoneChange(milestoneInfo, totalTraveledMM) {
+  const newThreshold = milestoneInfo.current.threshold;
+  const totalTraveledM = totalTraveledMM / 1000;
+  
+  // Handle distance reset (user cleared stats)
+  if (totalTraveledM < AppState.milestone.lastThreshold * 0.9) {
+    AppState.milestone.lastThreshold = 0;
+    AppState.milestone.initialized = false;
+  }
+  
+  if (newThreshold > AppState.milestone.lastThreshold) {
+    if (AppState.milestone.initialized) {
+      // New milestone achieved during session!
+      AppState.milestone.lastThreshold = newThreshold;
+      DOM.milestoneIcon.classList.remove('milestone-achievement');
+      DOM.milestoneIcon.getBoundingClientRect(); // Force reflow
+      DOM.milestoneIcon.classList.add('milestone-achievement');
+      
+      let message = `🎉 ${t('stats.milestoneReached')}: ${milestoneInfo.current.emoji} (${newThreshold}m)`;
+      if (milestoneInfo.next) {
+        message += `\n⏭️ ${t('stats.next')}: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progress.toFixed(0)}%`;
+      }
+      showNotification(message, 'milestone');
+    } else {
+      AppState.milestone.initialized = true;
+      AppState.milestone.lastThreshold = newThreshold;
+    }
+  } else if (!AppState.milestone.initialized) {
+    AppState.milestone.initialized = true;
+    AppState.milestone.lastThreshold = newThreshold;
+  }
+  
+  AppState.milestone.current = milestoneInfo.current;
+}
+
+/**
  * Update milestone display from total traveled distance
  * @param {number} totalTraveledMM - Total traveled distance in mm
  */
@@ -579,61 +636,9 @@ function updateMilestones(totalTraveledMM) {
   const milestoneInfo = getMilestoneInfo(totalTraveledMM / 1000); // Convert mm to m
   
   if (milestoneInfo.current) {
-    // Build tooltip with progress info
-    let tooltip = `${milestoneInfo.current.emoji} ${milestoneInfo.current.name} (${milestoneInfo.current.threshold}m)`;
-    if (milestoneInfo.current.location !== "-") {
-      tooltip += ` - ${milestoneInfo.current.location}`;
-    }
-    
-    if (milestoneInfo.next) {
-      tooltip += `\n\n⏭️ ${t('stats.next')}: ${milestoneInfo.next.emoji} ${milestoneInfo.next.name} (${milestoneInfo.next.threshold}m)`;
-      tooltip += `\n📊 ${t('stats.progression')}: ${milestoneInfo.progress.toFixed(0)}%`;
-    } else {
-      tooltip += `\n\n🎉 ${t('stats.lastMilestoneReached')}`;
-    }
-    
     DOM.milestoneIcon.textContent = milestoneInfo.current.emoji;
-    DOM.milestoneIcon.title = tooltip;
-    
-    // Milestone tracking logic
-    const newThreshold = milestoneInfo.current.threshold;
-    const totalTraveledM = totalTraveledMM / 1000;
-    
-    // Handle distance reset (user cleared stats) - reset tracking if distance dropped significantly
-    if (totalTraveledM < AppState.milestone.lastThreshold * 0.9) {
-      AppState.milestone.lastThreshold = 0;
-      AppState.milestone.initialized = false;
-    }
-    
-    // Check for milestone change
-    if (newThreshold > AppState.milestone.lastThreshold) {
-      if (AppState.milestone.initialized) {
-        // New milestone achieved during session!
-        AppState.milestone.lastThreshold = newThreshold;
-        
-        // Trigger icon animation
-        DOM.milestoneIcon.classList.remove('milestone-achievement');
-        DOM.milestoneIcon.getBoundingClientRect(); // Force reflow for animation restart
-        DOM.milestoneIcon.classList.add('milestone-achievement');
-        
-        // Show celebration notification
-        let message = `🎉 ${t('stats.milestoneReached')}: ${milestoneInfo.current.emoji} (${newThreshold}m)`;
-        if (milestoneInfo.next) {
-          message += `\n⏭️ ${t('stats.next')}: ${milestoneInfo.next.emoji} (${milestoneInfo.next.threshold}m) - ${milestoneInfo.progress.toFixed(0)}%`;
-        }
-        showNotification(message, 'milestone');
-      } else {
-        // First load - sync without notification
-        AppState.milestone.initialized = true;
-        AppState.milestone.lastThreshold = newThreshold;
-      }
-    } else if (!AppState.milestone.initialized) {
-      // First load, same milestone - just mark initialized
-      AppState.milestone.initialized = true;
-      AppState.milestone.lastThreshold = newThreshold;
-    }
-    
-    AppState.milestone.current = milestoneInfo.current;
+    DOM.milestoneIcon.title = buildMilestoneTooltip(milestoneInfo);
+    trackMilestoneChange(milestoneInfo, totalTraveledMM);
   } else {
     // No milestone reached yet - mark as initialized anyway
     AppState.milestone.initialized = true;

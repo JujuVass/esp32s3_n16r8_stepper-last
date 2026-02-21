@@ -675,21 +675,11 @@ function loadSimplePreset(config) {
 }
 
 /**
- * Load oscillation mode preset
+ * Load cycle pause settings for oscillation preset.
+ * Extracted to reduce cognitive complexity of loadOscillationPreset (S3776).
+ * @returns {{ pauseEnabled: boolean, pauseIsRandom: boolean }}
  */
-function loadOscillationPreset(config) {
-  document.getElementById('oscCenter').value = config.centerPositionMM || 100;
-  document.getElementById('oscAmplitude').value = config.amplitudeMM || 20;
-  document.getElementById('oscWaveform').value = config.waveform || 0;
-  document.getElementById('oscFrequency').value = config.frequencyHz || 1;
-  document.getElementById('oscCycleCount').value = config.cycleCount || 10;
-  document.getElementById('oscRampInEnable').checked = config.enableRampIn || false;
-  document.getElementById('oscRampInDuration').value = config.rampInDurationMs || 2000;
-  document.getElementById('oscRampOutEnable').checked = config.enableRampOut || false;
-  document.getElementById('oscRampOutDuration').value = config.rampOutDurationMs || 2000;
-  document.getElementById('oscReturnCenter').checked = config.returnToCenter || false;
-  
-  // Load cycle pause parameters
+function loadOscCyclePausePreset(config) {
   const pauseEnabled = config.cyclePauseEnabled || false;
   const pauseIsRandom = config.cyclePauseIsRandom || false;
   
@@ -741,6 +731,27 @@ function loadOscillationPreset(config) {
       pauseHeaderText.textContent = t('oscillation.cyclePauseEnabled');
     }
   }
+  
+  return { pauseEnabled, pauseIsRandom };
+}
+
+/**
+ * Load oscillation mode preset
+ */
+function loadOscillationPreset(config) {
+  document.getElementById('oscCenter').value = config.centerPositionMM || 100;
+  document.getElementById('oscAmplitude').value = config.amplitudeMM || 20;
+  document.getElementById('oscWaveform').value = config.waveform || 0;
+  document.getElementById('oscFrequency').value = config.frequencyHz || 1;
+  document.getElementById('oscCycleCount').value = config.cycleCount || 10;
+  document.getElementById('oscRampInEnable').checked = config.enableRampIn || false;
+  document.getElementById('oscRampInDuration').value = config.rampInDurationMs || 2000;
+  document.getElementById('oscRampOutEnable').checked = config.enableRampOut || false;
+  document.getElementById('oscRampOutDuration').value = config.rampOutDurationMs || 2000;
+  document.getElementById('oscReturnCenter').checked = config.returnToCenter || false;
+  
+  // Load cycle pause parameters
+  const { pauseEnabled, pauseIsRandom } = loadOscCyclePausePreset(config);
   
   // Send command to backend
   sendCommand(WS_CMD.SET_OSCILLATION, {

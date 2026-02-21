@@ -272,24 +272,8 @@ def print_actionable(results):
 # DIFF MODE
 # ============================================================================
 
-def diff_reports(old_path, new_path, project_root=None):
-    """Compare two reports and show changes."""
-    old_issues = load_report(old_path)
-    new_issues = load_report(new_path)
-    
-    old_results = analyze(old_issues, project_root)
-    new_results = analyze(new_issues, project_root)
-    
-    print_header("DIFF REPORT: {} → {}".format(Path(old_path).name, Path(new_path).name))
-    
-    old_total = old_results["sonarlint_count"]
-    new_total = new_results["sonarlint_count"]
-    delta = new_total - old_total
-    sign = "+" if delta > 0 else ""
-    
-    print(f"\n  SonarLint issues: {old_total} → {new_total} ({sign}{delta})")
-    
-    # By rule delta
+def _format_rule_deltas(old_results, new_results):
+    """Format per-rule delta table. Extracted to reduce CC of diff_reports (S3776)."""
     all_rules = set(old_results["by_rule"].keys()) | set(new_results["by_rule"].keys())
     deltas = []
     for rule in all_rules:
@@ -315,8 +299,10 @@ def diff_reports(old_path, new_path, project_root=None):
             else:
                 indicator = " "
             print(f"  {rule:<8} {old_c:>5} {new_c:>5} {sign}{diff:>5}  {indicator} {desc}")
-    
-    # New/resolved files
+
+
+def _format_file_changes(old_results, new_results):
+    """Format resolved/new files. Extracted to reduce CC of diff_reports (S3776)."""
     old_files = set(old_results["by_file"].keys())
     new_files = set(new_results["by_file"].keys())
     
@@ -332,6 +318,27 @@ def diff_reports(old_path, new_path, project_root=None):
         print(f"\n  New files with issues ({len(new_problem_files)}):")
         for f in sorted(new_problem_files):
             print(f"    [!!] {f}")
+
+
+def diff_reports(old_path, new_path, project_root=None):
+    """Compare two reports and show changes."""
+    old_issues = load_report(old_path)
+    new_issues = load_report(new_path)
+    
+    old_results = analyze(old_issues, project_root)
+    new_results = analyze(new_issues, project_root)
+    
+    print_header("DIFF REPORT: {} → {}".format(Path(old_path).name, Path(new_path).name))
+    
+    old_total = old_results["sonarlint_count"]
+    new_total = new_results["sonarlint_count"]
+    delta = new_total - old_total
+    sign = "+" if delta > 0 else ""
+    
+    print(f"\n  SonarLint issues: {old_total} → {new_total} ({sign}{delta})")
+    
+    _format_rule_deltas(old_results, new_results)
+    _format_file_changes(old_results, new_results)
 
 
 # ============================================================================

@@ -107,38 +107,50 @@ def strip_strings(content: str) -> str:
     return content
 
 
-def extract_symbols(filepath: Path, content: str) -> dict:
-    """Extract all defined symbols from a file."""
-    symbols = {}  # name -> { "type": ..., "file": ..., "line": ... }
-    clean = strip_strings(strip_comments(content))
-    
-    # --- Functions (definitions with body) ---
+def _extract_functions(clean: str, filepath: Path) -> dict:
+    """Extract function definitions from cleaned source."""
+    symbols = {}
     for m in RE_FUNC_DEF.finditer(clean):
         name = m.group(1)
-        # Strip Class:: prefix for matching, but keep for display
         base_name = name.split("::")[-1] if "::" in name else name
         if base_name not in FRAMEWORK_SYMBOLS and not base_name.startswith("_"):
             line_no = clean[:m.start()].count('\n') + 1
             symbols[base_name] = {"type": "function", "file": str(filepath), "line": line_no, "full_name": name}
+    return symbols
 
-    # --- #define macros ---
+
+def _extract_defines(clean: str, filepath: Path) -> dict:
+    """Extract #define macros from cleaned source."""
+    symbols = {}
+    guard_pattern = filepath.stem.upper().replace(".", "_") + "_H"
     for m in RE_DEFINE.finditer(clean):
         name = m.group(1)
         if name not in FRAMEWORK_SYMBOLS and not name.startswith("_"):
-            # Skip include guards (pattern: FILENAME_H)
-            guard_pattern = filepath.stem.upper().replace(".", "_") + "_H"
             if name == guard_pattern or name.endswith("_H") and len(name) < 30:
                 continue
             line_no = clean[:m.start()].count('\n') + 1
             symbols[name] = {"type": "define", "file": str(filepath), "line": line_no, "full_name": name}
+    return symbols
 
-    # --- Classes/structs ---
+
+def _extract_classes(clean: str, filepath: Path) -> dict:
+    """Extract class/struct definitions from cleaned source."""
+    symbols = {}
     for m in RE_CLASS.finditer(clean):
         name = m.group(1)
         if not name.startswith("_"):
             line_no = clean[:m.start()].count('\n') + 1
             symbols[name] = {"type": "class", "file": str(filepath), "line": line_no, "full_name": name}
+    return symbols
 
+
+def extract_symbols(filepath: Path, content: str) -> dict:
+    """Extract all defined symbols from a file."""
+    clean = strip_strings(strip_comments(content))
+    symbols = {}
+    symbols.update(_extract_functions(clean, filepath))
+    symbols.update(_extract_defines(clean, filepath))
+    symbols.update(_extract_classes(clean, filepath))
     return symbols
 
 

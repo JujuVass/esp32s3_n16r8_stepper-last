@@ -9,6 +9,9 @@
         "sonarlint.rules": {
             "css:S7924": {
                 "level": "off"
+            },
+            "cpp:S5421": {
+                "level": "off"
             }
         },
         "files.exclude": {
