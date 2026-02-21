@@ -557,7 +557,9 @@ void SequenceExecutor::startOscillationLine(const SequenceLine* line) {
 
     // Calculate where we are in the wave cycle based on current position
     float currentPosMM = MovementMath::stepsToMM(currentStep);
-    float relativePos = (currentPosMM - oscillation.centerPositionMM) / oscillation.amplitudeMM;
+    float relativePos = (oscillation.amplitudeMM > 0.0f)
+        ? (currentPosMM - oscillation.centerPositionMM) / oscillation.amplitudeMM
+        : 0.0f;  // 🔧 FIX: Avoid division by zero when amplitude is 0
 
     // Clamp to [-1, 1] range (in case positioning wasn't perfect)
     if (relativePos < -1.0f) relativePos = -1.0f;

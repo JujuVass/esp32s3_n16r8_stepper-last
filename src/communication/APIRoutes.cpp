@@ -428,7 +428,11 @@ static void handleImportStats() {
 // --- Playlist handlers ---
 
 static void handleGetPlaylists() {
-  if (!engine || !engine->isFilesystemReady()) {
+  if (!engine) {
+    sendJsonError(500, "Engine not initialized");
+    return;
+  }
+  if (!engine->isFilesystemReady()) {
     engine->error("❌ GET /api/playlists: LittleFS not mounted");
     sendJsonError(500, "LittleFS not mounted");
     return;

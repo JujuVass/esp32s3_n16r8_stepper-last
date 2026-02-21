@@ -182,7 +182,7 @@ void logDebugDiagnostics() {
 
   if (millis() - lastSummary > SUMMARY_LOG_INTERVAL_MS) {
     engine->debug("Status: " + String(cycleCounter) + " cycles | " +
-          String(stats.totalDistanceTraveled / 1000000.0, 2) + " km");
+          String(stats.totalDistanceTraveled / (STEPS_PER_MM * 1000000.0), 2) + " km");
     lastSummary = millis();
   }
 }

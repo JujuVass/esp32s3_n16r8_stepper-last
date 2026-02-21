@@ -584,7 +584,7 @@ function enforceNumericConstraints(input) {
     const oldValue = this.value;
     // Allow: digits, decimal point, minus sign
     // Remove all non-numeric characters except . and -
-    let newValue = this.value.replaceAll(/[^\d.-]/, '');
+    let newValue = this.value.replace(/[^\d.-]/g, '');
     
     // Ensure only one decimal point
     const parts = newValue.split('.');
@@ -594,7 +594,7 @@ function enforceNumericConstraints(input) {
     
     // Ensure minus only at start
     if (newValue.indexOf('-') > 0) {
-      newValue = newValue.replaceAll('-', '');
+      newValue = newValue.replace(/-/g, '');
     }
     
     // Update value if changed

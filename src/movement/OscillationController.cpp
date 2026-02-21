@@ -243,7 +243,7 @@ void OscillationControllerClass::process() {
     }
 
     // Execute steps
-    executeSteps(targetStep, isCatchUp);
+    executeSteps(oscTargetStep, isCatchUp);
 
     lastStepMicros_ = currentMicros;
 }
@@ -552,8 +552,18 @@ bool OscillationControllerClass::handleInitialPositioning() {
         firstPositioningCall_ = false;
     }
 
+    // Check if within tolerance BEFORE the early return (avoid infinite loop when exactly at center)
+    if (auto absErrorSteps = abs(errorSteps); absErrorSteps < MovementMath::mmToSteps(OSC_INITIAL_POSITIONING_TOLERANCE_MM)) {
+        oscillationState.isInitialPositioning = false;
+        oscillationState.startTimeMs = millis();
+        oscillationState.rampStartMs = millis();
+        oscillationState.lastPhaseUpdateMs = 0;
+        engine->debug("✅ Positioning complete - Starting ramp");
+        return false;  // Positioning complete
+    }
+
     if (errorSteps == 0) {
-        return true;  // Already at target (but still in positioning mode until tolerance check)
+        return true;  // At target but not yet within tolerance zone
     }
 
     unsigned long currentMicros = micros();
@@ -576,16 +586,6 @@ bool OscillationControllerClass::handleInitialPositioning() {
     stats.trackDelta(currentStep);
 
     lastStepMicros_ = currentMicros;
-
-    // Disable initial positioning when at center
-    if (auto absErrorSteps = abs(errorSteps); absErrorSteps < MovementMath::mmToSteps(OSC_INITIAL_POSITIONING_TOLERANCE_MM)) {
-        oscillationState.isInitialPositioning = false;
-        oscillationState.startTimeMs = millis();  // Reset timer for oscillation
-        oscillationState.rampStartMs = millis();  // 🔧 FIX: Reset ramp timer AFTER positioning
-        oscillationState.lastPhaseUpdateMs = 0;   // Reset phase tracking
-        engine->debug("✅ Positioning complete - Starting ramp");
-        return false;  // Positioning complete
-    }
 
     return true;  // Still positioning
 }

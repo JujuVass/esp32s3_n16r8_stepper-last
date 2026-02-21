@@ -106,7 +106,7 @@ const I18n = (() => {
     
     // Replace parameters: {{paramName}}
     if (params) {
-      return value.replaceAll(/\{\{(\w+)\}\}/, (match, name) => {
+      return value.replace(/\{\{(\w+)\}\}/g, (match, name) => {
         return params[name] === undefined ? match : params[name];
       });
     }

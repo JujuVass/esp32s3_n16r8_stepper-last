@@ -142,6 +142,7 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
         int backoffSteps = 0;
         while (Contacts.isActive(contactPin) && backoffSteps < SAFETY_OFFSET_STEPS * 2) {
             Motor.step();
+            currentStep = currentStep + (!moveForward ? -1 : 1);  // 🔧 FIX: Track position during backoff
             backoffSteps++;
             delayMicroseconds(CALIB_DELAY * CALIBRATION_SLOW_FACTOR);
         }
@@ -210,6 +211,7 @@ void CalibrationManager::releaseContact(uint8_t contactPin, bool moveForward) {
 
     if (releaseSteps >= MAX_RELEASE_STEPS) {
         engine->error("❌ Cannot release contact - sensor stuck after " + String(releaseSteps) + " steps");
+        return;  // 🔧 FIX: Abort if sensor stuck — don't proceed with incorrect position
     }
 
     // Add safety margin
