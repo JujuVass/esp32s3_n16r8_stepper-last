@@ -551,31 +551,33 @@ function updateZoneEndPause(ze) {
     if (cb) cb.checked = ze.endPauseEnabled;
   }
   if (ze.endPauseIsRandom !== undefined) {
-    const fixedRadio = document.getElementById('endPauseModeFixed');
-    const randomRadio = document.getElementById('endPauseModeRandom');
-    if (fixedRadio && randomRadio) {
-      fixedRadio.checked = !ze.endPauseIsRandom;
-      randomRadio.checked = ze.endPauseIsRandom;
-      const fixedCtrl = document.getElementById('endPauseFixedControls');
-      const randomCtrl = document.getElementById('endPauseRandomControls');
-      if (fixedCtrl && randomCtrl) {
-        fixedCtrl.classList.toggle('hidden', ze.endPauseIsRandom);
-        randomCtrl.classList.toggle('hidden', !ze.endPauseIsRandom);
-      }
-    }
+    updateEndPauseModeRadios(ze.endPauseIsRandom);
   }
-  if (ze.endPauseDurationSec !== undefined) {
-    const inp = document.getElementById('endPauseDuration');
-    if (inp) inp.value = ze.endPauseDurationSec;
+  setInputIfDefined('endPauseDuration', ze.endPauseDurationSec);
+  setInputIfDefined('endPauseMin', ze.endPauseMinSec);
+  setInputIfDefined('endPauseMax', ze.endPauseMaxSec);
+}
+
+/** Set radio pair + toggle fixed/random controls for end pause mode */
+function updateEndPauseModeRadios(isRandom) {
+  const fixedRadio = document.getElementById('endPauseModeFixed');
+  const randomRadio = document.getElementById('endPauseModeRandom');
+  if (!fixedRadio || !randomRadio) return;
+  fixedRadio.checked = !isRandom;
+  randomRadio.checked = isRandom;
+  const fixedCtrl = document.getElementById('endPauseFixedControls');
+  const randomCtrl = document.getElementById('endPauseRandomControls');
+  if (fixedCtrl && randomCtrl) {
+    fixedCtrl.classList.toggle('hidden', isRandom);
+    randomCtrl.classList.toggle('hidden', !isRandom);
   }
-  if (ze.endPauseMinSec !== undefined) {
-    const inp = document.getElementById('endPauseMin');
-    if (inp) inp.value = ze.endPauseMinSec;
-  }
-  if (ze.endPauseMaxSec !== undefined) {
-    const inp = document.getElementById('endPauseMax');
-    if (inp) inp.value = ze.endPauseMaxSec;
-  }
+}
+
+/** Set an input's value if the data field is defined */
+function setInputIfDefined(elementId, value) {
+  if (value === undefined) return;
+  const inp = document.getElementById(elementId);
+  if (inp) inp.value = value;
 }
 
 /**

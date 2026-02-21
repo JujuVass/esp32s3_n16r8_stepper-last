@@ -298,7 +298,7 @@ bool CalibrationManager::startCalibration() {
     config.maxStep = m_maxStep;
     config.totalDistanceMM = m_totalDistanceMM;
 
-    // Validate distance: -1=fail, 1=retry, 0=ok
+    // Check distance is within acceptable range (returns tri-state)
     if (int distResult = validateDistance(); distResult != 0) {
         if (distResult < 0) return false;
         continue;
@@ -311,7 +311,7 @@ bool CalibrationManager::startCalibration() {
         return handleFailure();
     }
 
-    // Validate accuracy: -1=fail, 1=retry, 0=ok
+    // Check return-to-start accuracy is within tolerance (returns tri-state)
     if (int accResult = validateCalibrationAccuracy(); accResult != 0) {
         if (accResult < 0) return false;
         continue;

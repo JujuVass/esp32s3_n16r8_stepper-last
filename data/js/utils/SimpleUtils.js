@@ -167,7 +167,7 @@ function drawPreviewSpeedCurve(p, config) {
   
   for (let x = 0; x <= p.plotWidth; x++) {
     const positionMM = (x / p.plotWidth) * movementAmplitude;
-    const speedFactor = computeZoneSpeedFactor(positionMM, enableStart, enableEnd, zoneMM, movementAmplitude, maxFactor, speedCurve, isAccel);
+    const speedFactor = computeZoneSpeedFactor(positionMM, { enableStart, enableEnd, zoneMM, movementAmplitude, maxFactor, speedCurve, isAccel });
     
     const normalizedSpeed = isAccel
       ? 0.5 + (1 - speedFactor) * 0.5
@@ -181,7 +181,8 @@ function drawPreviewSpeedCurve(p, config) {
 }
 
 /** Compute speed factor at a given position considering start/end zones */
-function computeZoneSpeedFactor(positionMM, enableStart, enableEnd, zoneMM, movementAmplitude, maxFactor, speedCurve, isAccel) {
+function computeZoneSpeedFactor(positionMM, cfg) {
+  const { enableStart, enableEnd, zoneMM, movementAmplitude, maxFactor, speedCurve, isAccel } = cfg;
   let factor = 1;
   if (enableStart && positionMM <= zoneMM) {
     factor = calculateSlowdownFactorPure(positionMM / zoneMM, maxFactor, speedCurve);
