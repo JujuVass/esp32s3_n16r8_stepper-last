@@ -26,7 +26,7 @@
  */
 
 // Day names for display - functions using i18n
-function getDayNames() { return t('stats.dayNames') || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; }
+function getDayNames() { const names = t('stats.dayNames'); return Array.isArray(names) ? names : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; }
 const dayIcons = ['🚴', '🏃', '🏁', '🏀', '🔴', '🏓', '⚪'];
 
 // ============================================================================
@@ -327,7 +327,7 @@ function renderStatsChart(labels, distances, sortedWeeks, weeklyData) {
             afterLabel: function(context) {
               const weekKey = sortedWeeks[context.dataIndex];
               const week = weeklyData[weekKey];
-              if (!week) return '';
+              if (!week) return [];
               
               const lines = [`${week.days.length} ${t('stats.activeDays')}`];
               

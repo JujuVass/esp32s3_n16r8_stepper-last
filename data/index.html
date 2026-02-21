@@ -78,8 +78,8 @@
   </div>
 
   <!-- Playlist Management Modal -->
-  <div class="modal" id="playlistModal" role="dialog" onclick="closePlaylistModalOnOverlayClick(event)">
-    <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+  <div class="modal" id="playlistModal" onclick="closePlaylistModalOnOverlayClick(event)">
+    <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-title">📋 <span data-i18n="playlist.title">Playlist -</span> <span id="playlistModalTitle">Mode</span></div>
       
       <!-- Sticky Current Config Preview -->
@@ -753,9 +753,9 @@
 
       <!-- Zone Effects - Collapsible Section -->
       <div class="section-collapsible collapsed" id="zoneEffectSection">
-        <div class="section-collapsible-header" role="button" tabindex="0" onclick="toggleZoneEffectSection()">
+        <button type="button" class="section-collapsible-header" onclick="toggleZoneEffectSection()">
           <span class="collapse-icon">▼</span> <span id="zoneEffectHeaderText" data-i18n="simple.zoneEffectsDisabled">🎯 Effets de Zone - désactivés</span>
-        </div>
+        </button>
         
         <div class="section-collapsible-content">
           <!-- Zone Size -->
@@ -869,9 +869,9 @@
 
       <!-- ===== CYCLE PAUSE SECTION ===== -->
       <div class="section-collapsible collapsed" style="margin-bottom: 20px;">
-        <div class="section-collapsible-header" role="button" tabindex="0" onclick="toggleCyclePauseSection()">
+        <button type="button" class="section-collapsible-header" onclick="toggleCyclePauseSection()">
           <span class="collapse-icon">▼</span> <span id="cyclePauseHeaderText" data-i18n="simple.cyclePauseDisabled">⏸️ Pause entre cycles - désactivée</span>
-        </div>
+        </button>
         
         <div class="section-collapsible-content">
           <!-- Mode Selection: Fixed / Random -->
@@ -1193,9 +1193,9 @@
         
         <!-- ===== CYCLE PAUSE SECTION (OSCILLATION) ===== -->
         <div class="section-collapsible collapsed" style="margin-bottom: 20px;">
-          <div class="section-collapsible-header" role="button" tabindex="0" onclick="toggleCyclePauseOscSection()">
+          <button type="button" class="section-collapsible-header" onclick="toggleCyclePauseOscSection()">
             <span class="collapse-icon">▼</span> <span id="cyclePauseOscHeaderText" data-i18n="oscillation.cyclePauseDisabled">⏸️ Pause entre cycles - désactivée</span>
-          </div>
+          </button>
           
           <div class="section-collapsible-content">
             <!-- Mode Selection: Fixed / Random -->
@@ -1393,9 +1393,9 @@
 
         <!-- Accordion: Options avancées -->
         <div class="section-collapsible collapsed" id="chaosAdvancedSection">
-          <div class="section-collapsible-header" role="button" tabindex="0" onclick="toggleChaosAdvancedSection()">
+          <button type="button" class="section-collapsible-header" onclick="toggleChaosAdvancedSection()">
             <span class="collapse-icon">▼</span> <span id="chaosAdvancedHeaderText" data-i18n="chaos.advancedOptions">⚙️ Options avancées</span>
-          </div>
+          </button>
           <div class="section-collapsible-content">
           
           <!-- Patterns actifs -->
@@ -1599,8 +1599,8 @@
   </div>
 
   <!-- Modal for Line Editing (outside container for proper fullscreen overlay) -->
-  <div id="editLineModal" class="modal-overlay" role="dialog" onclick="closeEditLineModalOnOverlayClick(event)">
-      <div class="modal-container" onclick="event.stopPropagation()">
+  <div id="editLineModal" class="modal-overlay" onclick="closeEditLineModalOnOverlayClick(event)">
+      <div class="modal-container">
         
         <!-- Modal Header -->
         <div class="modal-header">

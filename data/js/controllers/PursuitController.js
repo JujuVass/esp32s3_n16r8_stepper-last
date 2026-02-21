@@ -358,6 +358,25 @@ function initMaxDistLimitListeners() {
 // EVENT LISTENERS INITIALIZATION
 // ============================================================================
 
+// --- Drag helpers (used by gauge interaction) ---
+function startDrag(clientY) {
+  if (!AppState.pursuit.active) return;
+  AppState.pursuit.isDragging = true;
+  document.body.style.userSelect = 'none';
+  updateGaugeFromPointer(clientY);
+}
+
+function moveDrag(clientY) {
+  if (!AppState.pursuit.isDragging) return;
+  updateGaugeFromPointer(clientY);
+}
+
+function endDrag() {
+  if (!AppState.pursuit.isDragging) return;
+  AppState.pursuit.isDragging = false;
+  document.body.style.userSelect = '';
+}
+
 /**
  * Initialize all pursuit mode event listeners
  * Call this after initDOMCache() on page load
@@ -369,24 +388,6 @@ function initPursuitListeners() {
   // 2. Touch Events fallback (older mobile browsers)  
   // 3. Mouse Events fallback (desktop)
   // ========================================================================
-  
-  function startDrag(clientY) {
-    if (!AppState.pursuit.active) return;
-    AppState.pursuit.isDragging = true;
-    document.body.style.userSelect = 'none';
-    updateGaugeFromPointer(clientY);
-  }
-  
-  function moveDrag(clientY) {
-    if (!AppState.pursuit.isDragging) return;
-    updateGaugeFromPointer(clientY);
-  }
-  
-  function endDrag() {
-    if (!AppState.pursuit.isDragging) return;
-    AppState.pursuit.isDragging = false;
-    document.body.style.userSelect = '';
-  }
   
   // --- Pointer Events (primary) ---
   if (globalThis.PointerEvent) {

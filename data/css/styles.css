@@ -1325,7 +1325,11 @@ select.input-compact:focus,
   align-items: center;
   gap: 8px;
   color: #2d3748;
+  border: none;
   border-left: 3px solid #667eea;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
   transition: background 0.2s;
 }
 

@@ -43,11 +43,7 @@ constexpr int PIN_PEND = 16;           // PED- via level shifter (input)
 constexpr int PIN_AP_MODE = 19;        // GND = normal, floating = AP_SETUP
 
 // Onboard RGB LED (WS2812 on Freenove ESP32-S3)
-// Arduino Core 3.x defines PIN_RGB_LED as a macro in pins_arduino.h — undefine it first
-#ifdef PIN_RGB_LED
-#undef PIN_RGB_LED
-#endif
-constexpr int PIN_RGB_LED = 48;
+constexpr int PIN_NEOPIXEL = 48;
 
 // ============================================================================
 // CONFIGURATION - AP Direct Mode (Full app via WiFi AP)

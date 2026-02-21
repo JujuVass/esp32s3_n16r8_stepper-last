@@ -122,7 +122,7 @@ void Logger::log(LogLevel level, const String& message) {
   if (_ws.connectedClients() > 0 && wsMutex != nullptr) {
     if (xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
       static constexpr std::array levelNames = {"ERROR", "WARN", "INFO", "DEBUG"};
-      int levelIdx = static_cast<int>(level);
+      auto levelIdx = static_cast<int>(level);
       auto levelName = (levelIdx >= 0 && levelIdx <= 3) ? levelNames[levelIdx] : "INFO";
 
       JsonDocument doc;

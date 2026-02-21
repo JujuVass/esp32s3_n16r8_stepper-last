@@ -53,7 +53,7 @@ UtilityEngine* engine = nullptr;
 // ONBOARD RGB LED (WS2812 on GPIO 48 - Freenove ESP32-S3)
 // ============================================================================
 void setRgbLed(uint8_t r, uint8_t g, uint8_t b) {
-  rgbLedWrite(PIN_RGB_LED, r, g, b);
+  rgbLedWrite(PIN_NEOPIXEL, r, g, b);
 }
 
 // ============================================================================

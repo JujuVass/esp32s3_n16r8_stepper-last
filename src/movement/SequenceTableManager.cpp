@@ -345,7 +345,10 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
     JsonArrayConst patterns = patternsVar.as<JsonArrayConst>();
     int idx = 0;
     for (JsonVariantConst val : patterns) {
-      if (idx < CHAOS_PATTERN_COUNT) line.chaosPatternsEnabled[idx++] = val.as<bool>();
+      if (idx < CHAOS_PATTERN_COUNT) {
+        line.chaosPatternsEnabled[idx] = val.as<bool>();
+        idx++;
+      }
     }
   } else {
     // Default: all patterns enabled

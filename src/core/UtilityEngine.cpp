@@ -83,7 +83,7 @@ void UtilityEngine::shutdown() {
 
 void UtilityEngine::loadLoggingPreferences() {
   bool enabled = true;
-  uint8_t level = static_cast<uint8_t>(LogLevel::LOG_INFO);
+  auto level = static_cast<uint8_t>(LogLevel::LOG_INFO);
   _eeprom.loadLoggingPreferences(enabled, level);
   _logger.restoreState(enabled, (LogLevel)level);
 }

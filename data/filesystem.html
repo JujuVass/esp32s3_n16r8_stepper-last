@@ -279,6 +279,7 @@
     }
     
     .upload-zone {
+      display: block;
       border: 2px dashed #667eea;
       border-radius: 8px;
       padding: 30px;
@@ -374,11 +375,11 @@
     <div class="content">
       <div id="message" class="message"></div>
       
-      <div class="upload-zone" id="uploadZone" role="button" tabindex="0" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+      <label class="upload-zone" id="uploadZone" for="uploadInput" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
         <p>💾 Drop files here to upload</p>
         <p style="font-size: 12px; color: #999;">or click to browse</p>
         <input type="file" id="uploadInput" style="display:none;" multiple onchange="handleFileSelect(event)">
-      </div>
+      </label>
       
       <div class="file-browser">
         <div class="file-header">
@@ -478,8 +479,9 @@
         } else if (isBinaryFile(file.name)) {
           fileNameHtml = `<span>${safeFileName}</span>`;
         } else {
-          fileNameHtml = `<span class="file-name-link" onclick="editFile('${file.path.replaceAll("'", "\\'")}'` +
-                `, '${file.name.replaceAll("'", "\\'")}')" title="Click to edit">${safeFileName}</span>`;
+          const escapedPath = file.path.replaceAll("'", String.raw`\'`);
+          const escapedName = file.name.replaceAll("'", String.raw`\'`);
+          fileNameHtml = `<span class="file-name-link" onclick="editFile('${escapedPath}', '${escapedName}')" title="Click to edit">${safeFileName}</span>`;
         }
         
         // For folders, show file count instead of date

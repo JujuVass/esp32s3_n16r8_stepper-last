@@ -459,19 +459,22 @@ async function rebootESP32() {
 }
 
 /**
+ * Update reboot overlay status messages
+ */
+function updateRebootStatus(message, subMessage) {
+  const msgEl = DOM.rebootMessage;
+  const statusEl = DOM.rebootStatus;
+  if (msgEl) msgEl.textContent = message;
+  if (statusEl) statusEl.textContent = subMessage || '';
+}
+
+/**
  * Reconnect after reboot with retry logic
  */
 function reconnectAfterReboot() {
   let attempts = 0;
   const maxAttempts = 30; // Try for 30 seconds
   let wsConnected = false;
-  
-  const updateRebootStatus = function(message, subMessage) {
-    const msgEl = DOM.rebootMessage;
-    const statusEl = DOM.rebootStatus;
-    if (msgEl) msgEl.textContent = message;
-    if (statusEl) statusEl.textContent = subMessage || '';
-  };
   
   const tryReconnect = function() {
     attempts++;
