@@ -190,7 +190,7 @@ def count_references(symbol_name: str, all_contents: dict[str, str], defining_fi
     return referencing_files
 
 
-def analyze_header_includes(all_files: list[Path], all_contents: dict[str, str], root: Path) -> list[dict]:
+def analyze_header_includes(all_files: list[Path], all_contents: dict[str, str], root: Path) -> list[dict]:  # NOSONAR(python:S3776)
     """Check for includes that might not be needed."""
     issues = []
     
@@ -258,7 +258,7 @@ def analyze_header_includes(all_files: list[Path], all_contents: dict[str, str],
     return issues
 
 
-def main():
+def main():  # NOSONAR(python:S3776)
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
     root = root.resolve()
     

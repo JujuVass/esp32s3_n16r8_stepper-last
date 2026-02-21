@@ -763,8 +763,7 @@ bool ChaosController::handlePatternPause() {
     if (chaosState.currentPattern != CHAOS_BRUTE_FORCE &&
         chaosState.currentPattern != CHAOS_LIBERATOR) return false;
 
-    unsigned long pauseElapsed = millis() - chaosState.pauseStartTime;
-    if (pauseElapsed < chaosState.pauseDuration) return true;  // Still pausing
+    if (unsigned long pauseElapsed = millis() - chaosState.pauseStartTime; pauseElapsed < chaosState.pauseDuration) return true;  // Still pausing
 
     chaosState.isInPatternPause = false;
     if (engine->isDebugEnabled()) {

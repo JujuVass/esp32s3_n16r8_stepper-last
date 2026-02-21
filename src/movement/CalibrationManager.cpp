@@ -361,8 +361,7 @@ int CalibrationManager::validateDistance() {
  * @return 0=OK, 1=retry needed, -1=fatal failure
  */
 int CalibrationManager::validateCalibrationAccuracy() {
-    float errorPercent = validateAccuracy();
-    if (errorPercent <= MAX_CALIBRATION_ERROR_PERCENT) return 0;
+    if (float errorPercent = validateAccuracy(); errorPercent <= MAX_CALIBRATION_ERROR_PERCENT) return 0;
 
     m_attemptCount++;
     if (m_attemptCount >= MAX_CALIBRATION_RETRIES) {

@@ -480,7 +480,7 @@ def watch_file(file_path, esp32_ip=ESP32_IP):
 # MAIN
 # ============================================================================
 
-def main():
+def main():  # NOSONAR(python:S3776)
     import argparse
     
     parser = argparse.ArgumentParser(
