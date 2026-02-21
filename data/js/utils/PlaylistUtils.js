@@ -57,112 +57,131 @@ function generatePresetNamePure(mode, config) {
 
 /**
  * Generate tooltip content for a preset (pure)
- * @param {string} mode - 'simple', 'oscillation', or 'chaos'
- * @param {Object} config - Configuration object
- * @returns {string} Tooltip HTML string
+ * Split by mode to reduce cognitive complexity (S3776)
  */
-function generatePresetTooltipPure(mode, config) {
-  if (mode === 'simple') {
-    let tooltip = `📍 ${t('utils.start')}: ${config.startPositionMM || 0}mm\n`;
-    tooltip += `📏 ${t('utils.distance')}: ${config.distanceMM || 50}mm\n`;
-    tooltip += `⚡ ${t('utils.speed')}: ${config.speedLevelForward || 5}/${config.speedLevelBackward || 5}`;
-    if (config.cycleCount !== undefined) {
-      tooltip += `\n🔄 ${t('utils.cycles')}: ${config.cycleCount === 0 ? '∞' : config.cycleCount}`;
-    }
-    // Zone Effects info (new format or legacy)
-    const ze = config.vaetZoneEffect;
-    if (ze?.enabled) {
-      const pos = [];
-      if (ze.enableStart) pos.push('D');
-      if (ze.enableEnd) pos.push('F');
-      if (ze.mirrorOnReturn) pos.push('🔀');
-      tooltip += `\n🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
-      if (ze.randomTurnbackEnabled) tooltip += ` 🔄${ze.turnbackChance}%`;
-      if (ze.endPauseEnabled) tooltip += ' ⏸';
-    } else if (config.decelStartEnabled || config.decelEndEnabled) {
-      // Legacy format
-      const pos = [];
-      if (config.decelStartEnabled) pos.push('D');
-      if (config.decelEndEnabled) pos.push('F');
-      tooltip += `\n🎯 ${t('utils.decel')}: ${pos.join('/')} ${config.decelZoneMM || 20}mm`;
-    }
-    return tooltip;
-  } else if (mode === 'oscillation') {
-    let tooltip = `📍 ${t('utils.center')}: ${config.centerPositionMM || 100}mm\n`;
-    tooltip += `↔️ ${t('utils.amplitude')}: ±${config.amplitudeMM || 20}mm\n`;
-    tooltip += `🌊 ${t('utils.waveform')}: ${WAVEFORM_NAMES[config.waveform] || 'Sine'}\n`;
-    tooltip += `⚡ ${t('utils.frequency')}: ${config.frequencyHz || 1}Hz`;
-    if (config.cycleCount !== undefined) {
-      tooltip += `\n🔄 ${t('utils.cycles')}: ${config.cycleCount === 0 ? '∞' : config.cycleCount}`;
-    }
-    return tooltip;
-  } else if (mode === 'chaos') {
-    let tooltip = `📍 ${t('utils.center')}: ${config.centerPositionMM || 100}mm\n`;
-    tooltip += `↔️ ${t('utils.amplitude')}: ±${config.amplitudeMM || 40}mm\n`;
-    tooltip += `🎲 ${t('utils.craziness')}: ${config.crazinessPercent || 50}%\n`;
-    tooltip += `⏱️ ${t('utils.duration')}: ${config.durationSeconds === 0 ? '∞' : config.durationSeconds + 's'}`;
-    return tooltip;
+function simplePresetTooltip(config) {
+  let tooltip = `📍 ${t('utils.start')}: ${config.startPositionMM || 0}mm\n`;
+  tooltip += `📏 ${t('utils.distance')}: ${config.distanceMM || 50}mm\n`;
+  tooltip += `⚡ ${t('utils.speed')}: ${config.speedLevelForward || 5}/${config.speedLevelBackward || 5}`;
+  if (config.cycleCount !== undefined) {
+    tooltip += `\n🔄 ${t('utils.cycles')}: ${config.cycleCount === 0 ? '∞' : config.cycleCount}`;
   }
+  // Zone Effects info (new format or legacy)
+  const ze = config.vaetZoneEffect;
+  if (ze?.enabled) {
+    const pos = [];
+    if (ze.enableStart) pos.push('D');
+    if (ze.enableEnd) pos.push('F');
+    if (ze.mirrorOnReturn) pos.push('🔀');
+    tooltip += `\n🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
+    if (ze.randomTurnbackEnabled) tooltip += ` 🔄${ze.turnbackChance}%`;
+    if (ze.endPauseEnabled) tooltip += ' ⏸';
+  } else if (config.decelStartEnabled || config.decelEndEnabled) {
+    // Legacy format
+    const pos = [];
+    if (config.decelStartEnabled) pos.push('D');
+    if (config.decelEndEnabled) pos.push('F');
+    tooltip += `\n🎯 ${t('utils.decel')}: ${pos.join('/')} ${config.decelZoneMM || 20}mm`;
+  }
+  return tooltip;
+}
+
+function oscillationPresetTooltip(config) {
+  let tooltip = `📍 ${t('utils.center')}: ${config.centerPositionMM || 100}mm\n`;
+  tooltip += `↔️ ${t('utils.amplitude')}: ±${config.amplitudeMM || 20}mm\n`;
+  tooltip += `🌊 ${t('utils.waveform')}: ${WAVEFORM_NAMES[config.waveform] || 'Sine'}\n`;
+  tooltip += `⚡ ${t('utils.frequency')}: ${config.frequencyHz || 1}Hz`;
+  if (config.cycleCount !== undefined) {
+    tooltip += `\n🔄 ${t('utils.cycles')}: ${config.cycleCount === 0 ? '∞' : config.cycleCount}`;
+  }
+  return tooltip;
+}
+
+function chaosPresetTooltip(config) {
+  let tooltip = `📍 ${t('utils.center')}: ${config.centerPositionMM || 100}mm\n`;
+  tooltip += `↔️ ${t('utils.amplitude')}: ±${config.amplitudeMM || 40}mm\n`;
+  tooltip += `🎲 ${t('utils.craziness')}: ${config.crazinessPercent || 50}%\n`;
+  tooltip += `⏱️ ${t('utils.duration')}: ${config.durationSeconds === 0 ? '∞' : config.durationSeconds + 's'}`;
+  return tooltip;
+}
+
+function generatePresetTooltipPure(mode, config) {
+  if (mode === 'simple') return simplePresetTooltip(config);
+  if (mode === 'oscillation') return oscillationPresetTooltip(config);
+  if (mode === 'chaos') return chaosPresetTooltip(config);
   return t('common.preset');
 }
 
 /**
  * Generate tooltip content for sequence line (pure)
- * @param {Object} line - Sequence line object
- * @returns {string} HTML tooltip content
+ * Split by movement type to reduce cognitive complexity (S3776)
  */
+function simpleLineTooltip(line) {
+  let tooltip = '';
+  tooltip += `📍 ${t('utils.start')}: ${line.startPositionMM?.toFixed(1) || 0}mm<br>`;
+  tooltip += `📏 ${t('utils.distance')}: ${line.distanceMM?.toFixed(1) || 50}mm<br>`;
+  tooltip += `⚡ ${t('utils.speed')}: ${line.speedForward?.toFixed(1) || 5}/${line.speedBackward?.toFixed(1) || 5}`;
+  if (line.cycleCount !== undefined) {
+    tooltip += `<br>🔄 ${t('utils.cycles')}: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
+  }
+  // Zone Effects
+  const ze = line.vaetZoneEffect;
+  if (ze && (ze.enableStart || ze.enableEnd)) {
+    const pos = [];
+    if (ze.enableStart) pos.push('D');
+    if (ze.enableEnd) pos.push('F');
+    if (ze.mirrorOnReturn) pos.push('🔀');
+    tooltip += `<br>🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
+    const effectNames = ['', t('seqUtils.decel'), t('seqUtils.accel')];
+    const curveNames = ['Lin', 'Sin', 'TriInv', 'SinInv'];
+    if (ze.speedEffect > 0) {
+      tooltip += `<br>🚀 ${effectNames[ze.speedEffect] || 'Eff'} ${curveNames[ze.speedCurve] || ''} ${ze.speedIntensity}%`;
+    }
+    if (ze.randomTurnbackEnabled) tooltip += `<br>🔄 ${t('utils.randomTurnback')} ${ze.turnbackChance || 30}%`;
+    if (ze.endPauseEnabled) {
+      if (ze.endPauseIsRandom) {
+        tooltip += `<br>⏸ Pause ${ze.endPauseMinSec}-${ze.endPauseMaxSec}s`;
+      } else {
+        tooltip += `<br>⏸ Pause ${ze.endPauseDurationSec}s`;
+      }
+    }
+  }
+  return tooltip;
+}
+
+function oscillationLineTooltip(line) {
+  let tooltip = '';
+  tooltip += `📍 ${t('utils.center')}: ${line.oscCenterPositionMM?.toFixed(1) || 100}mm<br>`;
+  tooltip += `↔️ ${t('utils.amplitude')}: ±${line.oscAmplitudeMM?.toFixed(1) || 20}mm<br>`;
+  tooltip += `🌊 ${t('utils.frequency')}: ${line.oscFrequencyHz?.toFixed(2) || 1}Hz`;
+  if (line.oscWaveform !== undefined) {
+    tooltip += `<br>📈 ${t('utils.waveform')}: ${WAVEFORM_NAMES[line.oscWaveform] || 'Sine'}`;
+  }
+  if (line.cycleCount !== undefined) {
+    tooltip += `<br>🔄 ${t('utils.cycles')}: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
+  }
+  return tooltip;
+}
+
+function chaosLineTooltip(line) {
+  let tooltip = '';
+  tooltip += `📍 ${t('utils.center')}: ${line.chaosCenterPositionMM?.toFixed(1) || 100}mm<br>`;
+  tooltip += `↔️ ${t('utils.amplitude')}: ±${line.chaosAmplitudeMM?.toFixed(1) || 40}mm<br>`;
+  tooltip += `🎲 ${t('utils.craziness')}: ${line.chaosCrazinessPercent?.toFixed(0) || 50}%<br>`;
+  tooltip += `⏱️ ${t('utils.duration')}: ${line.chaosDurationSeconds || 30}s`;
+  return tooltip;
+}
+
 function generateSequenceLineTooltipPure(line) {
   const typeName = getTypeNames()[line.movementType] || t('utils.unknown');
-  
   let tooltip = `<b>${typeName}</b><br>`;
   
   if (line.movementType === 0) {
-    // Simple/Va-et-vient
-    tooltip += `📍 ${t('utils.start')}: ${line.startPositionMM?.toFixed(1) || 0}mm<br>`;
-    tooltip += `📏 ${t('utils.distance')}: ${line.distanceMM?.toFixed(1) || 50}mm<br>`;
-    tooltip += `⚡ ${t('utils.speed')}: ${line.speedForward?.toFixed(1) || 5}/${line.speedBackward?.toFixed(1) || 5}`;
-    if (line.cycleCount !== undefined) {
-      tooltip += `<br>🔄 ${t('utils.cycles')}: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
-    }
-    // Zone Effects
-    const ze = line.vaetZoneEffect;
-    if (ze && (ze.enableStart || ze.enableEnd)) {
-      const pos = [];
-      if (ze.enableStart) pos.push('D');
-      if (ze.enableEnd) pos.push('F');
-      if (ze.mirrorOnReturn) pos.push('🔀');
-      tooltip += `<br>🎯 ${t('utils.zone')}: ${pos.join('/')} ${ze.zoneMM}mm`;
-      const effectNames = ['', t('seqUtils.decel'), t('seqUtils.accel')];
-      const curveNames = ['Lin', 'Sin', 'TriInv', 'SinInv'];
-      if (ze.speedEffect > 0) {
-        tooltip += `<br>🚀 ${effectNames[ze.speedEffect] || 'Eff'} ${curveNames[ze.speedCurve] || ''} ${ze.speedIntensity}%`;
-      }
-      if (ze.randomTurnbackEnabled) tooltip += `<br>🔄 ${t('utils.randomTurnback')} ${ze.turnbackChance || 30}%`;
-      if (ze.endPauseEnabled) {
-        if (ze.endPauseIsRandom) {
-          tooltip += `<br>⏸ Pause ${ze.endPauseMinSec}-${ze.endPauseMaxSec}s`;
-        } else {
-          tooltip += `<br>⏸ Pause ${ze.endPauseDurationSec}s`;
-        }
-      }
-    }
+    tooltip += simpleLineTooltip(line);
   } else if (line.movementType === 1) {
-    // Oscillation
-    tooltip += `📍 ${t('utils.center')}: ${line.oscCenterPositionMM?.toFixed(1) || 100}mm<br>`;
-    tooltip += `↔️ ${t('utils.amplitude')}: ±${line.oscAmplitudeMM?.toFixed(1) || 20}mm<br>`;
-    tooltip += `🌊 ${t('utils.frequency')}: ${line.oscFrequencyHz?.toFixed(2) || 1}Hz`;
-    if (line.oscWaveform !== undefined) {
-      tooltip += `<br>📈 ${t('utils.waveform')}: ${WAVEFORM_NAMES[line.oscWaveform] || 'Sine'}`;
-    }
-    if (line.cycleCount !== undefined) {
-      tooltip += `<br>🔄 ${t('utils.cycles')}: ${line.cycleCount === 0 ? '∞' : line.cycleCount}`;
-    }
+    tooltip += oscillationLineTooltip(line);
   } else if (line.movementType === 2) {
-    // Chaos
-    tooltip += `📍 ${t('utils.center')}: ${line.chaosCenterPositionMM?.toFixed(1) || 100}mm<br>`;
-    tooltip += `↔️ ${t('utils.amplitude')}: ±${line.chaosAmplitudeMM?.toFixed(1) || 40}mm<br>`;
-    tooltip += `🎲 ${t('utils.craziness')}: ${line.chaosCrazinessPercent?.toFixed(0) || 50}%<br>`;
-    tooltip += `⏱️ ${t('utils.duration')}: ${line.chaosDurationSeconds || 30}s`;
+    tooltip += chaosLineTooltip(line);
   }
   
   // Common: pause after line

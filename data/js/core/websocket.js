@@ -156,6 +156,16 @@ function connectWebSocket(useFallback) {
 // MESSAGE ROUTER - Route messages to appropriate handlers
 // ============================================================================
 
+/** Dispatch map for typed WebSocket messages (reduces cognitive complexity) */
+const messageHandlers = {
+  error: (data) => showNotification(data.message, 'error'),
+  sequenceTable: (data) => { if (typeof renderSequenceTable === 'function') renderSequenceTable(data.data); },
+  sequenceStatus: (data) => { if (typeof updateSequenceStatus === 'function') updateSequenceStatus(data); },
+  exportData: (data) => handleExportData(data.data),
+  fsList: (data) => handleFileSystemList(data.files),
+  log: (data) => handleLogMessage(data),
+};
+
 /**
  * Route incoming WebSocket messages to appropriate handlers
  * @param {object} data - Parsed JSON message from ESP32
@@ -167,43 +177,10 @@ function handleWebSocketMessage(data) {
     return;
   }
 
-  // Error messages (high priority)
-  if (data.type === 'error') {
-    showNotification(data.message, 'error');
-    return;
-  }
-  
-  // Sequence table data
-  if (data.type === 'sequenceTable') {
-    if (typeof renderSequenceTable === 'function') {
-      renderSequenceTable(data.data);
-    }
-    return;
-  }
-  
-  // Sequence execution status
-  if (data.type === 'sequenceStatus') {
-    if (typeof updateSequenceStatus === 'function') {
-      updateSequenceStatus(data);
-    }
-    return;
-  }
-  
-  // Export data (trigger download)
-  if (data.type === 'exportData') {
-    handleExportData(data.data);
-    return;
-  }
-  
-  // Filesystem listing
-  if (data.type === 'fsList') {
-    handleFileSystemList(data.files);
-    return;
-  }
-  
-  // Log messages from backend
-  if (data.type === 'log') {
-    handleLogMessage(data);
+  // Dispatch typed messages via map lookup
+  const handler = messageHandlers[data.type];
+  if (handler) {
+    handler(data);
     return;
   }
   

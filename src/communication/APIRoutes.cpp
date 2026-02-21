@@ -806,27 +806,19 @@ void setupAPIRoutes() {
     // Delete all files in /logs directory
     File logsDir = LittleFS.open("/logs");
     if (logsDir && logsDir.isDirectory()) {
-      File logFile = logsDir.openNextFile();
-      while (logFile) {
-        if (!logFile.isDirectory()) {
-          // Get file name (without directory path)
-          auto fileName = String(logFile.name());
+      for (File logFile = logsDir.openNextFile(); logFile; logFile = logsDir.openNextFile()) {
+        if (logFile.isDirectory()) continue;
 
-          // Close file before deleting
-          logFile.close();
+        auto fileName = String(logFile.name());
+        logFile.close();
 
-          // Build full path and delete
-          String fullPath = "/logs/" + fileName;
-          if (LittleFS.remove(fullPath)) {
-            engine->info("🗑️ Deleted: " + fullPath);
-            deletedCount++;
-          } else {
-            engine->error("❌ Failed to delete: " + fullPath);
-          }
+        String fullPath = "/logs/" + fileName;
+        if (LittleFS.remove(fullPath)) {
+          engine->info("🗑️ Deleted: " + fullPath);
+          deletedCount++;
+        } else {
+          engine->error("❌ Failed to delete: " + fullPath);
         }
-
-        // Get next file
-        logFile = logsDir.openNextFile();
       }
       logsDir.close();
     }
@@ -968,13 +960,10 @@ void setupAPIRoutes() {
 
     File dir = LittleFS.open("/dumps");
     if (dir && dir.isDirectory()) {
-      File f = dir.openNextFile();
-      while (f) {
-        if (!f.isDirectory()) {
-          String name = f.name();
-          if (name > latestName) latestName = name;  // Lexicographic = chronological (YYYYMMDD_HHMMSS)
-        }
-        f = dir.openNextFile();
+      for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+        if (f.isDirectory()) continue;
+        String name = f.name();
+        if (name > latestName) latestName = name;  // Lexicographic = chronological (YYYYMMDD_HHMMSS)
       }
     }
 

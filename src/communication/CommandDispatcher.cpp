@@ -599,12 +599,9 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
 
         // Parse patterns array
         if (JsonArray patternsArray = doc["patternsEnabled"]; patternsArray) {
-            int idx = 0;
-            for (JsonVariant v : patternsArray) {
-                if (idx < CHAOS_PATTERN_COUNT) {
-                    chaos.patternsEnabled[idx] = v.as<bool>();
-                    idx++;
-                }
+            const size_t count = min(patternsArray.size(), static_cast<size_t>(CHAOS_PATTERN_COUNT));
+            for (size_t idx = 0; idx < count; idx++) {
+                chaos.patternsEnabled[idx] = patternsArray[idx].as<bool>();
             }
         }
 
@@ -641,12 +638,9 @@ bool CommandDispatcher::handleChaosCommands(const char* cmd, JsonDocument& doc, 
         }
 
         if (JsonArray patternsArray = doc["patternsEnabled"]; patternsArray) {
-            int idx = 0;
-            for (JsonVariant v : patternsArray) {
-                if (idx < CHAOS_PATTERN_COUNT) {
-                    chaos.patternsEnabled[idx] = v.as<bool>();
-                    idx++;
-                }
+            const size_t count = min(patternsArray.size(), static_cast<size_t>(CHAOS_PATTERN_COUNT));
+            for (size_t idx = 0; idx < count; idx++) {
+                chaos.patternsEnabled[idx] = patternsArray[idx].as<bool>();
             }
         }
 

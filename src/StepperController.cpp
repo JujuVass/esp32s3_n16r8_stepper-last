@@ -419,15 +419,14 @@ void motorTask(void* param) {
         BaseMovement.process();
         break;
 
-      case MOVEMENT_PURSUIT:
-        if (pursuit.isMoving) {
-          unsigned long currentMicros = micros();
-          if (currentMicros - lastStepMicros >= pursuit.stepDelay) {
-            lastStepMicros = currentMicros;
-            Pursuit.process();
-          }
+      case MOVEMENT_PURSUIT: {
+        unsigned long currentMicros = micros();
+        if (pursuit.isMoving && currentMicros - lastStepMicros >= pursuit.stepDelay) {
+          lastStepMicros = currentMicros;
+          Pursuit.process();
         }
         break;
+      }
 
       case MOVEMENT_OSC:
         if (config.currentState == SystemState::STATE_RUNNING) {
@@ -495,23 +494,23 @@ void networkTask(void* param) {
 
     // HTTP server and WebSocket - skip during calibration or blocking moves
     // (CalibrationManager/blocking loops handle them internally via serviceWebSocket())
-    if (!calibrationInProgress && !blockingMoveInProgress) {
-      if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-        server.handleClient();
-        webSocket.loop();
-        xSemaphoreGiveRecursive(wsMutex);
-      }
+    const bool canProcess = !calibrationInProgress && !blockingMoveInProgress;
 
-      // ═══════════════════════════════════════════════════════════════════════
-      // STATUS BROADCAST (adaptive rate: 10Hz active, 5Hz calibrating, 1Hz idle)
-      // ═══════════════════════════════════════════════════════════════════════
-      static unsigned long lastUpdate = 0;
-      if (millis() - lastUpdate > Status.getAdaptiveBroadcastInterval()) {
-        lastUpdate = millis();
-        if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-          sendStatus();  // Uses webSocket.broadcastTXT - must not run concurrently with Core 1
-          xSemaphoreGiveRecursive(wsMutex);
-        }
+    if (canProcess && wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+      server.handleClient();
+      webSocket.loop();
+      xSemaphoreGiveRecursive(wsMutex);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STATUS BROADCAST (adaptive rate: 10Hz active, 5Hz calibrating, 1Hz idle)
+    // ═══════════════════════════════════════════════════════════════════════
+    static unsigned long lastUpdate = 0;
+    if (canProcess && millis() - lastUpdate > Status.getAdaptiveBroadcastInterval()) {
+      lastUpdate = millis();
+      if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        sendStatus();  // Uses webSocket.broadcastTXT - must not run concurrently with Core 1
+        xSemaphoreGiveRecursive(wsMutex);
       }
     }
 

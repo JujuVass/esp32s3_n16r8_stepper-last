@@ -127,6 +127,35 @@ void FilesystemManager::registerRoutes() {
 // ROUTE HANDLERS
 // ============================================================================
 
+// Helper function for recursive directory listing (extracted from lambda - S1188)
+static void listDirRecursive(const char* dirname, const JsonArray& parentArray, uint32_t& usedBytes) {
+  File root = LittleFS.open(dirname);
+  if (!root || !root.isDirectory()) {
+    return;
+  }
+
+  for (File file = root.openNextFile(); file; file = root.openNextFile()) {
+    auto fileName = String(file.name());
+    String path = String(dirname) + "/" + fileName;
+    if (path.startsWith("//")) path = path.substring(1);
+
+    JsonObject fileObj = parentArray.add<JsonObject>();
+    fileObj["name"] = fileName;
+    fileObj["path"] = path;
+    fileObj["size"] = (int)file.size();
+    fileObj["time"] = (int)file.getLastWrite();
+    fileObj["isDir"] = file.isDirectory();
+
+    if (!file.isDirectory()) {
+      usedBytes += file.size();
+    } else {
+      JsonArray childrenArray = fileObj["children"].to<JsonArray>();
+      listDirRecursive(path.c_str(), childrenArray, usedBytes);
+    }
+  }
+  root.close();
+}
+
 void FilesystemManager::handleListFiles() {
   JsonDocument doc;
   JsonArray filesArray = doc["files"].to<JsonArray>();
@@ -134,45 +163,8 @@ void FilesystemManager::handleListFiles() {
   uint32_t usedBytes = 0;
   uint32_t totalBytes = LittleFS.totalBytes();
 
-  // Recursive lambda that builds hierarchical structure
-  function<void(const char*, const JsonArray&)> listDir = [&](const char* dirname, const JsonArray& parentArray) {
-    File root = LittleFS.open(dirname);
-    if (!root || !root.isDirectory()) {
-      return;
-    }
-
-    File file = root.openNextFile();
-    while (file) {
-      auto fileName = String(file.name());
-      String path = String(dirname) + "/" + fileName;
-      if (path.startsWith("//")) path = path.substring(1);
-
-      // Create object for this file/folder
-      JsonObject fileObj = parentArray.add<JsonObject>();
-      fileObj["name"] = fileName;
-      fileObj["path"] = path;
-      fileObj["size"] = (int)file.size();
-      fileObj["time"] = (int)file.getLastWrite();
-      fileObj["isDir"] = file.isDirectory();
-
-      // Count bytes only for files (not directories)
-      if (!file.isDirectory()) {
-        usedBytes += file.size();
-      }
-
-      // If it's a directory, add nested "children" array and recurse
-      if (file.isDirectory()) {
-        JsonArray childrenArray = fileObj["children"].to<JsonArray>();
-        listDir(path.c_str(), childrenArray);
-      }
-
-      file = root.openNextFile();
-    }
-    root.close();
-  };
-
   // Start recursion from root
-  listDir("/", filesArray);
+  listDirRecursive("/", filesArray, usedBytes);
 
   doc["usedBytes"] = usedBytes;
   doc["totalBytes"] = totalBytes;
@@ -303,21 +295,18 @@ void FilesystemManager::handleUploadFile() {
     String filename = normalizePath(upload.filename);
 
     // 🛡️ PROTECTION: Check available space BEFORE accepting upload
-    if (server.hasHeader("Content-Length")) {
-      size_t contentLength = server.header("Content-Length").toInt();
-      size_t totalBytes = LittleFS.totalBytes();
-      size_t usedBytes = LittleFS.usedBytes();
-      size_t available = totalBytes - usedBytes;
+    const bool hasContentLength = server.hasHeader("Content-Length");
+    const size_t contentLength = hasContentLength ? server.header("Content-Length").toInt() : 0;
+    const size_t available = LittleFS.totalBytes() - LittleFS.usedBytes();
 
-      if (contentLength > available) {
-        if (engine) engine->error("Upload rejected: file too large (" + String(contentLength) + " bytes needed, only " + String(available) + " bytes available)");
-        else Serial.printf("Upload rejected: file too large (%d bytes needed, only %d bytes available)\n",
-                     contentLength, available);
-        server.send(413, "application/json",
-          R"({"error":"File too large","needed":)" + String(contentLength) +
-          R"(,"available":)" + String(available) + "}");
-        return;
-      }
+    if (hasContentLength && contentLength > available) {
+      if (engine) engine->error("Upload rejected: file too large (" + String(contentLength) + " bytes needed, only " + String(available) + " bytes available)");
+      else Serial.printf("Upload rejected: file too large (%d bytes needed, only %d bytes available)\n",
+                   contentLength, available);
+      server.send(413, "application/json",
+        R"({"error":"File too large","needed":)" + String(contentLength) +
+        R"(,"available":)" + String(available) + "}");
+      return;
     }
 
     // Create parent directories if needed

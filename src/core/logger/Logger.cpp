@@ -49,18 +49,13 @@ bool Logger::initializeLogFile() {
   // Direct LittleFS: intentional (directory iteration not supported by FileSystem wrapper)
   File logsDir = LittleFS.open("/logs");
   if (logsDir && logsDir.isDirectory()) {
-    File logFile = logsDir.openNextFile();
-    while (logFile) {
+    for (File logFile = logsDir.openNextFile(); logFile; logFile = logsDir.openNextFile()) {
       auto fileName = String(logFile.name());
-      if (fileName.indexOf("1970") >= 0) {
-        String fullPath = "/logs/" + fileName;
-        logFile.close();
-        if (LittleFS.remove(fullPath)) {
-          Serial.println("[Logger] 🗑️ Removed epoch file: " + fullPath);
-        }
-        logFile = logsDir.openNextFile();
-      } else {
-        logFile = logsDir.openNextFile();
+      if (fileName.indexOf("1970") < 0) continue;
+      String fullPath = "/logs/" + fileName;
+      logFile.close();
+      if (LittleFS.remove(fullPath)) {
+        Serial.println("[Logger] 🗑️ Removed epoch file: " + fullPath);
       }
     }
   }
@@ -264,20 +259,13 @@ String Logger::generateLogFilename() {
 
   // Direct LittleFS: intentional (directory iteration not supported by FileSystem wrapper)
   if (auto scanDir = LittleFS.open("/logs"); scanDir) {
-    File file = scanDir.openNextFile();
-    while (file) {
+    const String prefix = "log_" + dateStr + "_";
+    for (File file = scanDir.openNextFile(); file; file = scanDir.openNextFile()) {
       auto fileName = String(file.name());
-
-      if (String prefix = "log_" + dateStr + "_"; fileName.startsWith(prefix) && fileName.endsWith(".txt")) {
-        String suffixStr = fileName.substring(
-          prefix.length(),
-          fileName.length() - 4
-        );
-        int suffix = suffixStr.toInt();
-        if (suffix > maxSuffix) maxSuffix = suffix;
-      }
-
-      file = scanDir.openNextFile();
+      if (!fileName.startsWith(prefix) || !fileName.endsWith(".txt")) continue;
+      String suffixStr = fileName.substring(prefix.length(), fileName.length() - 4);
+      int suffix = suffixStr.toInt();
+      if (suffix > maxSuffix) maxSuffix = suffix;
     }
     scanDir.close();
   }

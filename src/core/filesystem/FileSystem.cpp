@@ -35,22 +35,22 @@ bool FileSystem::mount() {
     if (engine) engine->info("Attempting manual LittleFS format...");
     else Serial.println("[FileSystem] Attempting manual LittleFS format...");
 
-    if (LittleFS.format()) {
+    const bool formatted = LittleFS.format();
+    if (formatted) {
       if (engine) engine->info("Format successful, remounting...");
       else Serial.println("[FileSystem] Format successful, remounting...");
-
-      // STEP 3: Try mounting again after format
       _mounted = LittleFS.begin(false);
+    }
 
-      if (_mounted) {
-        if (engine) engine->info("LittleFS mounted after format");
-        else Serial.println("[FileSystem] LittleFS mounted after format");
-      } else {
-        if (engine) engine->error("CRITICAL: LittleFS still won't mount after format! Running in DEGRADED mode");
-        else {
-          Serial.println("[FileSystem] CRITICAL: LittleFS still won't mount after format!");
-          Serial.println("[FileSystem] Running in DEGRADED mode (no filesystem)");
-        }
+    // Report result (flattened to avoid deep nesting)
+    if (_mounted) {
+      if (engine) engine->info("LittleFS mounted after format");
+      else Serial.println("[FileSystem] LittleFS mounted after format");
+    } else if (formatted) {
+      if (engine) engine->error("CRITICAL: LittleFS still won't mount after format! Running in DEGRADED mode");
+      else {
+        Serial.println("[FileSystem] CRITICAL: LittleFS still won't mount after format!");
+        Serial.println("[FileSystem] Running in DEGRADED mode (no filesystem)");
       }
     } else {
       if (engine) engine->error("Format failed - hardware issue or severe corruption. Running in DEGRADED mode");

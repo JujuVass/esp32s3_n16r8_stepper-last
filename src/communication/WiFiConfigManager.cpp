@@ -171,30 +171,31 @@ int WiFiConfigManager::scanNetworks(WiFiNetworkInfo* networks, int maxNetworks) 
         // Skip empty SSIDs
         if (currentSSID.isEmpty()) continue;
 
-        // Check if this SSID already exists in our list
-        bool isDuplicate = false;
+        // Find existing entry with same SSID
+        int existingIdx = -1;
         for (int j = 0; j < uniqueCount; j++) {
             if (networks[j].ssid == currentSSID) {
-                // Duplicate found - keep the one with better signal
-                isDuplicate = true;
-                if (currentRSSI > networks[j].rssi) {
-                    // This one is stronger, replace
-                    networks[j].rssi = currentRSSI;
-                    networks[j].encryptionType = WiFi.encryptionType(i);
-                    networks[j].channel = WiFi.channel(i);
-                }
+                existingIdx = j;
                 break;
             }
         }
 
-        // Not a duplicate, add to list
-        if (!isDuplicate) {
-            networks[uniqueCount].ssid = currentSSID;
-            networks[uniqueCount].rssi = currentRSSI;
-            networks[uniqueCount].encryptionType = WiFi.encryptionType(i);
-            networks[uniqueCount].channel = WiFi.channel(i);
-            uniqueCount++;
+        // Duplicate: keep strongest signal
+        if (existingIdx >= 0) {
+            if (currentRSSI > networks[existingIdx].rssi) {
+                networks[existingIdx].rssi = currentRSSI;
+                networks[existingIdx].encryptionType = WiFi.encryptionType(i);
+                networks[existingIdx].channel = WiFi.channel(i);
+            }
+            continue;
         }
+
+        // New network, add to list
+        networks[uniqueCount].ssid = currentSSID;
+        networks[uniqueCount].rssi = currentRSSI;
+        networks[uniqueCount].encryptionType = WiFi.encryptionType(i);
+        networks[uniqueCount].channel = WiFi.channel(i);
+        uniqueCount++;
     }
 
     // Sort by signal strength (strongest first)
