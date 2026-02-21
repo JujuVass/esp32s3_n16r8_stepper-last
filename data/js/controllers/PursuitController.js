@@ -179,7 +179,7 @@ function enablePursuitMode() {
   
   // Use already set target position (from gauge clicks or current position)
   // Don't reset to current position - keep user's target choice
-  if (AppState.pursuit.targetMM === undefined || isNaN(AppState.pursuit.targetMM)) {
+  if (AppState.pursuit.targetMM === undefined || Number.isNaN(AppState.pursuit.targetMM)) {
     // Only initialize if never set before
     AppState.pursuit.targetMM = AppState.pursuit.currentPositionMM;
     setGaugeTarget(AppState.pursuit.currentPositionMM);

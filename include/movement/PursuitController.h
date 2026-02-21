@@ -51,7 +51,7 @@ public:
      * Initialize pursuit controller
      * Called during setup() after UtilityEngine is available
      */
-    void begin();
+    void begin() const;
 
     // ========================================================================
     // MAIN CONTROL
@@ -64,7 +64,7 @@ public:
      * @param targetPositionMM Target position in millimeters
      * @param maxSpeedLevel Maximum speed level (1-MAX_SPEED_LEVEL)
      */
-    void move(float targetPositionMM, float maxSpeedLevel);
+    void move(float targetPositionMM, float maxSpeedLevel) const;
 
     /**
      * Process one pursuit step
@@ -77,7 +77,7 @@ public:
      * Stop pursuit movement
      * Called when stopping all movement or switching modes
      */
-    void stop();
+    void stop() const;
 
     // ========================================================================
     // STATE ACCESS
@@ -98,7 +98,7 @@ private:
      * @param moveForward Direction of movement
      * @return true if safe to continue, false if contact hit
      */
-    bool checkSafetyContacts(bool moveForward);
+    bool checkSafetyContacts(bool moveForward) const;
 };
 
 // ============================================================================

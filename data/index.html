@@ -2146,7 +2146,7 @@
       // Only add cache-bust on retry (after network error) - first attempt uses browser cache
       var url = src;
       if (attempt > 0) {
-        url += (src.indexOf('?') === -1 ? '?' : '&') + '_retry=' + attempt + '&_t=' + Date.now();
+        url += (src.includes('?') ? '&' : '?') + '_retry=' + attempt + '&_t=' + Date.now();
       }
       xhr.open('GET', url, true);
       xhr.responseType = 'blob';
@@ -2193,10 +2193,10 @@
           try {
             var data = JSON.parse(xhr.responseText);
             if (data.ip && data.ip !== '0.0.0.0') {
-              window.__espIp = data.ip;
+              globalThis.__espIp = data.ip;
               console.debug('[Loader] Resolved ESP32 IP:', data.ip, '(for WebSocket)');
             }
-          } catch(e) { /* ignore parse error */ }
+          } catch(e) { console.debug('[Loader] IP parse error:', e.message); }
         }
         pump();
       };

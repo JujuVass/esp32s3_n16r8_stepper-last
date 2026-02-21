@@ -71,8 +71,8 @@ const I18n = (() => {
         try {
           const fallback = await fetch('/lang/fr.json');
           if (fallback.ok) _translations = await fallback.json();
-        } catch (e2) {
-          console.error('i18n: Fallback to fr.json also failed');
+        } catch (error_) {
+          console.error('i18n: Fallback to fr.json also failed:', error_.message);
         }
       }
     }

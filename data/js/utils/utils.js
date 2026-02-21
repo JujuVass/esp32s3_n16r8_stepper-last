@@ -29,7 +29,7 @@
 // Notification state management
 const NotificationManager = {
   container: null,
-  activeNotifications: [],  // {element, message, timeoutId, removeFunc, duration}
+  activeNotifications: [],  // tracked items: element, message, timeoutId, removeFunc, duration
   MAX_NOTIFICATIONS: 5,
 
   init() {
@@ -66,7 +66,7 @@ const NotificationManager = {
     if (now - (entry.lastBumpTime || 0) >= this.BUMP_COOLDOWN_MS) {
       entry.lastBumpTime = now;
       entry.element.classList.remove('notif-bump');
-      void entry.element.offsetWidth;
+      entry.element.offsetWidth; // Force reflow for animation restart
       entry.element.classList.add('notif-bump');
     }
 
@@ -182,7 +182,7 @@ function validateNumericInput(value, options = {}) {
   let wasAdjusted = false;
   
   // Handle NaN
-  if (isNaN(numValue)) {
+  if (Number.isNaN(numValue)) {
     numValue = defaultValue;
     wasAdjusted = true;
   }
@@ -534,7 +534,7 @@ function setupPresetButtons(dataAttribute, onClickCallback) {
   document.querySelectorAll(`[${dataAttribute}]`).forEach(btn => {
     btn.addEventListener('click', function() {
       const value = Number.parseFloat(this.getAttribute(dataAttribute));
-      if (onClickCallback && !isNaN(value)) {
+      if (onClickCallback && !Number.isNaN(value)) {
         onClickCallback(value, this);
       }
     });
@@ -610,11 +610,11 @@ function enforceNumericConstraints(input) {
     const max = Number.parseFloat(this.getAttribute('max'));
     const val = Number.parseFloat(this.value);
     
-    if (!isNaN(min) && val < min) {
+    if (!Number.isNaN(min) && val < min) {
       this.value = min;
       if (typeof validateEditForm === 'function') validateEditForm();
     }
-    if (!isNaN(max) && val > max) {
+    if (!Number.isNaN(max) && val > max) {
       this.value = max;
       if (typeof validateEditForm === 'function') validateEditForm();
     }
@@ -771,7 +771,7 @@ async function postWithRetry(url, data, retryConfig = {}) {
   
   if (!response.ok) {
     let errorMsg = `HTTP ${response.status}`;
-    try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch(e) {}
+    try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch { /* non-JSON response body */ }
     throw new Error(errorMsg);
   }
   return response.json();
@@ -790,7 +790,7 @@ async function getWithRetry(url, retryConfig = {}) {
   
   if (!response.ok) {
     let errorMsg = `HTTP ${response.status}`;
-    try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch(e) {}
+    try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch { /* non-JSON response body */ }
     throw new Error(errorMsg);
   }
   return response.json();

@@ -85,7 +85,7 @@ bool ContactSensors::isClear(uint8_t pin) const {
 // DRIFT DETECTION & CORRECTION
 // ============================================================================
 
-bool ContactSensors::checkAndCorrectDriftEnd() {
+bool ContactSensors::checkAndCorrectDriftEnd() const {
     // LEVEL 3: SOFT DRIFT at END
     // Position beyond config.maxStep but within buffer zone (SAFETY_OFFSET_STEPS)
     // Action: Physically move motor backward to correct position
@@ -115,7 +115,7 @@ bool ContactSensors::checkAndCorrectDriftEnd() {
     return false;  // No drift detected
 }
 
-bool ContactSensors::checkAndCorrectDriftStart() {
+bool ContactSensors::checkAndCorrectDriftStart() const {
     // LEVEL 1: SOFT DRIFT at START
     // Negative position within buffer zone (-SAFETY_OFFSET_STEPS to 0)
     // Action: Physically move motor forward to correct position
@@ -144,7 +144,7 @@ bool ContactSensors::checkAndCorrectDriftStart() {
     return false;  // No drift detected
 }
 
-bool ContactSensors::checkHardDriftEnd() {
+bool ContactSensors::checkHardDriftEnd() const {
     // HARD DRIFT at END: Physical contact reached = critical error
     // OPTIMIZATION: Only test when close to config.maxStep (reduces false positives + CPU overhead)
 
@@ -169,7 +169,7 @@ bool ContactSensors::checkHardDriftEnd() {
     return true;  // Safe to continue
 }
 
-bool ContactSensors::checkHardDriftStart() {
+bool ContactSensors::checkHardDriftStart() const {
     // HARD DRIFT at START: Physical contact reached = critical error
     // OPTIMIZATION: Only test when close to position 0 (reduces false positives + CPU overhead)
 

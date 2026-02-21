@@ -608,7 +608,7 @@ function updateMilestones(totalTraveledMM) {
         
         // Trigger icon animation
         DOM.milestoneIcon.classList.remove('milestone-achievement');
-        void DOM.milestoneIcon.offsetWidth;
+        DOM.milestoneIcon.offsetWidth; // Force reflow for animation restart
         DOM.milestoneIcon.classList.add('milestone-achievement');
         
         // Show celebration notification

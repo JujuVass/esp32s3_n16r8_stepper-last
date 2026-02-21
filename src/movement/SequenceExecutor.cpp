@@ -460,7 +460,7 @@ bool SequenceExecutor::checkAndHandleSequenceEnd() {
 // LINE STARTERS
 // ============================================================================
 
-void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
+void SequenceExecutor::startVaEtVientLine(const SequenceLine* line) {
     // Apply line parameters to motion configuration
     motion.startPositionMM = line->startPositionMM;
     motion.targetDistanceMM = line->distanceMM;
@@ -531,7 +531,7 @@ void SequenceExecutor::startVaEtVientLine(SequenceLine* line) {
     sendStatus();
 }
 
-void SequenceExecutor::startOscillationLine(SequenceLine* line) {
+void SequenceExecutor::startOscillationLine(const SequenceLine* line) {
     // Copy oscillation parameters from sequence line to oscillation config
     oscillation.centerPositionMM = line->oscCenterPositionMM;
     oscillation.amplitudeMM = line->oscAmplitudeMM;
@@ -595,7 +595,7 @@ void SequenceExecutor::startOscillationLine(SequenceLine* line) {
     sendStatus();
 }
 
-void SequenceExecutor::startChaosLine(SequenceLine* line) {
+void SequenceExecutor::startChaosLine(const SequenceLine* line) {
     // Copy chaos parameters from sequence line to chaos config
     chaos.centerPositionMM = line->chaosCenterPositionMM;
     chaos.amplitudeMM = line->chaosAmplitudeMM;
@@ -625,7 +625,7 @@ void SequenceExecutor::startChaosLine(SequenceLine* line) {
     sendStatus();
 }
 
-void SequenceExecutor::startCalibrationLine([[maybe_unused]] SequenceLine* line) {
+void SequenceExecutor::startCalibrationLine([[maybe_unused]] const SequenceLine* line) {
     engine->info(String("▶️ Line ") + String(seqState.currentLineIndex + 1) + "/" + String(sequenceLineCount) +
           " | 📏 CALIBRATION | Starting full calibration...");
 

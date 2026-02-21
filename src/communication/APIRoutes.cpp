@@ -917,7 +917,7 @@ void setupAPIRoutes() {
       engine->info(enabled ? "✅ Logging ENABLED" : "❌ Logging DISABLED");
     }
 
-    // Update log level: 0=ERROR, 1=WARN, 2=INFO, 3=DEBUG
+    // Update log level (ERROR=0, WARN=1, INFO=2, DEBUG=3)
     if (doc["logLevel"].is<int>()) {
       int level = doc["logLevel"];
       if (level >= 0 && level <= 3) {

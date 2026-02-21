@@ -286,7 +286,7 @@ SequenceLine SequenceTableManager::parseFromJson(JsonVariantConst obj) {
     line.vaetZoneEffect.speedCurve = static_cast<SpeedCurve>(ze["speedCurve"] | 0);
     line.vaetZoneEffect.speedIntensity = ze["speedIntensity"] | 75.0f;
     line.vaetZoneEffect.randomTurnbackEnabled = ze["randomTurnbackEnabled"] | false;
-    line.vaetZoneEffect.turnbackChance = ze["turnbackChance"] | 30;
+    line.vaetZoneEffect.turnbackChance = static_cast<uint8_t>(ze["turnbackChance"] | 30);
     line.vaetZoneEffect.endPauseEnabled = ze["endPauseEnabled"] | false;
     line.vaetZoneEffect.endPauseIsRandom = ze["endPauseIsRandom"] | false;
     line.vaetZoneEffect.endPauseDurationSec = ze["endPauseDurationSec"] | 1.0f;

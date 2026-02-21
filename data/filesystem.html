@@ -453,13 +453,13 @@
       
       files.forEach(file => {
         const indent = depth * 20; // 20px indent per level
-        const folderId = `folder-${file.path.replace(/\//g, '-')}`;
+        const folderId = `folder-${file.path.replaceAll('/', '-')}`;
         
         // Build actions for files only (not folders)
         const actions = file.isDir ? '' : `
-          <button class="btn-info" onclick="downloadFile('${file.path.replace(/'/g, "\\'")}')"
+          <button class="btn-info" onclick="downloadFile('${file.path.replaceAll("'", "\\'")}')"
             title="Download">⬇️</button>
-          <button class="btn-danger" onclick="deleteFile('${file.path.replace(/'/g, "\\'")}')"
+          <button class="btn-danger" onclick="deleteFile('${file.path.replaceAll("'", "\\'")}')"
             title="Delete">🗑️</button>
         `;
         
@@ -471,17 +471,20 @@
         const displayStyle = isOpen ? 'display: block;' : 'display: none;';
         
         // Folders: clickable name to toggle, Files: clickable name to edit (text files only)
-        const safeFileName = file.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const fileNameHtml = file.isDir 
-          ? `<span class="file-name-link" onclick="toggleFolder('${folderId}')" title="Click to expand/collapse">${safeFileName}</span>`
-          : (!isBinaryFile(file.name) 
-              ? `<span class="file-name-link" onclick="editFile('${file.path.replace(/'/g, "\\'")}'` +
-                `, '${file.name.replace(/'/g, "\\'")}')" title="Click to edit">${safeFileName}</span>`
-              : `<span>${safeFileName}</span>`);
+        const safeFileName = file.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+        let fileNameHtml;
+        if (file.isDir) {
+          fileNameHtml = `<span class="file-name-link" onclick="toggleFolder('${folderId}')" title="Click to expand/collapse">${safeFileName}</span>`;
+        } else if (isBinaryFile(file.name)) {
+          fileNameHtml = `<span>${safeFileName}</span>`;
+        } else {
+          fileNameHtml = `<span class="file-name-link" onclick="editFile('${file.path.replaceAll("'", "\\'")}'` +
+                `, '${file.name.replaceAll("'", "\\'")}')" title="Click to edit">${safeFileName}</span>`;
+        }
         
         // For folders, show file count instead of date
         const dateOrCount = file.isDir 
-          ? `${file.children ? file.children.length : 0} items`
+          ? `${file.children?.length ?? 0} items`
           : formatDate(file.time);
         
         const fileSize = file.isDir 
@@ -587,7 +590,7 @@
       link.download = path.split('/').pop();
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.remove();
       showMessage('Downloaded: ' + path.split('/').pop(), 'success');
     }
     

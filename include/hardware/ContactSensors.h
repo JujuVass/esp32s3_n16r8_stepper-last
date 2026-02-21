@@ -27,10 +27,10 @@ public:
     // ========================================================================
     // DRIFT DETECTION & CORRECTION
     // ========================================================================
-    bool checkAndCorrectDriftEnd();
-    bool checkAndCorrectDriftStart();
-    bool checkHardDriftEnd();
-    bool checkHardDriftStart();
+    bool checkAndCorrectDriftEnd() const;
+    bool checkAndCorrectDriftStart() const;
+    bool checkHardDriftEnd() const;
+    bool checkHardDriftStart() const;
 
 private:
     ContactSensors() = default;

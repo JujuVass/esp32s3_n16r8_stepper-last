@@ -111,9 +111,6 @@ def extract_symbols(filepath: Path, content: str) -> dict:
     """Extract all defined symbols from a file."""
     symbols = {}  # name -> { "type": ..., "file": ..., "line": ... }
     clean = strip_strings(strip_comments(content))
-    lines = content.split('\n')
-    
-    rel = filepath.name
     
     # --- Functions (definitions with body) ---
     for m in RE_FUNC_DEF.finditer(clean):
@@ -127,7 +124,7 @@ def extract_symbols(filepath: Path, content: str) -> dict:
     # --- #define macros ---
     for m in RE_DEFINE.finditer(clean):
         name = m.group(1)
-        if name not in FRAMEWORK_SYMBOLS and not name.startswith("_") and name == name:  # skip include guards
+        if name not in FRAMEWORK_SYMBOLS and not name.startswith("_"):
             # Skip include guards (pattern: FILENAME_H)
             guard_pattern = filepath.stem.upper().replace(".", "_") + "_H"
             if name == guard_pattern or name.endswith("_H") and len(name) < 30:
@@ -279,7 +276,7 @@ def main():
         for jsf in js_dir.rglob("*.js"):
             try:
                 js_contents += jsf.read_text(encoding='utf-8', errors='replace') + "\n"
-            except:
+            except Exception:
                 pass
     
     # Extract symbols from all files

@@ -844,8 +844,8 @@ function handleTrashDrop(e) {
 
 function initializeTrashZones() {
   const trashZone = document.getElementById('sequenceTrashZone');
-  if (trashZone && !trashZone.hasAttribute('data-initialized')) {
-    trashZone.setAttribute('data-initialized', 'true');
+  if (trashZone && !('initialized' in trashZone.dataset)) {
+    trashZone.dataset.initialized = 'true';
     
     trashZone.ondragover = function(e) {
       e.preventDefault();
@@ -865,8 +865,8 @@ function initializeTrashZones() {
   }
   
   const trashDropZone = document.getElementById('sequenceTrashDropZone');
-  if (trashDropZone && !trashDropZone.hasAttribute('data-initialized')) {
-    trashDropZone.setAttribute('data-initialized', 'true');
+  if (trashDropZone && !('initialized' in trashDropZone.dataset)) {
+    trashDropZone.dataset.initialized = 'true';
     
     trashDropZone.ondragover = function(e) {
       e.preventDefault();
@@ -1021,16 +1021,16 @@ function createSequenceRow(line, index) {
   
   row.draggable = true;
   row.classList.add('sequence-line-draggable');
-  row.setAttribute('data-line-id', line.lineId);
-  row.setAttribute('data-line-index', index);
+  row.dataset.lineId = line.lineId;
+  row.dataset.lineIndex = index;
   
   if (selectedLineIds.has(line.lineId)) {
     row.classList.add('sequence-line-selected');
   }
   
   const tooltipContent = generateSequenceLineTooltip(line);
-  row.setAttribute('data-tooltip', tooltipContent.replaceAll('"', '&quot;'));
-  row.setAttribute('data-line-number', index + 1);
+  row.dataset.tooltip = tooltipContent.replaceAll('"', '&quot;');
+  row.dataset.lineNumber = index + 1;
   
   const movementType = line.movementType === undefined ? 0 : line.movementType;
   const typeDisplay = getTypeDisplay(movementType, line);
@@ -1085,7 +1085,7 @@ function createSequenceRow(line, index) {
     </td>
   `;
   
-  row.setAttribute('data-line-type', typeDisplay.typeName);
+  row.dataset.lineType = typeDisplay.typeName;
   
   // Event handlers
   attachRowEventHandlers(row, line, index);

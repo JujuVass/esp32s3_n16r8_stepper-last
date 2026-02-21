@@ -117,9 +117,9 @@ function sendOscillationConfig() {
     frequencyHz: Number.parseFloat(formValues.frequency) || 0.5,
     cycleCount: Number.parseInt(formValues.cycleCount) || 0,
     enableRampIn: formValues.enableRampIn,
-    rampInDurationMs: isNaN(rampIn) ? 2000 : rampIn,
+    rampInDurationMs: Number.isNaN(rampIn) ? 2000 : rampIn,
     enableRampOut: formValues.enableRampOut,
-    rampOutDurationMs: isNaN(rampOut) ? 2000 : rampOut,
+    rampOutDurationMs: Number.isNaN(rampOut) ? 2000 : rampOut,
     returnToCenter: formValues.returnToCenter
   };
   

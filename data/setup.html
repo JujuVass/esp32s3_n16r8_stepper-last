@@ -663,9 +663,7 @@
       
       try {
         await fetch('/api/wifi/reboot', { method: 'POST' });
-      } catch (e) {
-        // Expected - connection will be lost
-      }
+      } catch { // Expected: connection lost during reboot }
       
       // Countdown
       let countdown = 10;
@@ -688,12 +686,10 @@
       try {
         showStatus('info', '🗑️ Suppression de la configuration...');
         const response = await fetch('/api/wifi/forget', { method: 'POST' });
-        const data = await response.json();
+        await response.json();
         
         showStatus('info', '🔄 Redémarrage en cours...');
-      } catch (error) {
-        // Expected - connection will be lost during reboot
-      }
+      } catch { // Expected: connection lost during reboot }
     }
 
     function showStatus(type, message) {

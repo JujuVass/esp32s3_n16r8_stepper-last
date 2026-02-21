@@ -29,7 +29,7 @@ PursuitControllerClass Pursuit;
 // LIFECYCLE
 // ============================================================================
 
-void PursuitControllerClass::begin() {
+void PursuitControllerClass::begin() const {
     engine->info("🎯 PursuitController initialized");
 }
 
@@ -37,7 +37,7 @@ void PursuitControllerClass::begin() {
 // MAIN CONTROL
 // ============================================================================
 
-void PursuitControllerClass::move(float targetPositionMM, float maxSpeedLevel) {
+void PursuitControllerClass::move(float targetPositionMM, float maxSpeedLevel) const {
     // Safety check: calibration required
     if (config.totalDistanceMM == 0) {
         Status.sendError("❌ Pursuit mode requires calibration first!");
@@ -139,7 +139,7 @@ void PursuitControllerClass::process() {
     stats.trackDelta(currentStep);
 }
 
-void PursuitControllerClass::stop() {
+void PursuitControllerClass::stop() const {
     pursuit.isMoving = false;
 }
 
@@ -149,7 +149,7 @@ void PursuitControllerClass::stop() {
 
 
 
-bool PursuitControllerClass::checkSafetyContacts(bool moveForward) {
+bool PursuitControllerClass::checkSafetyContacts(bool moveForward) const {
     // Hard drift detection: only test contacts when near limits
     if (moveForward) {
         long stepsToLimit = config.maxStep - currentStep;

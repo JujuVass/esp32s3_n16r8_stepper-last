@@ -308,7 +308,12 @@ def diff_reports(old_path, new_path, project_root=None):
         for diff, rule, old_c, new_c in deltas:
             sign = "+" if diff > 0 else ""
             desc = RULE_DESCRIPTIONS.get(rule, "(?)")
-            indicator = "+" if diff < 0 else "-" if diff > 0 else " "
+            if diff < 0:
+                indicator = "+"
+            elif diff > 0:
+                indicator = "-"
+            else:
+                indicator = " "
             print(f"  {rule:<8} {old_c:>5} {new_c:>5} {sign}{diff:>5}  {indicator} {desc}")
     
     # New/resolved files

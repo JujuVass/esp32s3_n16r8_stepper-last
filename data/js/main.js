@@ -206,7 +206,7 @@
       // Update max values and presets
       if (data.totalDistMM !== undefined) {
         const effectiveMax = (data.effectiveMaxDistMM && data.effectiveMaxDistMM > 0) ? data.effectiveMaxDistMM : data.totalDistMM;
-        const startPos = (data.motion?.startPositionMM !== undefined) ? data.motion.startPositionMM : 0;
+        const startPos = data.motion?.startPositionMM ?? 0;
         const maxAvailable = effectiveMax - startPos;
         
         DOM.startPosition.max = effectiveMax;

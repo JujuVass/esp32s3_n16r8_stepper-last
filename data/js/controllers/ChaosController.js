@@ -84,7 +84,7 @@ function sendChaosConfig() {
     amplitudeMM: Number.parseFloat(formValues.amplitude) || 0,
     maxSpeedLevel: Number.parseFloat(formValues.maxSpeed) || 10,
     crazinessPercent: Number.parseInt(formValues.craziness) || 50,
-    durationSeconds: isNaN(duration) ? 30 : duration,  // 0 = infinite, don't default to 30
+    durationSeconds: Number.isNaN(duration) ? 30 : duration,  // 0 = infinite, don't default to 30
     seed: Number.parseInt(formValues.seed) || 0,
     patternsEnabled: formValues.patternsEnabled
   };

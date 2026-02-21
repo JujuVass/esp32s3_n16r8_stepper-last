@@ -407,7 +407,7 @@ void ChaosController::handleMultiPhase(const ChaosBaseConfig& cfg, const ChaosMu
     float maxPossibleAmplitude = calculateMaxAmplitude(effectiveMinLimit, effectiveMaxLimit);
     chaosState.waveAmplitude = maxPossibleAmplitude * (cfg.amplitudeJumpMin + (cfg.amplitudeJumpMax - cfg.amplitudeJumpMin) * craziness);
 
-    int forwardChance = dir_cfg.forwardChanceMin - static_cast<int>((dir_cfg.forwardChanceMin - dir_cfg.forwardChanceMax) * craziness);
+    int forwardChance = dir_cfg.forwardChanceMin - static_cast<int>(static_cast<float>(dir_cfg.forwardChanceMin - dir_cfg.forwardChanceMax) * craziness);
     chaosState.movingForward = random(100) < forwardChance;
 
     setDirectionalTarget(chaosState.waveAmplitude, effectiveMinLimit, effectiveMaxLimit);

@@ -151,22 +151,22 @@ private:
     /**
      * Start VA-ET-VIENT movement for current line
      */
-    void startVaEtVientLine(SequenceLine* line);
+    void startVaEtVientLine(const SequenceLine* line);
 
     /**
      * Start OSCILLATION movement for current line
      */
-    void startOscillationLine(SequenceLine* line);
+    void startOscillationLine(const SequenceLine* line);
 
     /**
      * Start CHAOS movement for current line
      */
-    void startChaosLine(SequenceLine* line);
+    void startChaosLine(const SequenceLine* line);
 
     /**
      * Start CALIBRATION for current line
      */
-    void startCalibrationLine(SequenceLine* line);
+    void startCalibrationLine(const SequenceLine* line);
 };
 
 // Global accessor (singleton)

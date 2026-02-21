@@ -216,6 +216,7 @@ async function loadLogFilesList() {
     DOM.logFilesList.innerHTML = '';  // Clear first
     DOM.logFilesList.appendChild(container);
   } catch (error) {
+    console.error('Error loading log files:', error);
     DOM.logFilesList.innerHTML = '<div class="text-error text-sm">' + t('tools.loadError') + '</div>';
   }
 }
@@ -697,11 +698,14 @@ function updateSystemStats(system) {
     const hours = Math.floor(uptimeSec / 3600);
     const minutes = Math.floor((uptimeSec % 3600) / 60);
     const seconds = uptimeSec % 60;
-    const uptimeStr = hours > 0 
-      ? `${hours}h ${minutes}m ${seconds}s`
-      : minutes > 0
-        ? `${minutes}m ${seconds}s`
-        : `${seconds}s`;
+    let uptimeStr;
+    if (hours > 0) {
+      uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      uptimeStr = `${minutes}m ${seconds}s`;
+    } else {
+      uptimeStr = `${seconds}s`;
+    }
     DOM.sysUptime.textContent = uptimeStr;
   }
   
