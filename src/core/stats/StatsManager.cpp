@@ -113,8 +113,8 @@ void StatsManager::incrementDailyStats(float distanceMM) {
     if (engine) engine->debug("📊 NTP not synced - deferring stats save");
     return;
   }
-  char dateStr[11];
-  strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo);
+  std::array<char, 11> dateStr{};
+  strftime(dateStr.data(), dateStr.size(), "%Y-%m-%d", &timeinfo);
 
   // Load existing stats
   JsonDocument statsDoc;
@@ -128,7 +128,7 @@ void StatsManager::incrementDailyStats(float distanceMM) {
 
   bool found = false;
   for (JsonObject entry : statsArray) {
-    if (strcmp(entry["date"], dateStr) == 0) {
+    if (strcmp(entry["date"], dateStr.data()) == 0) {
       float current = entry["distanceMM"] | 0.0f;
       entry["distanceMM"] = current + distanceMM;
       found = true;
@@ -138,7 +138,7 @@ void StatsManager::incrementDailyStats(float distanceMM) {
 
   if (!found) {
     JsonObject newEntry = statsArray.add<JsonObject>();
-    newEntry["date"] = dateStr;
+    newEntry["date"] = dateStr.data();
     newEntry["distanceMM"] = distanceMM;
   }
 
@@ -148,7 +148,7 @@ void StatsManager::incrementDailyStats(float distanceMM) {
     return;
   }
 
-  if (engine) engine->debug(String("📊 Stats: +") + String(distanceMM, 1) + "mm on " + String(dateStr));
+  if (engine) engine->debug(String("📊 Stats: +") + String(distanceMM, 1) + "mm on " + String(dateStr.data()));
 }
 
 float StatsManager::getTodayDistance() {
@@ -156,8 +156,8 @@ float StatsManager::getTodayDistance() {
   time_t now = time(nullptr);
   struct tm timeinfo;
   localtime_r(&now, &timeinfo);
-  char dateStr[11];
-  strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo);
+  std::array<char, 11> dateStr{};
+  strftime(dateStr.data(), dateStr.size(), "%Y-%m-%d", &timeinfo);
 
   // Load stats
   JsonDocument statsDoc;
@@ -168,7 +168,7 @@ float StatsManager::getTodayDistance() {
   // Find today's entry
   JsonArray statsArray = statsDoc.as<JsonArray>();
   for (JsonObject entry : statsArray) {
-    if (strcmp(entry["date"], dateStr) == 0) {
+    if (strcmp(entry["date"], dateStr.data()) == 0) {
       return entry["distanceMM"] | 0.0f;
     }
   }

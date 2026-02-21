@@ -77,16 +77,16 @@ bool Logger::initializeLogFile() {
   Serial.println("[Logger] ✅ Log file opened: " + _currentLogFileName);
 
   // Write session header
-  char ts[30];
+  std::array<char, 30> ts{};
   time_t now = time(nullptr);
   struct tm tmstruct;
   localtime_r(&now, &tmstruct);
-  strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tmstruct);
+  strftime(ts.data(), ts.size(), "%Y-%m-%d %H:%M:%S", &tmstruct);
 
   _logFile.println("");
   _logFile.println("========================================");
   _logFile.print("SESSION START: ");
-  _logFile.println(ts);
+  _logFile.println(ts.data());
   _logFile.println("========================================");
   _logFile.flush();
 
@@ -121,9 +121,9 @@ void Logger::log(LogLevel level, const String& message) {
   // Guard with wsMutex to prevent cross-core race (Core 1 motor logging vs Core 0 network)
   if (_ws.connectedClients() > 0 && wsMutex != nullptr) {
     if (xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-      static const char* levelNames[] = {"ERROR", "WARN", "INFO", "DEBUG"};
+      static constexpr std::array levelNames = {"ERROR", "WARN", "INFO", "DEBUG"};
       int levelIdx = static_cast<int>(level);
-      const char* levelName = (levelIdx >= 0 && levelIdx <= 3) ? levelNames[levelIdx] : "INFO";
+      auto levelName = (levelIdx >= 0 && levelIdx <= 3) ? levelNames[levelIdx] : "INFO";
 
       JsonDocument doc;
       doc["type"] = "log";
@@ -196,7 +196,7 @@ void Logger::flushLogBuffer(bool forceFlush) {
   // Copy only valid entries under mutex (O(count) not O(buffer_size))
   // Oldest entry is at (_logBufferHead - _logBufferCount + LOG_BUFFER_SIZE) % LOG_BUFFER_SIZE
   int tail = (_logBufferHead - _logBufferCount + LOG_BUFFER_SIZE) % LOG_BUFFER_SIZE;
-  LogEntry localBuffer[LOG_BUFFER_SIZE];
+  std::array<LogEntry, LOG_BUFFER_SIZE> localBuffer;
   int localCount = validEntries;
   for (int i = 0; i < validEntries; i++) {
     int idx = (tail + i) % LOG_BUFFER_SIZE;
@@ -217,13 +217,13 @@ void Logger::flushLogBuffer(bool forceFlush) {
   // Write all valid entries in one batch (no mutex needed - local copy)
   for (int i = 0; i < localCount; i++) {
       if (timeValid) {
-        char ts[30];
+        std::array<char, 30> ts{};
         time_t logTime = currentTime - ((now - localBuffer[i].timestamp) / 1000);
         struct tm logTm;
         localtime_r(&logTime, &logTm);
-        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &logTm);
+        strftime(ts.data(), ts.size(), "%Y-%m-%d %H:%M:%S", &logTm);
         _logFile.print("[");
-        _logFile.print(ts);
+        _logFile.print(ts.data());
         _logFile.print("] ");
       } else {
         _logFile.print("[T+");
@@ -255,9 +255,9 @@ String Logger::generateLogFilename() {
   struct tm tmstruct;
   localtime_r(&now, &tmstruct);
 
-  char dateBuf[20];
-  strftime(dateBuf, sizeof(dateBuf), "%Y%m%d", &tmstruct);
-  auto dateStr = String(dateBuf);
+  std::array<char, 20> dateBuf{};
+  strftime(dateBuf.data(), dateBuf.size(), "%Y%m%d", &tmstruct);
+  auto dateStr = String(dateBuf.data());
 
   // Find max suffix by scanning /logs directory
   int maxSuffix = -1;
@@ -286,11 +286,12 @@ String Logger::generateLogFilename() {
 }
 
 const char* Logger::getLevelPrefix(LogLevel level) const {
+  using enum LogLevel;
   switch (level) {
-    case LogLevel::LOG_ERROR:   return "[ERROR] ";
-    case LogLevel::LOG_WARNING: return "[WARN]  ";
-    case LogLevel::LOG_INFO:    return "[INFO]  ";
-    case LogLevel::LOG_DEBUG:   return "[DEBUG] ";
+    case LOG_ERROR:   return "[ERROR] ";
+    case LOG_WARNING: return "[WARN]  ";
+    case LOG_INFO:    return "[INFO]  ";
+    case LOG_DEBUG:   return "[DEBUG] ";
     default:          return "[LOG]   ";
   }
 }

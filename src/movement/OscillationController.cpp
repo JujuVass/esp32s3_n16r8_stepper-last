@@ -34,7 +34,7 @@ float actualOscillationSpeedMMS = 0.0f;
 // ============================================================================
 
 #ifdef USE_SINE_LOOKUP_TABLE
-static float sineTable[SINE_TABLE_SIZE];
+static std::array<float, SINE_TABLE_SIZE> sineTable;
 static bool sineTableInitialized = false;
 
 static void initSineTable() {

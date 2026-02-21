@@ -111,9 +111,9 @@ String UtilityEngine::getFormattedTime(const char* format) const {
   time_t now = time(nullptr);
   struct tm timeinfo;
   localtime_r(&now, &timeinfo);
-  char buffer[64];
-  strftime(buffer, sizeof(buffer), format, &timeinfo);
-  return String(buffer);
+  std::array<char, 64> buffer{};
+  strftime(buffer.data(), buffer.size(), format, &timeinfo);
+  return String(buffer.data());
 }
 
 bool UtilityEngine::isTimeSynchronized() const {
@@ -144,7 +144,7 @@ UtilityEngine::EngineStatus UtilityEngine::getStatus() const {
 void UtilityEngine::printStatus() const {
   EngineStatus status = getStatus();
 
-  const char* levelNames[] = {"ERROR", "WARN", "INFO", "DEBUG"};
+  constexpr std::array levelNames = {"ERROR", "WARN", "INFO", "DEBUG"};
   auto lvl = (int)status.currentLogLevel;
 
   // Use Serial directly for formatted status dump — this is intentionally

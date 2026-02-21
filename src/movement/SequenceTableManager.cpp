@@ -17,7 +17,7 @@ using enum SpeedEffect;
 // ============================================================================
 // SEQUENCE DATA - Owned by this module
 // ============================================================================
-constinit SequenceLine sequenceTable[MAX_SEQUENCE_LINES];
+constinit std::array<SequenceLine, MAX_SEQUENCE_LINES> sequenceTable;
 int sequenceLineCount = 0;
 
 // ============================================================================

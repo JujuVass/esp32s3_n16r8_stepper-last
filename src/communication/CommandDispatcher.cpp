@@ -257,10 +257,11 @@ bool CommandDispatcher::handleBasicCommands(const char* cmd, JsonDocument& doc) 
 
     if (strcmp(cmd, "toggleDebug") == 0) {
         if (engine) {
+            using enum LogLevel;
             LogLevel current = engine->getLogLevel();
-            LogLevel next = (current == LogLevel::LOG_DEBUG) ? LogLevel::LOG_INFO : LogLevel::LOG_DEBUG;
+            LogLevel next = (current == LOG_DEBUG) ? LOG_INFO : LOG_DEBUG;
             engine->setLogLevel(next);
-            engine->info(String("Log level set to: ") + (next == LogLevel::LOG_DEBUG ? "DEBUG" : "INFO"));
+            engine->info(String("Log level set to: ") + (next == LOG_DEBUG ? "DEBUG" : "INFO"));
         }
         return true;
     }
@@ -410,8 +411,8 @@ bool CommandDispatcher::handleDecelZoneCommands(const char* cmd, JsonDocument& d
         BaseMovement.validateZoneEffect();
 
         // Build debug log
-        String speedEffectNames[] = {"NONE", "DECEL", "ACCEL"};
-        String curveNames[] = {"LINEAR", "SINE", "TRI_INV", "SINE_INV"};
+        constexpr std::array speedEffectNames = {"NONE", "DECEL", "ACCEL"};
+        constexpr std::array curveNames = {"LINEAR", "SINE", "TRI_INV", "SINE_INV"};
 
         String zones = "";
         if (zoneEffect.enableStart) zones += "START ";

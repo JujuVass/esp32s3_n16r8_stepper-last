@@ -41,7 +41,7 @@ ChaosController& ChaosController::getInstance() {
 // are already defined in Config.h
 
 // Pattern names for logging (shared via header)
-const char* const CHAOS_PATTERN_NAMES[] = {
+const std::array<const char*, CHAOS_PATTERN_COUNT> CHAOS_PATTERN_NAMES = {
     "ZIGZAG", "SWEEP", "PULSE", "DRIFT", "BURST",
     "WAVE", "PENDULUM", "SPIRAL", "CALM", "BRUTE_FORCE", "LIBERATOR"
 };
@@ -433,8 +433,8 @@ void ChaosController::handleLiberator(float craziness, float effectiveMinLimit, 
 
 void ChaosController::generatePattern() {
     // Build list of enabled patterns with weights
-    int enabledPatterns[CHAOS_PATTERN_COUNT];
-    int weights[CHAOS_PATTERN_COUNT] = {12, 12, 8, 8, 5, 10, 12, 8, 15, 10, 10};
+    std::array<int, CHAOS_PATTERN_COUNT> enabledPatterns{};
+    constexpr std::array<int, CHAOS_PATTERN_COUNT> weights = {12, 12, 8, 8, 5, 10, 12, 8, 15, 10, 10};
     int totalWeight = 0;
     int enabledCount = 0;
 
@@ -479,7 +479,7 @@ void ChaosController::generatePattern() {
 
     // Dispatch to pattern handler via table
     using PatternHandler = void (ChaosController::*)(float, float, float, float&, unsigned long&);
-    static const PatternHandler PATTERN_HANDLERS[] = {
+    static constexpr std::array<PatternHandler, CHAOS_PATTERN_COUNT> PATTERN_HANDLERS = {
         &ChaosController::handleZigzag,     // CHAOS_ZIGZAG = 0
         &ChaosController::handleSweep,      // CHAOS_SWEEP = 1
         &ChaosController::handlePulse,      // CHAOS_PULSE = 2

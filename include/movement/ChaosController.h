@@ -36,7 +36,7 @@ extern ChaosRuntimeConfig chaos;
 extern ChaosExecutionState chaosState;
 
 // Pattern names array (defined in ChaosController.cpp, shared with StatusBroadcaster)
-extern const char* const CHAOS_PATTERN_NAMES[];
+extern const std::array<const char*, CHAOS_PATTERN_COUNT> CHAOS_PATTERN_NAMES;
 
 // ============================================================================
 // CHAOS CONTROLLER CLASS

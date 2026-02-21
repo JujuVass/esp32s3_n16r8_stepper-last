@@ -14,13 +14,6 @@ extern UtilityEngine* engine;
 using namespace std;
 
 // ============================================================================
-// STATIC DATA
-// ============================================================================
-const char* FilesystemManager::binaryExtensions[8] = {
-  ".bin", ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".zip", ".gz"
-};
-
-// ============================================================================
 // CONSTRUCTOR
 // ============================================================================
 FilesystemManager::FilesystemManager(WebServer& webServer) : server(webServer) {}
@@ -142,7 +135,7 @@ void FilesystemManager::handleListFiles() {
   uint32_t totalBytes = LittleFS.totalBytes();
 
   // Recursive lambda that builds hierarchical structure
-  function<void(const char*, JsonArray&)> listDir = [&](const char* dirname, JsonArray& parentArray) {
+  function<void(const char*, const JsonArray&)> listDir = [&](const char* dirname, const JsonArray& parentArray) {
     File root = LittleFS.open(dirname);
     if (!root || !root.isDirectory()) {
       return;

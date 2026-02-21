@@ -374,7 +374,7 @@
     <div class="content">
       <div id="message" class="message"></div>
       
-      <div class="upload-zone" id="uploadZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+      <div class="upload-zone" id="uploadZone" role="button" tabindex="0" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
         <p>💾 Drop files here to upload</p>
         <p style="font-size: 12px; color: #999;">or click to browse</p>
         <input type="file" id="uploadInput" style="display:none;" multiple onchange="handleFileSelect(event)">
@@ -478,8 +478,8 @@
         } else if (isBinaryFile(file.name)) {
           fileNameHtml = `<span>${safeFileName}</span>`;
         } else {
-          fileNameHtml = `<span class="file-name-link" onclick="editFile('${file.path.replaceAll("'", String.raw`\'`)}'` +
-                `, '${file.name.replaceAll("'", String.raw`\'`)}')" title="Click to edit">${safeFileName}</span>`;
+          fileNameHtml = `<span class="file-name-link" onclick="editFile('${file.path.replaceAll("'", "\\'")}'` +
+                `, '${file.name.replaceAll("'", "\\'")}')" title="Click to edit">${safeFileName}</span>`;
         }
         
         // For folders, show file count instead of date

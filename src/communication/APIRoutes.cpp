@@ -1004,8 +1004,8 @@ void setupAPIRoutes() {
       delay(100);
     }
 
-    WiFiNetworkInfo networks[15];
-    int count = WiFiConfig.scanNetworks(networks, 15);
+    std::array<WiFiNetworkInfo, 15> networks{};
+    int count = WiFiConfig.scanNetworks(networks.data(), 15);
 
     JsonDocument doc;
     JsonArray networksArray = doc["networks"].to<JsonArray>();

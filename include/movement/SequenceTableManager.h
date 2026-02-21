@@ -179,7 +179,7 @@ inline SequenceTableManager& SeqTable = SequenceTableManager::getInstance();
 // SEQUENCE DATA - Owned by SequenceTableManager
 // ============================================================================
 // Defined in SequenceTableManager.cpp, accessible via extern:
-extern SequenceLine sequenceTable[MAX_SEQUENCE_LINES];
+extern std::array<SequenceLine, MAX_SEQUENCE_LINES> sequenceTable;
 extern int sequenceLineCount;
 
 #endif // SEQUENCE_TABLE_MANAGER_H

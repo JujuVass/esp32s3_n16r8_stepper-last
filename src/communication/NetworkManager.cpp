@@ -13,6 +13,7 @@
 #include "hardware/MotorDriver.h"
 #include "movement/SequenceExecutor.h"
 #include <sys/time.h>
+#include <atomic>
 #include <esp_ping.h>
 #include <ping/ping_sock.h>
 
@@ -312,9 +313,9 @@ void StepperNetworkManager::setupNTP() {
     struct tm timeinfo;
     localtime_r(&now, &timeinfo);
     if (timeinfo.tm_year > (2020 - 1900)) {
-        char timeStr[64];
-        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
-        engine->info("✓ Time: " + String(timeStr));
+        std::array<char, 64> timeStr{};
+        strftime(timeStr.data(), timeStr.size(), "%Y-%m-%d %H:%M:%S", &timeinfo);
+        engine->info("✓ Time: " + String(timeStr.data()));
     }
 }
 
@@ -418,11 +419,11 @@ static bool pingGateway() {
     cfg.timeout_ms = 1000;
     cfg.interval_ms = 200;   // 200ms between attempts
 
-    volatile bool got_reply = false;
+    std::atomic<bool> got_reply{false};
     esp_ping_callbacks_t cbs = {};
-    cbs.cb_args = (void*)&got_reply;
+    cbs.cb_args = &got_reply;
     cbs.on_ping_success = [](esp_ping_handle_t h, void* arg) {
-        *(volatile bool*)arg = true;
+        static_cast<std::atomic<bool>*>(arg)->store(true);
     };
 
     esp_ping_handle_t handle = nullptr;
@@ -654,7 +655,7 @@ void StepperNetworkManager::syncTimeFromClient(uint64_t epochMs) {
     time_t now = epochMs / 1000;
     struct tm timeinfo;
     localtime_r(&now, &timeinfo);
-    char timeStr[64];
-    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
-    engine->info("⏰ Time synced from client: " + String(timeStr));
+    std::array<char, 64> timeStr{};
+    strftime(timeStr.data(), timeStr.size(), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    engine->info("⏰ Time synced from client: " + String(timeStr.data()));
 }

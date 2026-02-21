@@ -4,6 +4,7 @@
 
 #include "core/filesystem/FileSystem.h"
 #include "core/UtilityEngine.h"
+#include <memory>
 
 // Forward declaration — engine is set after UtilityEngine constructor
 extern UtilityEngine* engine;
@@ -119,16 +120,15 @@ String FileSystem::readFileAsString(const String& path, size_t maxSize) {
   size_t readSize = min(file.size(), maxSize);
 
   // Bulk read for performance
-  auto* buf = new (std::nothrow) char[readSize + 1];
+  auto buf = std::unique_ptr<char[]>(new (std::nothrow) char[readSize + 1]);
   if (!buf) {
     file.close();
     return "";
   }
 
-  size_t bytesRead = file.readBytes(buf, readSize);
+  size_t bytesRead = file.readBytes(buf.get(), readSize);
   buf[bytesRead] = '\0';
-  String content(buf);
-  delete[] buf;
+  String content(buf.get());
 
   file.close();
   return content;

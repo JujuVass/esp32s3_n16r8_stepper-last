@@ -35,6 +35,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <array>
 #include <cstdint>  // For uint8_t
 
 // ============================================================================
@@ -344,7 +345,7 @@ struct ChaosRuntimeConfig {
   unsigned long durationSeconds = 0;   // Total duration (0 = infinite)
   unsigned long seed = 0;              // Random seed (0 = use micros())
   float crazinessPercent = 50.0f;      // Degree of madness 0-100% (affects speed, duration, jump size)
-  bool patternsEnabled[CHAOS_PATTERN_COUNT] = {true, true, true, true, true, true, true, true, true, true, true};    // Enable/disable each pattern
+  std::array<bool, CHAOS_PATTERN_COUNT> patternsEnabled = {true, true, true, true, true, true, true, true, true, true, true};    // Enable/disable each pattern
 
   constexpr ChaosRuntimeConfig() = default;
 };
@@ -435,7 +436,7 @@ struct SequenceLine {
   float chaosCrazinessPercent = 50.0f;
   unsigned long chaosDurationSeconds = 30;
   unsigned long chaosSeed = 0;
-  bool chaosPatternsEnabled[CHAOS_PATTERN_COUNT] = {true, true, true, true, true, true, true, true, true, true, true};  // Enable/disable each pattern
+  std::array<bool, CHAOS_PATTERN_COUNT> chaosPatternsEnabled = {true, true, true, true, true, true, true, true, true, true, true};  // Enable/disable each pattern
 
   // COMMON parameters
   int cycleCount = 1;

@@ -15,6 +15,7 @@
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <array>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "core/Config.h"
@@ -134,7 +135,7 @@ private:
 
   // Circular log buffer (protected by _logMutex for cross-core safety)
   // Head/tail ring buffer: _head = next write position, _count = valid entries
-  LogEntry _logBuffer[LOG_BUFFER_SIZE];
+  std::array<LogEntry, LOG_BUFFER_SIZE> _logBuffer;
   int _logBufferHead;            // Next write position (0..LOG_BUFFER_SIZE-1)
   int _logBufferCount;           // Number of valid entries (0..LOG_BUFFER_SIZE)
   unsigned long _lastLogFlush;

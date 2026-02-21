@@ -26,6 +26,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <functional>
+#include <array>
 
 /**
  * FilesystemManager - REST API for LittleFS file operations
@@ -46,7 +47,9 @@ private:
   bool _uploadFailed = false;  // Track upload failure across multipart callbacks
 
   // Binary file extensions that cannot be edited
-  static const char* binaryExtensions[8];
+  static constexpr std::array<const char*, 8> binaryExtensions = {
+    ".bin", ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".zip", ".gz"
+  };
 
   // Private helper methods
   bool isBinaryFile(const String& path);
