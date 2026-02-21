@@ -1,7 +1,7 @@
 ================================================================================
  SONARQUBE COMPLEXITY ASSESSMENT — S3776 / S134 / S1188
- Updated: 2026-02-21 (post-Batch 14)
- Original: 90 issues | Batch 13 fixed: 17 | Batch 14 fixed: 10 | Remaining: 63
+ Updated: 2026-02-21 (post-Batch 15)
+ Original: 90 issues | B13: 17 | B14: 10 | B15: 16 (S1188 APIRoutes) | Remaining: 47
 ================================================================================
 
 Legend:
@@ -18,31 +18,29 @@ Legend:
 ─── src/communication/APIRoutes.cpp ────────────────────────────────────────────
 
   S3776  L244   setupAPIRoutes()          CC=251 (limit 25)     ★★★★ VERY HARD
-    ~1077 lines, registers ALL HTTP routes with ~20 inline lambdas.
-    Each lambda captures server/engine by closure. Extracting to named
-    functions requires passing AsyncWebServerRequest* + dependencies.
-    Rewiring all 20 route handlers = massive change, high regression risk.
+    CC reduced substantially by Batch 15 lambda extraction (16 lambdas
+    → 16 named static functions). Remaining CC still high due to route
+    registration + small inline lambdas. Further reduction would require
+    splitting into multiple setup functions (e.g., setupStatsRoutes()).
 
-  S1188  L303   λ /api/stats GET              23 lines          ★☆☆☆ EASY
-  S1188  L336   λ /api/stats/increment POST   21 lines          ★☆☆☆ EASY
-  S1188  L378   λ /api/stats/export GET       36 lines          ★☆☆☆ EASY
-  S1188  L426   λ /api/stats/import POST      51 lines          ★★☆☆ MEDIUM
-  S1188  L505   λ /api/playlists GET          40 lines          ★★☆☆ MEDIUM
-  S1188  L559   λ /api/playlists/add POST     82 lines          ★★☆☆ MEDIUM
-  S1188  L670   λ /api/playlists/delete POST  32 lines          ★☆☆☆ EASY
-  S1188  L714   λ /api/playlists/update POST  33 lines          ★☆☆☆ EASY
-  S1188  L803   λ /logs/clear POST            27 lines          ★☆☆☆ EASY
-  S1188  L898   λ /logging/preferences POST   27 lines          ★☆☆☆ EASY
-  S1188  L940   λ /api/system/dumps GET       21 lines          ★☆☆☆ EASY
-  S1188  L965   λ /api/system/dumps/latest    21 lines          ★☆☆☆ EASY
-  S1188  L995   λ /api/wifi/scan GET          25 lines          ★☆☆☆ EASY
-  S1188  L1046  λ /api/wifi/save POST         34 lines          ★☆☆☆ EASY
-  S1188  L1092  λ /api/wifi/connect POST      66 lines          ★★☆☆ MEDIUM
-  S1188  L1289  λ onNotFound                  26 lines          ★☆☆☆ EASY
-    NOTE: Extracting all 16 lambdas to named static functions would fix
-    S1188 (x16) AND reduce setupAPIRoutes() CC from 251 substantially.
-    Each lambda → static void handleXxx(AsyncWebServerRequest*).
-    But this is a coordinated batch: all-or-nothing for consistency.
+  S1188  L303   λ /api/stats GET              23 lines          ✅ FIXED (Batch 15)
+  S1188  L336   λ /api/stats/increment POST   21 lines          ✅ FIXED (Batch 15)
+  S1188  L378   λ /api/stats/export GET       36 lines          ✅ FIXED (Batch 15)
+  S1188  L426   λ /api/stats/import POST      51 lines          ✅ FIXED (Batch 15)
+  S1188  L505   λ /api/playlists GET          40 lines          ✅ FIXED (Batch 15)
+  S1188  L559   λ /api/playlists/add POST     82 lines          ✅ FIXED (Batch 15)
+  S1188  L670   λ /api/playlists/delete POST  32 lines          ✅ FIXED (Batch 15)
+  S1188  L714   λ /api/playlists/update POST  33 lines          ✅ FIXED (Batch 15)
+  S1188  L803   λ /logs/clear POST            27 lines          ✅ FIXED (Batch 15)
+  S1188  L898   λ /logging/preferences POST   27 lines          ✅ FIXED (Batch 15)
+  S1188  L940   λ /api/system/dumps GET       21 lines          ✅ FIXED (Batch 15)
+  S1188  L965   λ /api/system/dumps/latest    21 lines          ✅ FIXED (Batch 15)
+  S1188  L995   λ /api/wifi/scan GET          25 lines          ✅ FIXED (Batch 15)
+  S1188  L1046  λ /api/wifi/save POST         34 lines          ✅ FIXED (Batch 15)
+  S1188  L1092  λ /api/wifi/connect POST      66 lines          ✅ FIXED (Batch 15)
+  S1188  L1289  λ onNotFound                  26 lines          ✅ FIXED (Batch 15)
+    All 16 lambdas extracted to named static void handleXxx() functions.
+    No parameters needed — all use extern globals (server, engine, etc.).
 
   S134   L820   inside /logs/clear            nesting=4         ✅ FIXED (Batch 13)
   S134   L975   inside /dumps/latest          nesting=4         ✅ FIXED (Batch 13)
