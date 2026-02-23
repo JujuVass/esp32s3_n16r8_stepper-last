@@ -8,8 +8,6 @@
 #include "core/GlobalState.h"
 #include "core/MovementMath.h"
 #include "core/UtilityEngine.h"
-#include <WebSocketsServer.h>
-#include <WebServer.h>
 
 extern UtilityEngine* engine;
 
@@ -28,9 +26,7 @@ CalibrationManager& CalibrationManager::getInstance() {
 // INITIALIZATION
 // ============================================================================
 
-void CalibrationManager::init(WebSocketsServer* ws, WebServer* webServer) {
-    webSocket_ = ws;
-    server_ = webServer;
+void CalibrationManager::init() {
     initialized_ = true;
     engine->debug("CalibrationManager initialized");
 }
@@ -39,29 +35,17 @@ void CalibrationManager::init(WebSocketsServer* ws, WebServer* webServer) {
 // INTERNAL HELPERS
 // ============================================================================
 
-void CalibrationManager::serviceWebSocket(unsigned long durationMs) {
-    if (!webSocket_ || !server_) return;
-
+void CalibrationManager::serviceDelay(unsigned long durationMs) {
     unsigned long start = millis();
     while (millis() - start < durationMs) {
-        if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-            webSocket_->loop();
-            server_->handleClient();
-            xSemaphoreGiveRecursive(wsMutex);
-        }
         yield();
         delay(1);
     }
 }
 
-void CalibrationManager::serviceWebSocketIfDue(unsigned long stepCount) {
+void CalibrationManager::yieldIfDue(unsigned long stepCount) {
     if (stepCount % WEBSOCKET_SERVICE_INTERVAL_STEPS != 0) return;
     yield();
-    if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-        if (webSocket_) webSocket_->loop();
-        if (server_) server_->handleClient();
-        xSemaphoreGiveRecursive(wsMutex);
-    }
 }
 
 void CalibrationManager::positionAtOffset(long targetSteps) {
@@ -76,7 +60,7 @@ void CalibrationManager::positionAtOffset(long targetSteps) {
         Motor.step();
         currentStep = currentStep + 1;
         delayMicroseconds(CALIB_DELAY);
-        serviceWebSocketIfDue(static_cast<unsigned long>(currentStep));
+        yieldIfDue(static_cast<unsigned long>(currentStep));
     }
 }
 
@@ -96,12 +80,6 @@ bool CalibrationManager::emergencyDecontactEnd() {
 
         if (emergencySteps % 50 == 0) {
             yield();
-            // 🔧 FIX #13: Use wsMutex for thread-safe WebSocket access
-            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-                if (webSocket_) webSocket_->loop();
-                if (server_) server_->handleClient();
-                xSemaphoreGiveRecursive(wsMutex);
-            }
         }
     }
 
@@ -164,7 +142,7 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
 
         engine->info("✓ Cleared opto after " + String(backoffSteps) + " steps, continuing calibration...");
         Motor.setDirection(moveForward);
-        serviceWebSocket(100);
+        serviceDelay(100);
     }
 
     // Search for contact: move while opto is LOW (clear), stop when HIGH (blocked)
@@ -174,7 +152,7 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
         delayMicroseconds(CALIB_DELAY);
         stepCount++;
 
-        serviceWebSocketIfDue(stepCount);
+        yieldIfDue(stepCount);
 
         // Timeout protection
         if (stepCount > CALIBRATION_MAX_STEPS) {
@@ -272,12 +250,12 @@ bool CalibrationManager::startCalibration() {
     if (statusCallback_) {
         for (int i = 0; i < 5; i++) {
             statusCallback_();
-            serviceWebSocket(20);
+            serviceDelay(20);
         }
     }
 
     Motor.enable();
-    serviceWebSocket(200);  // Settling time
+    serviceDelay(200);  // Settling time
 
     // ========================================
     // Step 1: Find START contact
@@ -352,7 +330,7 @@ int CalibrationManager::validateDistance() {
             return -1;
         }
         engine->warn("⚠️ Distance too short - Retry " + String(attemptCount_));
-        serviceWebSocket(500);
+        serviceDelay(500);
         return 1;
     }
 
@@ -387,7 +365,7 @@ int CalibrationManager::validateCalibrationAccuracy() {
     }
 
     engine->warn("⚠️ Error too large - Retry");
-    serviceWebSocket(500);
+    serviceDelay(500);
     return 1;
 }
 
@@ -435,7 +413,7 @@ bool CalibrationManager::returnToStart() {
         currentStep = currentStep - 1;
         delayMicroseconds(CALIB_DELAY);
 
-        serviceWebSocketIfDue(static_cast<unsigned long>(abs(currentStep)));
+        yieldIfDue(static_cast<unsigned long>(abs(currentStep)));
 
         if (currentStep < -CALIBRATION_ERROR_MARGIN_STEPS) {
             if (errorCallback_) {

@@ -33,7 +33,7 @@ StatusBroadcaster& StatusBroadcaster::getInstance() {
 // INITIALIZATION
 // ============================================================================
 
-void StatusBroadcaster::begin(WebSocketsServer* ws) {
+void StatusBroadcaster::begin(AsyncWebSocket* ws) {
     _webSocket = ws;
     engine->info("StatusBroadcaster initialized");
 }
@@ -77,7 +77,7 @@ void StatusBroadcaster::send() {
         engine->debug("⚠️ sendStatus: _webSocket is NULL!");
         return;
     }
-    if (_webSocket->connectedClients() == 0) {
+    if (_webSocket->count() == 0) {
         return;
     }
 
@@ -104,7 +104,7 @@ void StatusBroadcaster::send() {
 
         String output;
         serializeJson(doc, output);
-        _webSocket->broadcastTXT(output);
+        _webSocket->textAll(output);
         return;
     }
 
@@ -203,7 +203,7 @@ void StatusBroadcaster::send() {
 
     _lastBroadcastHash = hash;
 
-    _webSocket->broadcastTXT(output);
+    _webSocket->textAll(output);
 
     // Performance monitoring: warn if broadcast took too long (can cause step loss)
     unsigned long elapsedMicros = micros() - startMicros;
@@ -221,14 +221,14 @@ void StatusBroadcaster::sendError(const String& message) {
     engine->error(message);
 
     // Send to all WebSocket clients (only if clients connected)
-    if (_webSocket != nullptr && _webSocket->connectedClients() > 0) {
+    if (_webSocket != nullptr && _webSocket->count() > 0) {
         JsonDocument doc;
         doc["type"] = "error";
         doc["message"] = message;  // ArduinoJson handles escaping automatically
 
         String json;
         serializeJson(doc, json);
-        _webSocket->broadcastTXT(json);
+        _webSocket->textAll(json);
     }
 }
 

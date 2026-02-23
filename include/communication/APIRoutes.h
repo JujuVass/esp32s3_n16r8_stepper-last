@@ -9,12 +9,11 @@
 #ifndef API_ROUTES_H
 #define API_ROUTES_H
 
-#include <WebServer.h>
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 
 // Forward declarations for global context
-extern WebServer server;
-extern WebSocketsServer webSocket;
+extern AsyncWebServer server;
+extern AsyncWebSocket ws;
 
 // ============================================================================
 // MAIN SETUP FUNCTION
@@ -32,26 +31,30 @@ void setupAPIRoutes();
 
 /**
  * Send JSON error response
+ * @param request The async request to respond to
  * @param code HTTP status code
  * @param message Error message
  */
-void sendJsonError(int code, const String& message);
+void sendJsonError(AsyncWebServerRequest* request, int code, const String& message);
 
 /**
  * Send JSON success response
+ * @param request The async request to respond to
  * @param message Optional success message
  */
-void sendJsonSuccess(const String& message = "");
+void sendJsonSuccess(AsyncWebServerRequest* request, const String& message = "");
 
 /**
  * Send JSON success response with ID
+ * @param request The async request to respond to
  * @param id The ID to include in response
  */
-void sendJsonSuccessWithId(int id);
+void sendJsonSuccessWithId(AsyncWebServerRequest* request, int id);
 
 /**
  * Send empty playlist structure
+ * @param request The async request to respond to
  */
-void sendEmptyPlaylistStructure();
+void sendEmptyPlaylistStructure(AsyncWebServerRequest* request);
 
 #endif // API_ROUTES_H

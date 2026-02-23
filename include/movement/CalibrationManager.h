@@ -13,9 +13,7 @@
 #include "hardware/MotorDriver.h"
 #include "hardware/ContactSensors.h"
 
-// Forward declarations (avoid circular includes)
-class WebSocketsServer;
-class WebServer;
+// No forward declarations needed — ESPAsyncWebServer handles events asynchronously
 
 /**
  * Calibration Manager
@@ -52,13 +50,10 @@ public:
     // ========================================================================
 
     /**
-     * Initialize calibration manager with external dependencies
-     * Must be called in setup() after WebSocket and WebServer are initialized
-     *
-     * @param ws Pointer to WebSocketsServer instance
-     * @param server Pointer to WebServer instance
+     * Initialize calibration manager
+     * Must be called in setup() after all modules are initialized
      */
-    void init(WebSocketsServer* ws, WebServer* webServer);
+    void init();
 
     // ========================================================================
     // CALIBRATION OPERATIONS
@@ -154,16 +149,16 @@ private:
     float validateAccuracy();
 
     /**
-     * Service WebSocket during long operations
-     * @param durationMs How long to service (in ms)
+     * Service delay during long operations (yield + status callback)
+     * @param durationMs How long to delay (in ms)
      */
-    void serviceWebSocket(unsigned long durationMs);
+    void serviceDelay(unsigned long durationMs);
 
     /**
-     * Conditionally service WebSocket every N steps (reduces nesting in step loops)
+     * Conditionally yield every N steps (reduces nesting in step loops)
      * @param stepCount Current step counter
      */
-    void serviceWebSocketIfDue(unsigned long stepCount);
+    void yieldIfDue(unsigned long stepCount);
 
     /**
      * Position motor at a target step offset from current (with WS service)
@@ -181,9 +176,7 @@ private:
     // MEMBER VARIABLES
     // ========================================================================
 
-    // External dependencies (set via init())
-    WebSocketsServer* webSocket_ = nullptr;
-    WebServer* server_ = nullptr;
+    // No external dependencies needed — async WebSocket handles itself
 
     // Callbacks
     void (*statusCallback_)() = nullptr;

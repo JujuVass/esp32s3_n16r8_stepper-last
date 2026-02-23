@@ -8,9 +8,7 @@
 #include "core/TimeUtils.h"
 #include "core/Config.h"          // For UPLOAD_ACTIVITY_TIMEOUT_MS
 
-// WebSocket mutex — declared in GlobalState.h, defined in StepperController.cpp
-// Used here to guard broadcastTXT from cross-core races
-extern SemaphoreHandle_t wsMutex;
+// NOTE: wsMutex removed — ESPAsyncWebServer textAll() is inherently async-safe
 
 // Upload activity timestamp — defined in StepperController.cpp
 // Used to pause WS log broadcasts during upload (prevents TCP blocking → WDT)
@@ -20,7 +18,7 @@ extern volatile unsigned long lastUploadActivityTime;
 // CONSTRUCTOR
 // ============================================================================
 
-Logger::Logger(WebSocketsServer& ws, FileSystem& fs)
+Logger::Logger(AsyncWebSocket& ws, FileSystem& fs)
   : _ws(ws),
     _fs(fs),
     _currentLogLevel(LogLevel::LOG_INFO),
@@ -114,15 +112,12 @@ void Logger::log(LogLevel level, const String& message) {
   Serial.println(message);
 
   // 2. WebSocket broadcast (if clients connected)
-  // Skip WS broadcasts entirely during upload to prevent TCP blocking → WDT crash
-  // (recursive wsMutex allows reentry from handleClient → onEvent → Logger::log,
-  //  but broadcastTXT can block on saturated WiFi during _parseForm busy-wait)
+  // Skip WS broadcasts entirely during upload to prevent TCP contention
   bool uploadActive = (lastUploadActivityTime > 0 &&
                        (millis() - lastUploadActivityTime) < UPLOAD_ACTIVITY_TIMEOUT_MS);
 
-  // Guard with wsMutex to prevent cross-core race (Core 1 motor logging vs Core 0 network)
-  if (!uploadActive && _ws.connectedClients() > 0 && wsMutex != nullptr) {
-    if (xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+  // AsyncWebSocket::textAll() is async-safe — no mutex needed
+  if (!uploadActive && _ws.count() > 0) {
       static constexpr std::array levelNames = {"ERROR", "WARN", "INFO", "DEBUG"};
       auto levelIdx = static_cast<int>(level);
       auto levelName = (levelIdx >= 0 && levelIdx <= 3) ? levelNames[levelIdx] : "INFO";
@@ -134,10 +129,7 @@ void Logger::log(LogLevel level, const String& message) {
 
       String payload;
       serializeJson(doc, payload);
-      _ws.broadcastTXT(payload);
-      xSemaphoreGiveRecursive(wsMutex);
-    }
-    // If mutex not available, skip WS broadcast (Serial + ring buffer still capture it)
+      _ws.textAll(payload);
   }
 
   // 3. Buffer for async file write (if filesystem ready)

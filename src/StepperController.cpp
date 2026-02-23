@@ -11,8 +11,7 @@
 // ============================================================================
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WebServer.h>
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include <esp_task_wdt.h>
 
 // ============================================================================
@@ -110,18 +109,17 @@ TaskHandle_t networkTaskHandle = NULL;
 SemaphoreHandle_t motionMutex = NULL;
 SemaphoreHandle_t stateMutex = NULL;
 SemaphoreHandle_t statsMutex = NULL;
-SemaphoreHandle_t wsMutex = NULL;
 volatile bool requestCalibration = false;  // Flag to trigger calibration from Core 1
-volatile bool calibrationInProgress = false;  // Cooperative flag: networkTask skips webSocket/server
-volatile bool blockingMoveInProgress = false;  // Cooperative flag: networkTask skips webSocket/server during blocking moves
+volatile bool calibrationInProgress = false;  // Cooperative flag for calibration mode
+volatile bool blockingMoveInProgress = false;  // Cooperative flag for blocking moves
 volatile unsigned long lastUploadActivityTime = 0;  // Timestamp of last upload activity (batch detection)
 volatile bool uploadStopDone = false;               // Prevents repeated stop() calls during batch upload
 
 // ============================================================================
 // WEB SERVER INSTANCES
 // ============================================================================
-WebServer server(80);
-WebSocketsServer webSocket(81);
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 FilesystemManager filesystemManager(server);
 
 // Forward declarations (required for .cpp — functions used before definition)
@@ -201,7 +199,7 @@ static void initHardwareAndCalibration() {
   Motor.setDirection(false);
   engine->info("✅ Hardware initialized (Motor + Contacts)");
 
-  Calibration.init(&webSocket, &server);
+  Calibration.init();
   Calibration.setStatusCallback(sendStatus);
   Calibration.setErrorCallback([](const String& msg) { Status.sendError(msg); });
   Calibration.setCompletionCallback([]() { SeqExecutor.onMovementComplete(); });
@@ -213,9 +211,8 @@ static void initDualCoreTasks() {
   motionMutex = xSemaphoreCreateMutex();
   stateMutex  = xSemaphoreCreateMutex();
   statsMutex  = xSemaphoreCreateMutex();
-  wsMutex     = xSemaphoreCreateRecursiveMutex();
 
-  if (motionMutex == NULL || stateMutex == NULL || statsMutex == NULL || wsMutex == NULL) {
+  if (motionMutex == NULL || stateMutex == NULL || statsMutex == NULL) {
     engine->error("❌ Failed to create FreeRTOS mutexes!");
     return;
   }
@@ -247,7 +244,7 @@ void setup() {
   setRgbLed(0, 0, 0);
 
   // ── 1. Filesystem & Logging ──
-  static UtilityEngine engineInstance(webSocket);
+  static UtilityEngine engineInstance(ws);
   engine = &engineInstance;
   if (!engine->initialize()) {
     Serial.println("❌ UtilityEngine initialization failed!");
@@ -264,28 +261,18 @@ void setup() {
   StepperNetwork.begin();
 
   // ── 4. Web servers ──
-  server.begin();
-
-  // 🛡️ WATCHDOG: Extend TASK_WDT timeout for multipart uploads.
-  // server.handleClient() → _parseForm() blocks in Stream::readStringUntil()
-  // for seconds during large file uploads. WiFi/LWIP (prio 18-23) consume all
-  // CPU yielded by vTaskDelay, so idle0 (prio 0) starves.
-  // 30s is generous for any single HTTP request while still catching real hangs.
-  {
-    esp_task_wdt_config_t wdtCfg = { .timeout_ms = 30000, .idle_core_mask = (1 << 0), .trigger_panic = true };
-    esp_task_wdt_reconfigure(&wdtCfg);
-    engine->info("⏱️ TASK_WDT timeout extended to 30s (multipart upload support)");
-  }
-
-  webSocket.begin();
-  webSocket.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
-    Dispatcher.onWebSocketEvent(num, type, payload, length);
+  // Attach AsyncWebSocket to server
+  ws.onEvent([](AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
+    Dispatcher.onWebSocketEvent(server, client, type, arg, data, len);
   });
+  server.addHandler(&ws);
 
   // ── 5. API routes ──
   filesystemManager.registerRoutes();
   setupAPIRoutes();
-  engine->info("✅ HTTP (80) + WebSocket (81) servers started");
+
+  server.begin();
+  engine->info("✅ AsyncWebServer (80) + AsyncWebSocket (/ws) started");
 
   // ── AP_SETUP: Minimal setup complete ──
   if (StepperNetwork.isAPSetupMode()) {
@@ -307,9 +294,9 @@ void setup() {
     setRgbLed(0, 25, 50);
   }
 
-  Dispatcher.begin(&webSocket);
-  Status.begin(&webSocket);
-  SeqExecutor.begin(&webSocket);
+  Dispatcher.begin(&ws);
+  Status.begin(&ws);
+  SeqExecutor.begin(&ws);
   engine->info("✅ Command dispatcher + Status broadcaster ready");
 
   // ── 6-7. Hardware + Calibration ──
@@ -354,13 +341,12 @@ void motorTask(void* param) { // NOSONAR(cpp:S5008) FreeRTOS task signature requ
       requestCalibration = false;
       engine->info("=== Manual calibration requested ===");
 
-      // Cooperative flag: networkTask will skip webSocket/server during calibration
-      // (CalibrationManager handles them internally via serviceWebSocket())
+      // Cooperative flag: calibration in progress
       calibrationInProgress = true;
 
       Calibration.startCalibration();
 
-      // Resume normal networkTask operation
+      // Resume normal operation
       calibrationInProgress = false;
     }
 
@@ -377,14 +363,13 @@ void motorTask(void* param) { // NOSONAR(cpp:S5008) FreeRTOS task signature requ
         calibrationStarted = true;
         engine->info("=== Starting automatic calibration ===");
 
-        // Cooperative flag: networkTask will skip webSocket/server during calibration
-        // (CalibrationManager handles them internally via serviceWebSocket())
+        // Cooperative flag: calibration in progress
         calibrationInProgress = true;
 
         Calibration.startCalibration();
         needsInitialCalibration = false;
 
-        // Resume normal networkTask operation
+        // Resume normal operation
         calibrationInProgress = false;
       }
     }
@@ -472,14 +457,14 @@ void networkTask(void* param) { // NOSONAR(cpp:S5008) FreeRTOS task signature re
     StepperNetwork.handleCaptivePortal();  // DNS server for AP clients (all AP modes)
     StepperNetwork.checkConnectionHealth();
 
-    // HTTP server and WebSocket - skip during calibration or blocking moves
-    // (CalibrationManager/blocking loops handle them internally via serviceWebSocket())
-    const bool canProcess = !calibrationInProgress && !blockingMoveInProgress;
+    // HTTP server and WebSocket are handled asynchronously by ESPAsyncWebServer
+    // No polling needed — LWIP task processes events automatically
 
-    if (canProcess && wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-      server.handleClient();
-      webSocket.loop();
-      xSemaphoreGiveRecursive(wsMutex);
+    // Periodic WebSocket cleanup (free disconnected client buffers)
+    static unsigned long lastWsCleanup = 0;
+    if (millis() - lastWsCleanup > 1000) {
+      lastWsCleanup = millis();
+      ws.cleanupClients();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -497,12 +482,9 @@ void networkTask(void* param) { // NOSONAR(cpp:S5008) FreeRTOS task signature re
     // STATUS BROADCAST (adaptive rate: 10Hz active, 5Hz calibrating, 1Hz idle)
     // ═══════════════════════════════════════════════════════════════════════
     static unsigned long lastUpdate = 0;
-    if (canProcess && millis() - lastUpdate > Status.getAdaptiveBroadcastInterval()) {
+    if (millis() - lastUpdate > Status.getAdaptiveBroadcastInterval()) {
       lastUpdate = millis();
-      if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-        sendStatus();  // Uses webSocket.broadcastTXT - must not run concurrently with Core 1
-        xSemaphoreGiveRecursive(wsMutex);
-      }
+      sendStatus();  // Uses ws.textAll — async, no mutex needed
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -541,8 +523,9 @@ void loop() {
       ledIsBlue = !ledIsBlue;
     }
 
-    server.handleClient();
-    webSocket.loop();
+    // AsyncWebServer handles requests automatically — just cleanup WS clients
+    ws.cleanupClients();
+    delay(10);  // Small delay in AP_SETUP mode
     return;
   }
 

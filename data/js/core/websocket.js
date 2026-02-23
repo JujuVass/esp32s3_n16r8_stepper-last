@@ -58,7 +58,7 @@ function connectWebSocket(useFallback) {
     }
   }
   
-  const wsUrl = 'ws://' + host + ':81';
+  const wsUrl = 'ws://' + host + '/ws';
   console.debug('🔌 Connecting to WebSocket:', wsUrl);
   
   // Track connection attempt for fallback logic

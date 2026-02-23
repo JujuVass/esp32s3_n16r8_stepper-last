@@ -29,7 +29,7 @@
  * │ motionPauseState, oscPauseState│ StepperController.cpp            │ —                │
  * │ currentStep, startStep, etc.  │ StepperController.cpp             │ volatile 32-bit  │
  * │ stats                         │ StepperController.cpp             │ statsMutex       │
- * │ server, webSocket             │ StepperController.cpp             │ wsMutex          │
+ * │ server, ws                    │ StepperController.cpp             │ — (async)      │
  * │ chaos, chaosState             │ ChaosController.cpp               │ stateMutex       │
  * │ oscillation, oscillationState │ OscillationController.cpp         │ stateMutex       │
  * │ pursuit                       │ PursuitController.cpp             │ —                │
@@ -44,8 +44,7 @@
 #define GLOBAL_STATE_H
 
 #include <Arduino.h>
-#include <WebSocketsServer.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -89,16 +88,13 @@ private:
     bool _locked = false;
 };
 
-// WebSocket/Server mutex — prevents concurrent access from Core 0 (networkTask)
-// and Core 1 (calibration/blocking moves that service WebSocket)
-extern SemaphoreHandle_t wsMutex;
+// NOTE: wsMutex removed — ESPAsyncWebServer runs on LWIP task, no polling needed
 
 // Atomic flags (no mutex needed - set from Core 0, read from Core 1)
 // Safe: bool and long are 32-bit on ESP32 Xtensa → single-instruction read/write
 extern volatile bool requestCalibration;    // Trigger calibration from motorTask
-extern volatile bool calibrationInProgress; // When true, networkTask skips webSocket/server
-                                            // (CalibrationManager handles them internally)
-extern volatile bool blockingMoveInProgress; // When true, networkTask skips webSocket/server
+extern volatile bool calibrationInProgress; // Cooperative flag for calibration mode
+extern volatile bool blockingMoveInProgress; // Cooperative flag for blocking moves
 
 // File upload tracking (Core 0 only — set by FilesystemManager HTTP handler)
 // Uses timestamp-based expiry: upload considered active if last activity < 5s ago
@@ -168,8 +164,8 @@ extern unsigned long lastStatsRequestTime;  // Core 0 only — no cross-core acc
 // WEB SERVERS
 // ============================================================================
 
-extern WebServer server;
-extern WebSocketsServer webSocket;
+extern AsyncWebServer server;
+extern AsyncWebSocket ws;
 
 // ============================================================================
 // CALLBACK FUNCTIONS (defined in main, called by modules)

@@ -11,7 +11,7 @@
 #define STATUS_BROADCASTER_H
 
 #include <Arduino.h>
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include "core/Types.h"
 #include "core/Config.h"
@@ -35,7 +35,7 @@ public:
      * Initialize the broadcaster with WebSocket reference
      * @param ws Pointer to WebSocketsServer for broadcasting
      */
-    void begin(WebSocketsServer* ws);
+    void begin(AsyncWebSocket* ws);
 
     // ========================================================================
     // BROADCASTING
@@ -80,7 +80,7 @@ private:
     StatusBroadcaster(const StatusBroadcaster&) = delete;
     StatusBroadcaster& operator=(const StatusBroadcaster&) = delete;
 
-    WebSocketsServer* _webSocket = nullptr;
+    AsyncWebSocket* _webSocket = nullptr;
     uint32_t _lastBroadcastHash = 0;  // FNV-1a hash of last broadcast payload (dedup)
 
     // ========================================================================

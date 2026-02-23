@@ -14,7 +14,7 @@
 #ifndef UTILITY_ENGINE_H
 #define UTILITY_ENGINE_H
 
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <time.h>
 #include "Types.h"  // For SystemState, ExecutionContext enums
@@ -86,7 +86,7 @@ public:
   // CONSTRUCTOR & LIFECYCLE
   // ========================================================================
 
-  explicit UtilityEngine(WebSocketsServer& webSocketServer);
+  explicit UtilityEngine(AsyncWebSocket& webSocket);
 
   /**
    * Full initialization sequence:
@@ -191,7 +191,7 @@ private:
   // SUB-OBJECTS (owned)
   // ========================================================================
 
-  WebSocketsServer& _ws;
+  AsyncWebSocket& _ws;
   FileSystem     _fs;
   EepromManager  _eeprom;
   Logger         _logger;
