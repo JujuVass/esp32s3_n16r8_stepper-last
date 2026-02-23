@@ -340,9 +340,6 @@ static void handleExportStats() {
     totalMM += entry["distanceMM"].as<float>();
   }
 
-  exportDoc["totalDistanceMM"] = totalMM;
-  exportDoc["entriesCount"] = statsArray.size();
-
   String json;
   serializeJson(exportDoc, json);
   server.send(200, "application/json", json);

@@ -51,7 +51,10 @@
     "calibrationWarn": "Do not interrupt the process",
     "rebootTitle": "Rebooting...",
     "rebootMsg": "Automatic reconnection in a few seconds",
-    "rebootWait": "Please wait (~10-15 seconds)"
+    "rebootWait": "Please wait (~10-15 seconds)",
+    "updateTitle": "Update in progress...",
+    "updateMsg": "Files are being uploaded to the device",
+    "updateWarn": "Motor has been stopped automatically"
   },
   "status": {
     "stateLabel": "State:",

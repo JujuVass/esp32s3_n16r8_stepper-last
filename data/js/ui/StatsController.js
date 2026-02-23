@@ -521,7 +521,7 @@ async function handleStatsFileImport(e) {
     // Confirm import (show preview)
     const entryCount = importData.stats.length;
     const exportDate = importData.exportDate || t('stats.unknown');
-    const totalKm = importData.totalDistanceMM ? (importData.totalDistanceMM / 1000000).toFixed(3) : '?';
+    const totalKm = (importData.stats.reduce((sum, e) => sum + (e.distanceMM || 0), 0) / 1000000).toFixed(3);
     
     const confirmMsg = t('stats.importConfirm') + `\n\n` +
                      `📅 ${t('stats.exportDate')}: ${exportDate}\n` +

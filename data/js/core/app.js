@@ -165,7 +165,6 @@ const WS_CMD = Object.freeze({
   
   // === Oscillation Mode ===
   SET_OSCILLATION: 'setOscillation',
-  SET_OSCILLATION_CONFIG: 'setOscillationConfig',
   START_OSCILLATION: 'startOscillation',
   STOP_OSCILLATION: 'stopOscillation',
   UPDATE_CYCLE_PAUSE_OSC: 'updateCyclePauseOsc',

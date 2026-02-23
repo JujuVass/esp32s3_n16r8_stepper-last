@@ -123,6 +123,7 @@ void OscillationControllerClass::start() {
     // 🎯 CALCULATE INITIAL ACTUAL SPEED for display
     float theoreticalPeakSpeed = 2.0f * PI_F * oscillation.frequencyHz * oscillation.amplitudeMM;
     actualSpeedMMS_ = min(theoreticalPeakSpeed, OSC_MAX_SPEED_MM_S);
+    actualOscillationSpeedMMS = actualSpeedMMS_;  // Sync global for StatusBroadcaster
 
     // NOTE: Don't stop sequencer here - start() can be called BY the sequencer (P4 translation)
     // Conflict safety is handled in WebSocket handlers (startMovement, enablePursuitMode, etc.)
@@ -225,6 +226,7 @@ void OscillationControllerClass::process() {
 
     // Calculate actual peak speed using effective frequency
     actualSpeedMMS_ = 2.0f * PI_F * effectiveFrequency * oscillation.amplitudeMM;
+    actualOscillationSpeedMMS = actualSpeedMMS_;  // Sync global for StatusBroadcaster
 
     // Use minimum step delay (speed is controlled by effective frequency, not delay)
     unsigned long currentMicros = micros();

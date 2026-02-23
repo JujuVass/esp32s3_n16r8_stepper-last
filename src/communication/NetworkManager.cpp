@@ -14,9 +14,6 @@
 #include "hardware/MotorDriver.h"
 #include "movement/SequenceExecutor.h"
 #include <sys/time.h>
-#include <atomic>
-#include <esp_ping.h>
-#include <ping/ping_sock.h>
 
 // ============================================================================
 // SINGLETON INSTANCE
@@ -405,8 +402,16 @@ void StepperNetworkManager::safeShutdown() {
 //   Tier 3: ESP.restart() (emergency reboot)
 // ============================================================================
 
-// Synchronous gateway ping (blocks ~1s max)
-static bool pingGateway() {
+// ============================================================================
+// ASYNC GATEWAY PING (non-blocking)
+// Launches an esp_ping session that runs in ESP-IDF's internal task.
+// The callback sets _pingGotReply atomically.
+// checkConnectionHealth() polls the result on subsequent calls.
+// ============================================================================
+
+bool StepperNetworkManager::startAsyncPing() {
+    if (_pingInProgress) return false;  // Already running
+
     IPAddress gw = WiFi.gatewayIP();
     if (gw == IPAddress(0, 0, 0, 0)) return false;
 
@@ -417,26 +422,28 @@ static bool pingGateway() {
     cfg.timeout_ms = 1000;
     cfg.interval_ms = 200;   // 200ms between attempts
 
-    std::atomic<bool> got_reply{false};
+    _pingGotReply.store(false);
     esp_ping_callbacks_t cbs = {};
-    cbs.cb_args = &got_reply;
+    cbs.cb_args = &_pingGotReply;
     cbs.on_ping_success = [](esp_ping_handle_t h, void* arg) { // NOSONAR(cpp:S5008) ESP-IDF ping API requires void*
         static_cast<std::atomic<bool>*>(arg)->store(true);
     };
 
-    esp_ping_handle_t handle = nullptr;
-    if (esp_ping_new_session(&cfg, &cbs, &handle) != ESP_OK) return false;
-    esp_ping_start(handle);
+    if (esp_ping_new_session(&cfg, &cbs, &_pingHandle) != ESP_OK) return false;
+    esp_ping_start(_pingHandle);
 
-    // Wait for ping to complete (max ~2.5s for 2 pings)
-    unsigned long start = millis();
-    while (!got_reply && (millis() - start) < 2500) {
-        vTaskDelay(pdMS_TO_TICKS(50));
+    _pingInProgress = true;
+    _pingStartTime = millis();
+    return true;
+}
+
+void StepperNetworkManager::cleanupPing() {
+    if (_pingHandle) {
+        esp_ping_stop(_pingHandle);
+        esp_ping_delete_session(_pingHandle);
+        _pingHandle = nullptr;
     }
-
-    esp_ping_stop(handle);
-    esp_ping_delete_session(handle);
-    return got_reply;
+    _pingInProgress = false;
 }
 
 // ============================================================================
@@ -537,7 +544,9 @@ void StepperNetworkManager::handleRecoveryTier3() {
 }
 
 // ============================================================================
-// CONNECTION HEALTH CHECK (orchestrator)
+// CONNECTION HEALTH CHECK (orchestrator — non-blocking)
+// Uses async ping: launches ping on one call, collects result on next calls.
+// Never blocks more than a few ms, so server.handleClient() stays responsive.
 // ============================================================================
 
 void StepperNetworkManager::checkConnectionHealth() {
@@ -555,34 +564,31 @@ void StepperNetworkManager::checkConnectionHealth() {
         engine->info("\xF0\x9F\x94\x84 mDNS: Delayed re-announce (boot +" + String(now / 1000) + "s)");
     }
 
-    // Rate limit: faster during recovery or accumulating ping failures
-    uint32_t checkInterval;
-    if (_wdState != WatchdogState::WD_HEALTHY || _pingFailCount > 0) {
-        checkInterval = WATCHDOG_RECOVERY_INTERVAL_MS;
-    } else {
-        checkInterval = WATCHDOG_CHECK_INTERVAL_MS;
-    }
-    if (now - _lastHealthCheck < checkInterval) return;
-    _lastHealthCheck = now;
+    // ── ASYNC PING IN PROGRESS: check result without blocking ──
+    if (_pingInProgress) {
+        bool gotReply = _pingGotReply.load();
+        bool timedOut = (now - _pingStartTime) >= PING_TIMEOUT_MS;
 
-    // ── STEP 1: WiFi L2 link ──
-    bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+        if (!gotReply && !timedOut) {
+            return;  // Ping still running — yield back to networkTask loop immediately
+        }
 
-    if (wifiConnected) {
-        // ── STEP 2: Gateway ping (L3) ──
-        bool networkOk = pingGateway();
+        // Ping completed (success or timeout) — clean up session
+        bool networkOk = gotReply;
+        cleanupPing();
 
         if (!networkOk) {
             _pingFailCount++;
             if (_pingFailCount < WATCHDOG_PING_FAIL_THRESHOLD) {
                 engine->debug("⚠️ Watchdog: Gateway ping failed (" + String(_pingFailCount) + "/" + String(WATCHDOG_PING_FAIL_THRESHOLD) + ") — retrying next cycle");
+                _lastHealthCheck = now;
                 return;
             }
         } else {
             _pingFailCount = 0;
         }
 
-        // ── STEP 3: Proactive mDNS refresh ──
+        // ── Proactive mDNS refresh ──
         if (now - _lastMdnsRefresh >= WATCHDOG_MDNS_REFRESH_MS) {
             MDNS.end();
             delay(50);
@@ -593,15 +599,47 @@ void StepperNetworkManager::checkConnectionHealth() {
 
         if (networkOk) {
             handleHealthyConnection();
+            _lastHealthCheck = now;
             return;
         }
 
         // WiFi says connected but gateway unreachable → half-dead
         engine->warn("⚠️ Watchdog: WiFi connected but gateway ping FAILED " + String(WATCHDOG_PING_FAIL_THRESHOLD) + "x → treating as disconnected");
         _pingFailCount = 0;
-        wifiConnected = false;
+        // Fall through to recovery path below
+        goto recovery;  // NOSONAR — cleaner than duplicating the recovery block
     }
 
+    {
+        // ── RATE LIMIT: check if it's time for a new health check ──
+        uint32_t checkInterval;
+        if (_wdState != WatchdogState::WD_HEALTHY || _pingFailCount > 0) {
+            checkInterval = WATCHDOG_RECOVERY_INTERVAL_MS;
+        } else {
+            checkInterval = WATCHDOG_CHECK_INTERVAL_MS;
+        }
+        if (now - _lastHealthCheck < checkInterval) return;
+        _lastHealthCheck = now;
+
+        // ── STEP 1: WiFi L2 link ──
+        bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+
+        if (wifiConnected) {
+            // ── STEP 2: Launch async gateway ping (L3) — returns immediately ──
+            if (startAsyncPing()) {
+                return;  // Ping launched, will check result on next call (~10-50ms later)
+            }
+            // Failed to start ping (no gateway?) → treat as ping fail
+            _pingFailCount++;
+            if (_pingFailCount < WATCHDOG_PING_FAIL_THRESHOLD) {
+                engine->debug("⚠️ Watchdog: Cannot ping gateway (" + String(_pingFailCount) + "/" + String(WATCHDOG_PING_FAIL_THRESHOLD) + ")");
+                return;
+            }
+            // Fall through to recovery
+        }
+    }
+
+recovery:
     // ── RECOVERY PATH ──
     if (_wasConnected && _wdState == WatchdogState::WD_HEALTHY) {
         engine->warn("⚠️ Watchdog: Connection lost! Starting 3-tier recovery...");

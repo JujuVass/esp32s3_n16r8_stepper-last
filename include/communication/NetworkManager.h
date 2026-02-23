@@ -19,6 +19,9 @@
 #include <DNSServer.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
+#include <atomic>
+#include <esp_ping.h>
+#include <ping/ping_sock.h>
 #include "core/Config.h"
 #include "communication/WiFiConfigManager.h"
 
@@ -165,6 +168,10 @@ private:
     bool handleRecoveryTier2();                      // Full disconnect + re-associate
     void handleRecoveryTier3();                      // Emergency reboot
 
+    // Async gateway ping (non-blocking)
+    bool startAsyncPing();                           // Launch ping session, returns false if already running
+    void cleanupPing();                              // Stop and delete ping session
+
     // State
     NetworkMode _mode = NetworkMode::NET_AP_DIRECT;
     bool _otaConfigured = false;
@@ -180,6 +187,13 @@ private:
     uint8_t _wdSoftRetries = 0;              // Tier 1 attempt counter
     uint8_t _wdHardRetries = 0;              // Tier 2 attempt counter
     uint8_t _pingFailCount = 0;              // Consecutive gateway ping failures
+
+    // Async ping state
+    esp_ping_handle_t _pingHandle = nullptr;  // Active ping session handle
+    std::atomic<bool> _pingGotReply{false};   // Set by ping success callback
+    bool _pingInProgress = false;             // Ping session currently running
+    unsigned long _pingStartTime = 0;         // When async ping was launched
+    static constexpr uint32_t PING_TIMEOUT_MS = 2500; // Max wait for async ping result
 
     // Captive Portal DNS server (AP_SETUP mode only)
     DNSServer _dnsServer;

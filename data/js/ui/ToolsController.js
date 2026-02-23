@@ -188,9 +188,14 @@ async function loadLogFilesList() {
     const container = document.createElement('div');
     container.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
     
-    links.forEach(link => {
+    // Sort links alphabetically to find the most recent (active) log file
+    const sortedLinks = Array.from(links).sort((a, b) => a.textContent.localeCompare(b.textContent));
+    const activeLogName = sortedLinks.length > 0 ? sortedLinks[sortedLinks.length - 1].textContent : '';
+
+    sortedLinks.forEach(link => {
       const filename = link.textContent;
       const url = link.href;
+      const isActive = (filename === activeLogName);
       
       // Create item div
       const itemDiv = document.createElement('div');
@@ -200,6 +205,11 @@ async function loadLogFilesList() {
       const filenameSpan = document.createElement('span');
       filenameSpan.className = 'font-mono text-md';
       filenameSpan.textContent = filename;  // Safe: uses textContent instead of innerHTML
+      if (isActive) {
+        filenameSpan.style.fontWeight = 'bold';
+        filenameSpan.style.color = '#4CAF50';
+        filenameSpan.textContent = '▶ ' + filename;
+      }
       
       // Create download link
       const downloadLink = document.createElement('a');

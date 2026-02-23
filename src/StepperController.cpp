@@ -13,6 +13,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
+#include <esp_task_wdt.h>
 
 // ============================================================================
 // PROJECT HEADERS
@@ -113,6 +114,8 @@ SemaphoreHandle_t wsMutex = NULL;
 volatile bool requestCalibration = false;  // Flag to trigger calibration from Core 1
 volatile bool calibrationInProgress = false;  // Cooperative flag: networkTask skips webSocket/server
 volatile bool blockingMoveInProgress = false;  // Cooperative flag: networkTask skips webSocket/server during blocking moves
+volatile unsigned long lastUploadActivityTime = 0;  // Timestamp of last upload activity (batch detection)
+volatile bool uploadStopDone = false;               // Prevents repeated stop() calls during batch upload
 
 // ============================================================================
 // WEB SERVER INSTANCES
@@ -262,6 +265,18 @@ void setup() {
 
   // ── 4. Web servers ──
   server.begin();
+
+  // 🛡️ WATCHDOG: Extend TASK_WDT timeout for multipart uploads.
+  // server.handleClient() → _parseForm() blocks in Stream::readStringUntil()
+  // for seconds during large file uploads. WiFi/LWIP (prio 18-23) consume all
+  // CPU yielded by vTaskDelay, so idle0 (prio 0) starves.
+  // 30s is generous for any single HTTP request while still catching real hangs.
+  {
+    esp_task_wdt_config_t wdtCfg = { .timeout_ms = 30000, .idle_core_mask = (1 << 0), .trigger_panic = true };
+    esp_task_wdt_reconfigure(&wdtCfg);
+    engine->info("⏱️ TASK_WDT timeout extended to 30s (multipart upload support)");
+  }
+
   webSocket.begin();
   webSocket.onEvent([](uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
     Dispatcher.onWebSocketEvent(num, type, payload, length);
@@ -468,6 +483,17 @@ void networkTask(void* param) { // NOSONAR(cpp:S5008) FreeRTOS task signature re
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // UPLOAD: Stop motor between file uploads (not inside handler — would block TCP)
+    // ═══════════════════════════════════════════════════════════════════════
+    if (Status.isUploadActive() && !uploadStopDone) {
+      if (config.currentState == SystemState::STATE_RUNNING || config.currentState == SystemState::STATE_PAUSED) {
+        BaseMovement.stop();
+        engine->info("\xF0\x9F\x94\x84 Motor stopped for file upload");
+      }
+      uploadStopDone = true;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // STATUS BROADCAST (adaptive rate: 10Hz active, 5Hz calibrating, 1Hz idle)
     // ═══════════════════════════════════════════════════════════════════════
     static unsigned long lastUpdate = 0;
@@ -480,10 +506,12 @@ void networkTask(void* param) { // NOSONAR(cpp:S5008) FreeRTOS task signature re
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // LOG BUFFER FLUSH (I/O to filesystem)
+    // LOG BUFFER FLUSH (I/O to filesystem - skip during upload to reduce contention)
     // ═══════════════════════════════════════════════════════════════════════
-    if (engine) {
+    if (engine && !Status.isUploadActive()) {
       engine->flushLogBuffer();
+      // Reset batch stop flag when upload batch has expired
+      uploadStopDone = false;
     }
 
     { static unsigned long hwmTimer = 0; logStackHighWaterMark("NetworkTask", 12288, hwmTimer); }

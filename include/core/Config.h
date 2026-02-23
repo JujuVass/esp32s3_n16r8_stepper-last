@@ -195,6 +195,8 @@ constexpr unsigned long STATUS_UPDATE_INTERVAL_MS = 100;  // Default status inte
 constexpr unsigned long STATUS_PURSUIT_INTERVAL_MS = 50;  // Fast rate during pursuit mode (20 Hz)
 constexpr unsigned long STATUS_IDLE_INTERVAL_MS = 1000;   // Reduced rate when idle (READY/INIT/ERROR)
 constexpr unsigned long STATUS_CALIB_INTERVAL_MS = 200;   // Moderate rate during calibration
+constexpr unsigned long STATUS_UPLOAD_INTERVAL_MS = 2000; // Very slow rate during file upload (0.5 Hz)
+constexpr unsigned long UPLOAD_ACTIVITY_TIMEOUT_MS = 5000; // Upload considered done 5s after last activity
 constexpr unsigned long SUMMARY_LOG_INTERVAL_MS = 30000;  // Print summary every 30s
 
 // ============================================================================

@@ -7,6 +7,7 @@
 #include "communication/FilesystemManager.h"
 #include "communication/APIRoutes.h"
 #include "core/UtilityEngine.h"
+#include "core/GlobalState.h"
 #include <algorithm>
 
 extern UtilityEngine* engine;
@@ -292,6 +293,10 @@ void FilesystemManager::handleUploadFile() {
   static size_t totalWritten = 0;
 
   if (upload.status == UPLOAD_FILE_START) {
+    // Track upload activity for UI overlay & light WS mode
+    // Motor stop is handled by networkTask between files (not here — would block TCP parsing)
+    lastUploadActivityTime = millis();
+
     String filename = normalizePath(upload.filename);
 
     // 🛡️ PROTECTION: Check available space BEFORE accepting upload
@@ -328,11 +333,18 @@ void FilesystemManager::handleUploadFile() {
         uploadFile = File();  // Invalidate to prevent further writes
         _uploadFailed = true;
       }
+
+      // 🛡️ WATCHDOG: Yield CPU between chunks for system responsiveness
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
-  } else if (upload.status == UPLOAD_FILE_END && uploadFile) {
-    // 🛡️ PROTECTION: Flush before closing
-    uploadFile.flush();
-    uploadFile.close();
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (uploadFile) {
+      // 🛡️ PROTECTION: Flush before closing
+      uploadFile.flush();
+      uploadFile.close();
+    }
+    // Keep upload activity timestamp fresh for batch detection
+    lastUploadActivityTime = millis();
   }
 }
 

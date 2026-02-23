@@ -43,6 +43,11 @@ void StatusBroadcaster::begin(WebSocketsServer* ws) {
 // ============================================================================
 
 unsigned long StatusBroadcaster::getAdaptiveBroadcastInterval() const {
+    // File upload: minimal broadcast to reduce TCP contention
+    if (isUploadActive()) {
+        return STATUS_UPLOAD_INTERVAL_MS;     // 2000ms (0.5 Hz) - reduce load during upload
+    }
+
     // Pursuit mode gets highest priority for fast feedback
     if (currentMovement == MOVEMENT_PURSUIT) {
         return STATUS_PURSUIT_INTERVAL_MS;       // 50ms (20 Hz) - real-time gauge tracking
@@ -73,6 +78,33 @@ void StatusBroadcaster::send() {
         return;
     }
     if (_webSocket->connectedClients() == 0) {
+        return;
+    }
+
+    // ============================================================================
+    // UPLOAD MODE: Lightweight payload (just state + updating flag)
+    // ============================================================================
+    bool uploading = isUploadActive();
+
+    // Detect upload→normal transition: force next broadcast (hash dedup would skip it)
+    static bool wasUploading = false;
+    if (wasUploading && !uploading) {
+        _lastBroadcastHash = 0;  // Invalidate hash so client gets the "updating gone" message
+    }
+    wasUploading = uploading;
+
+    if (uploading) {
+        float uploadPosMM = MovementMath::stepsToMM(currentStep);
+        JsonDocument doc;
+        doc["state"] = (int)config.currentState;
+        doc["updating"] = true;
+        doc["positionMM"] = serialized(String(uploadPosMM, 2));
+        doc["currentStep"] = currentStep;
+        doc["ip"] = StepperNetwork.getIPAddress();
+
+        String output;
+        serializeJson(doc, output);
+        _webSocket->broadcastTXT(output);
         return;
     }
 
@@ -391,4 +423,13 @@ void StatusBroadcaster::addSystemStats(JsonDocument& doc) {
     systemObj["apClients"] = WiFi.softAPgetStationNum();
     systemObj["apMode"] = StepperNetwork.isAPMode();
     systemObj["staMode"] = StepperNetwork.isSTAMode();
+}
+
+// ============================================================================
+// UPLOAD STATUS CHECK
+// ============================================================================
+
+bool StatusBroadcaster::isUploadActive() const {
+    if (lastUploadActivityTime == 0) return false;
+    return (millis() - lastUploadActivityTime) < UPLOAD_ACTIVITY_TIMEOUT_MS;
 }

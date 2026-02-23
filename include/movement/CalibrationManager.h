@@ -182,23 +182,23 @@ private:
     // ========================================================================
 
     // External dependencies (set via init())
-    WebSocketsServer* m_webSocket = nullptr;
-    WebServer* m_server = nullptr;
+    WebSocketsServer* webSocket_ = nullptr;
+    WebServer* server_ = nullptr;
 
     // Callbacks
-    void (*m_statusCallback)() = nullptr;
-    void (*m_errorCallback)(const String&) = nullptr;
-    void (*m_completionCallback)() = nullptr;
+    void (*statusCallback_)() = nullptr;
+    void (*errorCallback_)(const String&) = nullptr;
+    void (*completionCallback_)() = nullptr;
 
     // State
-    bool m_initialized = false;
-    bool m_calibrated = false;
-    int m_attemptCount = 0;
-    float m_lastErrorPercent = 0.0f;
+    bool initialized_ = false;
+    bool calibrated_ = false;
+    int attemptCount_ = 0;
+    float lastErrorPercent_ = 0.0f;
 
     // Calibration results
-    long m_maxStep = 0;
-    float m_totalDistanceMM = 0.0f;
+    long maxStep_ = 0;
+    float totalDistanceMM_ = 0.0f;
 };
 
 // ============================================================================

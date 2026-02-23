@@ -29,9 +29,9 @@ CalibrationManager& CalibrationManager::getInstance() {
 // ============================================================================
 
 void CalibrationManager::init(WebSocketsServer* ws, WebServer* webServer) {
-    m_webSocket = ws;
-    m_server = webServer;
-    m_initialized = true;
+    webSocket_ = ws;
+    server_ = webServer;
+    initialized_ = true;
     engine->debug("CalibrationManager initialized");
 }
 
@@ -40,13 +40,13 @@ void CalibrationManager::init(WebSocketsServer* ws, WebServer* webServer) {
 // ============================================================================
 
 void CalibrationManager::serviceWebSocket(unsigned long durationMs) {
-    if (!m_webSocket || !m_server) return;
+    if (!webSocket_ || !server_) return;
 
     unsigned long start = millis();
     while (millis() - start < durationMs) {
         if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-            m_webSocket->loop();
-            m_server->handleClient();
+            webSocket_->loop();
+            server_->handleClient();
             xSemaphoreGiveRecursive(wsMutex);
         }
         yield();
@@ -58,8 +58,8 @@ void CalibrationManager::serviceWebSocketIfDue(unsigned long stepCount) {
     if (stepCount % WEBSOCKET_SERVICE_INTERVAL_STEPS != 0) return;
     yield();
     if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-        if (m_webSocket) m_webSocket->loop();
-        if (m_server) m_server->handleClient();
+        if (webSocket_) webSocket_->loop();
+        if (server_) server_->handleClient();
         xSemaphoreGiveRecursive(wsMutex);
     }
 }
@@ -98,16 +98,16 @@ bool CalibrationManager::emergencyDecontactEnd() {
             yield();
             // 🔧 FIX #13: Use wsMutex for thread-safe WebSocket access
             if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-                if (m_webSocket) m_webSocket->loop();
-                if (m_server) m_server->handleClient();
+                if (webSocket_) webSocket_->loop();
+                if (server_) server_->handleClient();
                 xSemaphoreGiveRecursive(wsMutex);
             }
         }
     }
 
     if (emergencySteps >= MAX_EMERGENCY) {
-        if (m_errorCallback) {
-            m_errorCallback("❌ Cannot release from END contact");
+        if (errorCallback_) {
+            errorCallback_("❌ Cannot release from END contact");
         }
         Motor.disable();
         config.currentState = STATE_ERROR;
@@ -123,12 +123,12 @@ bool CalibrationManager::handleFailure() {
     Motor.disable();
     config.currentState = STATE_ERROR;
 
-    m_attemptCount++;
-    if (m_attemptCount >= MAX_CALIBRATION_RETRIES) {
-        if (m_errorCallback) {
-            m_errorCallback("❌ ERROR: Calibration failed after " + String(MAX_CALIBRATION_RETRIES) + " attempts");
+    attemptCount_++;
+    if (attemptCount_ >= MAX_CALIBRATION_RETRIES) {
+        if (errorCallback_) {
+            errorCallback_("❌ ERROR: Calibration failed after " + String(MAX_CALIBRATION_RETRIES) + " attempts");
         }
-        m_attemptCount = 0;
+        attemptCount_ = 0;
     }
 
     return false;
@@ -181,7 +181,7 @@ bool CalibrationManager::findContact(bool moveForward, uint8_t contactPin, const
             String errorMsg = "❌ ERROR: Contact ";
             errorMsg += contactName;
             errorMsg += " not found";
-            if (m_errorCallback) m_errorCallback(errorMsg);
+            if (errorCallback_) errorCallback_(errorMsg);
             Motor.disable();
             config.currentState = STATE_ERROR;
             return false;
@@ -238,8 +238,8 @@ void CalibrationManager::releaseContact(uint8_t contactPin, bool moveForward) {
 
 float CalibrationManager::validateAccuracy() {
     long stepDifference = abs(currentStep);
-    float differencePercent = (m_maxStep > 0) ?
-        ((float)stepDifference / (float)m_maxStep) * 100.0f : 0.0f;
+    float differencePercent = (maxStep_ > 0) ?
+        ((float)stepDifference / (float)maxStep_) * 100.0f : 0.0f;
 
     if (stepDifference == 0) {
         engine->debug("✓ Return accuracy: PERFECT!");
@@ -248,7 +248,7 @@ float CalibrationManager::validateAccuracy() {
                     String(differencePercent, 1) + "%)");
     }
 
-    m_lastErrorPercent = differencePercent;
+    lastErrorPercent_ = differencePercent;
     return differencePercent;
 }
 
@@ -257,7 +257,7 @@ float CalibrationManager::validateAccuracy() {
 // ============================================================================
 
 bool CalibrationManager::startCalibration() {
-    if (!m_initialized) {
+    if (!initialized_) {
         engine->error("CalibrationManager not initialized!");
         return false;
     }
@@ -265,13 +265,13 @@ bool CalibrationManager::startCalibration() {
     // Loop for retries (replaces recursive calls to avoid stack overflow on Core 1)
     while (true) {
 
-    engine->info(m_attemptCount == 0 ? "Starting calibration..." : "Retry calibration...");
+    engine->info(attemptCount_ == 0 ? "Starting calibration..." : "Retry calibration...");
     config.currentState = STATE_CALIBRATING;
 
     // Send status updates
-    if (m_statusCallback) {
+    if (statusCallback_) {
         for (int i = 0; i < 5; i++) {
-            m_statusCallback();
+            statusCallback_();
             serviceWebSocket(20);
         }
     }
@@ -305,10 +305,10 @@ bool CalibrationManager::startCalibration() {
     releaseContact(PIN_END_CONTACT, false);  // Move backward to release
 
     // This position = maxStep
-    m_maxStep = currentStep;
-    m_totalDistanceMM = MovementMath::stepsToMM(m_maxStep);
-    config.maxStep = m_maxStep;
-    config.totalDistanceMM = m_totalDistanceMM;
+    maxStep_ = currentStep;
+    totalDistanceMM_ = MovementMath::stepsToMM(maxStep_);
+    config.maxStep = maxStep_;
+    config.totalDistanceMM = totalDistanceMM_;
 
     // Check distance is within acceptable range (returns tri-state)
     if (int distResult = validateDistance(); distResult != 0) {
@@ -339,32 +339,32 @@ bool CalibrationManager::startCalibration() {
  * @return 0=OK, 1=retry needed, -1=fatal failure
  */
 int CalibrationManager::validateDistance() {
-    if (m_totalDistanceMM < HARD_MIN_DISTANCE_MM) {
-        m_attemptCount++;
-        if (m_attemptCount >= MAX_CALIBRATION_RETRIES) {
-            if (m_errorCallback) {
-                m_errorCallback("❌ Calibrated distance too short (" +
-                              String(m_totalDistanceMM, 1) + " mm)");
+    if (totalDistanceMM_ < HARD_MIN_DISTANCE_MM) {
+        attemptCount_++;
+        if (attemptCount_ >= MAX_CALIBRATION_RETRIES) {
+            if (errorCallback_) {
+                errorCallback_("❌ Calibrated distance too short (" +
+                              String(totalDistanceMM_, 1) + " mm)");
             }
             Motor.disable();
             config.currentState = STATE_ERROR;
-            m_attemptCount = 0;
+            attemptCount_ = 0;
             return -1;
         }
-        engine->warn("⚠️ Distance too short - Retry " + String(m_attemptCount));
+        engine->warn("⚠️ Distance too short - Retry " + String(attemptCount_));
         serviceWebSocket(500);
         return 1;
     }
 
-    if (m_totalDistanceMM > HARD_MAX_DISTANCE_MM) {
+    if (totalDistanceMM_ > HARD_MAX_DISTANCE_MM) {
         engine->warn("⚠️ Distance limited to " + String(HARD_MAX_DISTANCE_MM, 1) + " mm");
-        m_totalDistanceMM = HARD_MAX_DISTANCE_MM;
-        m_maxStep = MovementMath::mmToSteps(m_totalDistanceMM);
-        config.maxStep = m_maxStep;
-        config.totalDistanceMM = m_totalDistanceMM;
+        totalDistanceMM_ = HARD_MAX_DISTANCE_MM;
+        maxStep_ = MovementMath::mmToSteps(totalDistanceMM_);
+        config.maxStep = maxStep_;
+        config.totalDistanceMM = totalDistanceMM_;
     }
 
-    engine->debug("✓ Total distance: " + String(m_totalDistanceMM, 1) + " mm");
+    engine->debug("✓ Total distance: " + String(totalDistanceMM_, 1) + " mm");
     return 0;
 }
 
@@ -375,14 +375,14 @@ int CalibrationManager::validateDistance() {
 int CalibrationManager::validateCalibrationAccuracy() {
     if (float errorPercent = validateAccuracy(); errorPercent <= MAX_CALIBRATION_ERROR_PERCENT) return 0;
 
-    m_attemptCount++;
-    if (m_attemptCount >= MAX_CALIBRATION_RETRIES) {
-        if (m_errorCallback) {
-            m_errorCallback("❌ Calibration failed - error too large");
+    attemptCount_++;
+    if (attemptCount_ >= MAX_CALIBRATION_RETRIES) {
+        if (errorCallback_) {
+            errorCallback_("❌ Calibration failed - error too large");
         }
         Motor.disable();
         config.currentState = STATE_ERROR;
-        m_attemptCount = 0;
+        attemptCount_ = 0;
         return -1;
     }
 
@@ -397,7 +397,7 @@ bool CalibrationManager::finalizeCalibration() {
     config.minStep = 0;
 
     // Position at 10% of total distance (rounded up to nearest mm)
-    float tenPercentMM = ceil(m_totalDistanceMM * 0.1f);
+    float tenPercentMM = ceil(totalDistanceMM_ * 0.1f);
     long targetSteps = MovementMath::mmToSteps(tenPercentMM);
 
     engine->info("📍 Positioning at 10% (" + String(tenPercentMM, 0) + " mm)...");
@@ -407,13 +407,13 @@ bool CalibrationManager::finalizeCalibration() {
     engine->info("✓ Start position set to " + String(tenPercentMM, 0) + " mm");
 
     config.currentState = STATE_READY;
-    m_calibrated = true;
-    m_attemptCount = 0;
+    calibrated_ = true;
+    attemptCount_ = 0;
 
     engine->info("✓ Calibration complete");
 
-    if (m_completionCallback) {
-        m_completionCallback();
+    if (completionCallback_) {
+        completionCallback_();
     }
 
     return true;
@@ -438,8 +438,8 @@ bool CalibrationManager::returnToStart() {
         serviceWebSocketIfDue(static_cast<unsigned long>(abs(currentStep)));
 
         if (currentStep < -CALIBRATION_ERROR_MARGIN_STEPS) {
-            if (m_errorCallback) {
-                m_errorCallback("❌ Cannot return to START contact");
+            if (errorCallback_) {
+                errorCallback_("❌ Cannot return to START contact");
             }
             Motor.disable();
             config.currentState = STATE_ERROR;
@@ -483,13 +483,13 @@ bool CalibrationManager::returnToStart() {
 // ============================================================================
 
 void CalibrationManager::setStatusCallback(void (*callback)()) {  // NOSONAR(cpp:S5205)
-    m_statusCallback = callback;
+    statusCallback_ = callback;
 }
 
 void CalibrationManager::setErrorCallback(void (*callback)(const String& msg)) {  // NOSONAR(cpp:S5205)
-    m_errorCallback = callback;
+    errorCallback_ = callback;
 }
 
 void CalibrationManager::setCompletionCallback(void (*callback)()) {  // NOSONAR(cpp:S5205)
-    m_completionCallback = callback;
+    completionCallback_ = callback;
 }

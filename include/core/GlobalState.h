@@ -99,6 +99,11 @@ extern volatile bool requestCalibration;    // Trigger calibration from motorTas
 extern volatile bool calibrationInProgress; // When true, networkTask skips webSocket/server
                                             // (CalibrationManager handles them internally)
 extern volatile bool blockingMoveInProgress; // When true, networkTask skips webSocket/server
+
+// File upload tracking (Core 0 only — set by FilesystemManager HTTP handler)
+// Uses timestamp-based expiry: upload considered active if last activity < 5s ago
+extern volatile unsigned long lastUploadActivityTime;
+extern volatile bool uploadStopDone;         // Prevents repeated stop() calls during batch upload
                                              // (blocking move loops service them from Core 1)
 
 // ============================================================================

@@ -15,7 +15,8 @@ Usage:
     python upload_html.py --file js/core/app.js  # Upload specific file
     python upload_html.py --all              # Upload all HTML/JS/CSS files
     python upload_html.py --js               # Upload only JS files (recursive)
-    python upload_html.py --sync             # Full sync: upload all + delete orphans
+    python upload_html.py --sync             # Smart sync: upload only changed files
+    python upload_html.py --sync-force       # Force sync: upload all files + delete orphans
     python upload_html.py --list             # List files on ESP32
     python upload_html.py --delete /js/old.js  # Delete specific file on ESP32
     python upload_html.py --backup           # Backup critical files from ESP32
@@ -77,29 +78,45 @@ def upload_file(file_path, esp32_ip=ESP32_IP, target_path=None):
     
     endpoint = f"http://{esp32_ip}/api/fs/upload"
     
-    try:
-        print(f"📤 {file_path} → {target_filename} ({file_size} bytes)...", end=" ")
-        start_time = time.time()
-        
-        with open(file_path, 'rb') as f:
-            files = {'file': (target_filename, f)}
-            response = requests.post(endpoint, files=files, timeout=30)
-        
-        elapsed = time.time() - start_time
-        
-        if response.status_code == 200:
-            print(f"✅ ({elapsed:.2f}s)")
-            return True
-        else:
-            print(f"❌ HTTP {response.status_code}")
-            return False
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            if attempt == 1:
+                print(f"📤 {file_path} → {target_filename} ({file_size} bytes)...", end=" ")
+            else:
+                print(f"   🔄 Retry {attempt}/{max_retries}...", end=" ")
+            start_time = time.time()
             
-    except requests.exceptions.ConnectionError:
-        print("❌ Connection error")
-        return False
-    except Exception as e:
-        print(f"❌ {e}")
-        return False
+            with open(file_path, 'rb') as f:
+                files = {'file': (target_filename, f)}
+                response = requests.post(endpoint, files=files, timeout=30)
+            
+            elapsed = time.time() - start_time
+            
+            if response.status_code == 200:
+                print(f"✅ ({elapsed:.2f}s)")
+                return True
+            else:
+                print(f"❌ HTTP {response.status_code}")
+                if attempt < max_retries:
+                    time.sleep(2)  # Wait before retry
+                    continue
+                return False
+                
+        except requests.exceptions.ConnectionError:
+            print("❌ Connection error")
+            if attempt < max_retries:
+                time.sleep(2)
+                continue
+            return False
+        except Exception as e:
+            print(f"❌ {e}")
+            if attempt < max_retries:
+                time.sleep(2)
+                continue
+            return False
+    
+    return False
 
 
 def download_file(remote_path, esp32_ip=ESP32_IP):
@@ -295,20 +312,23 @@ def delete_file(remote_path, esp32_ip=ESP32_IP):
 
 
 def list_remote_files(esp32_ip=ESP32_IP, path="/"):
-    """List files on ESP32 recursively, returns list of paths"""
+    """List files on ESP32 recursively, returns dict {path: {size, time}} for metadata,
+    or list of paths for backward compatibility via list(result.keys())"""
     endpoint = f"http://{esp32_ip}/api/fs/list"
-    files = []
+    files = {}
     
     def extract_files(items, base_path=""):
-        """Recursively extract file paths from hierarchical JSON"""
+        """Recursively extract file paths + metadata from hierarchical JSON"""
         for item in items:
             item_path = item.get('path', base_path + '/' + item.get('name', ''))
             if item.get('isDir', False):
-                # Recurse into children
                 children = item.get('children', [])
                 extract_files(children, item_path)
             else:
-                files.append(item_path)
+                files[item_path] = {
+                    'size': item.get('size', 0),
+                    'time': item.get('time', 0),
+                }
     
     try:
         response = requests.get(endpoint, timeout=10)
@@ -319,7 +339,7 @@ def list_remote_files(esp32_ip=ESP32_IP, path="/"):
         return files
     except Exception as e:
         print(f"❌ Error listing files: {e}")
-        return []
+        return {}
 
 
 # ============================================================================
@@ -381,9 +401,12 @@ def get_local_files():
 # SYNC OPERATIONS
 # ============================================================================
 
-def sync_files(esp32_ip=ESP32_IP, delete_orphans=True):
-    """Sync local files to ESP32, optionally deleting orphans"""
-    print("🔄 Syncing files to ESP32...")
+def sync_files(esp32_ip=ESP32_IP, delete_orphans=True, force=False):
+    """Sync local files to ESP32, optionally deleting orphans.
+    Smart mode (force=False): only uploads files whose size differs from remote.
+    Force mode (force=True): uploads all files unconditionally."""
+    mode_label = "force" if force else "smart"
+    print(f"🔄 Syncing files to ESP32... ({mode_label})")
     print()
     
     # Get local files
@@ -395,36 +418,63 @@ def sync_files(esp32_ip=ESP32_IP, delete_orphans=True):
         print(f"   {path}")
     print()
     
-    # Get remote files (only in /js/, /css/, and HTML at root)
+    # Get remote files with metadata
     print("📡 Fetching remote file list...")
-    remote_files = list_remote_files(esp32_ip)
+    remote_files_meta = list_remote_files(esp32_ip)
     
     # Filter to only web assets (not stats.json, playlists.json, etc.)
     web_extensions = ['.html', '.js', '.css']
-    remote_web_files = [f for f in remote_files 
-                        if any(f.endswith(ext) for ext in web_extensions) 
-                        or f.startswith('/lang/')]
-    remote_paths = set(remote_web_files)
+    remote_web_meta = {p: m for p, m in remote_files_meta.items()
+                       if any(p.endswith(ext) for ext in web_extensions)
+                       or p.startswith('/lang/')}
+    remote_paths = set(remote_web_meta.keys())
     
-    print(f"📡 Remote web files: {len(remote_web_files)}")
+    print(f"📡 Remote web files: {len(remote_web_meta)}")
     for path in sorted(remote_paths):
         print(f"   {path}")
     print()
     
-    # Files to upload (local but not remote, or we always upload for freshness)
-    to_upload = local_paths
+    # Determine which files need uploading
+    if force:
+        to_upload = local_paths
+        skipped = 0
+    else:
+        to_upload = set()
+        skipped = 0
+        for esp_path in sorted(local_paths):
+            local_path = local_files[esp_path]
+            local_size = os.path.getsize(local_path)
+            remote_meta = remote_web_meta.get(esp_path)
+            
+            if remote_meta is None:
+                # New file, not on ESP32 yet
+                to_upload.add(esp_path)
+            elif local_size != remote_meta['size']:
+                # Size differs → content changed
+                to_upload.add(esp_path)
+            else:
+                # Same size → skip
+                skipped += 1
     
     # Files to delete (remote but not local)
     to_delete = remote_paths - local_paths
     
-    # Upload files
-    print(f"📤 Uploading {len(to_upload)} files...")
-    success_count = 0
-    for esp_path in sorted(to_upload):
-        local_path = local_files[esp_path]
-        if upload_file(local_path, esp32_ip, esp_path):
-            success_count += 1
-    print(f"   ✅ {success_count}/{len(to_upload)} uploaded")
+    if not force and skipped > 0:
+        print(f"⏭️  Skipping {skipped} unchanged files (same size)")
+    
+    if to_upload:
+        print(f"📤 Uploading {len(to_upload)} files...")
+        success_count = 0
+        for i, esp_path in enumerate(sorted(to_upload)):
+            local_path = local_files[esp_path]
+            if upload_file(local_path, esp32_ip, esp_path):
+                success_count += 1
+            # Small delay between files to let the ESP32 process
+            if i < len(to_upload) - 1:
+                time.sleep(0.3)
+        print(f"   ✅ {success_count}/{len(to_upload)} uploaded")
+    else:
+        print("✅ All files up to date — nothing to upload")
     print()
     
     # Delete orphan files
@@ -493,7 +543,8 @@ Examples:
   python upload_html.py --file js/core/app.js  # Upload specific file
   python upload_html.py --all              # Upload all HTML/JS/CSS files
   python upload_html.py --js               # Upload only JS files (recursive)
-  python upload_html.py --sync             # Full sync: upload all + delete orphans
+  python upload_html.py --sync             # Smart sync: upload only changed files
+  python upload_html.py --sync-force       # Force sync: upload all files
   python upload_html.py --list             # List files on ESP32
   python upload_html.py --delete /js/old.js  # Delete specific file on ESP32
   python upload_html.py --backup           # Backup stats.json, playlists.json from ESP32
@@ -512,7 +563,9 @@ Examples:
     parser.add_argument('--js', action='store_true',
                         help='Upload only JS files (recursive)')
     parser.add_argument('--sync', '-s', action='store_true',
-                        help='Full sync: upload all + delete orphan files on ESP32')
+                        help='Smart sync: upload changed files + delete orphans (compares size)')
+    parser.add_argument('--sync-force', action='store_true',
+                        help='Force sync: upload ALL files + delete orphans (ignores size match)')
     parser.add_argument('--list', '-l', action='store_true',
                         help='List files on ESP32')
     parser.add_argument('--delete', '-d',
@@ -561,8 +614,9 @@ Examples:
     if args.list:
         print("📡 Files on ESP32:")
         files = list_remote_files(args.ip)
-        for f in sorted(files):
-            print(f"   {f}")
+        for f in sorted(files.keys()):
+            meta = files[f]
+            print(f"   {f}  ({meta['size']} bytes)")
         print(f"\n   Total: {len(files)} files")
         return
     
@@ -572,10 +626,10 @@ Examples:
         return
     
     # Sync mode (with auto-backup)
-    if args.sync:
+    if args.sync or args.sync_force:
         if not args.no_backup:
             backup_critical_files(args.ip)
-        sync_files(args.ip, delete_orphans=True)
+        sync_files(args.ip, delete_orphans=True, force=args.sync_force)
         return
     
     # Collect files to upload
@@ -615,9 +669,12 @@ Examples:
     else:
         # Upload
         success = 0
-        for file_path in files_to_upload:
+        for i, file_path in enumerate(files_to_upload):
             if upload_file(file_path, args.ip):
                 success += 1
+            # Small delay between files to let the ESP32 process
+            if i < len(files_to_upload) - 1:
+                time.sleep(0.3)
         
         print()
         print(f"{'✅' if success == len(files_to_upload) else '⚠️ '} {success}/{len(files_to_upload)} files uploaded")

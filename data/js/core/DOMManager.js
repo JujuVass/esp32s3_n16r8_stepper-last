@@ -242,6 +242,7 @@ function initDOMCache() {
   // ========================================================================
   DOM.calibrationOverlay = document.getElementById('calibrationOverlay');
   DOM.rebootOverlay = document.getElementById('rebootOverlay');
+  DOM.updateOverlay = document.getElementById('updateOverlay');
   DOM.rebootMessage = document.getElementById('rebootMessage');
   DOM.rebootStatus = document.getElementById('rebootStatus');
   DOM.stopModal = document.getElementById('stopModal');

@@ -68,6 +68,13 @@ public:
      */
     void sendError(const String& message);
 
+    /**
+     * Check if a file upload is currently in progress
+     * Based on timestamp expiry (UPLOAD_ACTIVITY_TIMEOUT_MS after last activity)
+     * @return true if upload batch is active
+     */
+    bool isUploadActive() const;
+
 private:
     StatusBroadcaster() = default;
     StatusBroadcaster(const StatusBroadcaster&) = delete;

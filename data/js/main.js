@@ -450,6 +450,16 @@
       if (DOM.calibrationOverlay) {
         DOM.calibrationOverlay.classList.toggle('active', data.state === SystemState.CALIBRATING);
       }
+      if (DOM.updateOverlay) {
+        const wasActive = DOM.updateOverlay.classList.contains('active');
+        const isActive = !!data.updating;
+        if (!wasActive && isActive) {
+          console.log('📦 Upload started — overlay shown');
+        } else if (wasActive && !isActive) {
+          console.log('✅ Upload finished — overlay hidden');
+        }
+        DOM.updateOverlay.classList.toggle('active', isActive);
+      }
     }
 
     /** Update position text display */

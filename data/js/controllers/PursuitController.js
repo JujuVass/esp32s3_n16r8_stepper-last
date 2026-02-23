@@ -310,6 +310,11 @@ function initMaxDistLimitListeners() {
   
   // Apply limit
   DOM.btnApplyMaxDistLimit.addEventListener('click', function() {
+    // Defensive guard: ignore if system is not in READY state
+    if (AppState.system.currentState !== SystemState.READY) {
+      showNotification('⚠️ ' + t('status.modifyReadyOnly'), 'error');
+      return;
+    }
     const percent = Number.parseFloat(DOM.maxDistLimitSlider.value);
     
     // Reset input fields to safe defaults when applying limit
@@ -324,7 +329,7 @@ function initMaxDistLimitListeners() {
     if (oscCenterField && effectiveMax > 0) {
       oscCenterField.value = (effectiveMax / 2).toFixed(1);
       // Send to backend to update oscillation config
-      sendCommand(WS_CMD.SET_OSCILLATION_CONFIG, {
+      sendCommand(WS_CMD.SET_OSCILLATION, {
         centerPositionMM: effectiveMax / 2,
         amplitudeMM: Number.parseFloat(document.getElementById('oscAmplitude').value) || 50,
         frequencyHz: Number.parseFloat(document.getElementById('oscFrequency').value) || 1,

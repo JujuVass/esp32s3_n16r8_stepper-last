@@ -51,7 +51,10 @@
     "calibrationWarn": "Ne pas interrompre le processus",
     "rebootTitle": "Redémarrage en cours...",
     "rebootMsg": "Reconnexion automatique dans quelques secondes",
-    "rebootWait": "Veuillez patienter (~10-15 secondes)"
+    "rebootWait": "Veuillez patienter (~10-15 secondes)",
+    "updateTitle": "Mise à jour en cours...",
+    "updateMsg": "Des fichiers sont en cours de téléversement",
+    "updateWarn": "Le moteur a été arrêté automatiquement"
   },
   "status": {
     "stateLabel": "État:",
