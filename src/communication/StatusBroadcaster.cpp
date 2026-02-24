@@ -33,18 +33,18 @@ StatusBroadcaster& StatusBroadcaster::getInstance() {
 // DRY HELPERS
 // ============================================================================
 
-void StatusBroadcaster::addCyclePauseFields(JsonObject parentObj, const CyclePauseConfig& config, const CyclePauseState& state) {
+void StatusBroadcaster::addCyclePauseFields(JsonObject parentObj, const CyclePauseConfig& pauseConfig, const CyclePauseState& pauseState) {
     JsonObject pauseObj = parentObj["cyclePause"].to<JsonObject>();
-    pauseObj["enabled"] = config.enabled;
-    pauseObj["isRandom"] = config.isRandom;
-    pauseObj["pauseDurationSec"] = serialized(String(config.pauseDurationSec, 1));
-    pauseObj["minPauseSec"] = serialized(String(config.minPauseSec, 1));
-    pauseObj["maxPauseSec"] = serialized(String(config.maxPauseSec, 1));
-    pauseObj["isPausing"] = state.isPausing;
+    pauseObj["enabled"] = pauseConfig.enabled;
+    pauseObj["isRandom"] = pauseConfig.isRandom;
+    pauseObj["pauseDurationSec"] = serialized(String(pauseConfig.pauseDurationSec, 1));
+    pauseObj["minPauseSec"] = serialized(String(pauseConfig.minPauseSec, 1));
+    pauseObj["maxPauseSec"] = serialized(String(pauseConfig.maxPauseSec, 1));
+    pauseObj["isPausing"] = pauseState.isPausing;
 
-    if (state.isPausing) {
-        unsigned long elapsedMs = millis() - state.pauseStartMs;
-        long remainingMs = (long)state.currentPauseDuration - (long)elapsedMs;
+    if (pauseState.isPausing) {
+        unsigned long elapsedMs = millis() - pauseState.pauseStartMs;
+        long remainingMs = (long)pauseState.currentPauseDuration - (long)elapsedMs;
         pauseObj["remainingMs"] = max(0L, remainingMs);
     } else {
         pauseObj["remainingMs"] = 0;
