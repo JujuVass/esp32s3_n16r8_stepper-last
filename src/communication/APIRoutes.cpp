@@ -35,7 +35,7 @@ extern void setRgbLed(uint8_t r, uint8_t g, uint8_t b);
  * Reusable body collector for the onBody callback of ESPAsyncWebServer.
  * Accumulates incoming chunks into a String stored in request->_tempObject.
  */
-static void collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+void collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
   if (index == 0) {
     request->_tempObject = new String();
     static_cast<String*>(request->_tempObject)->reserve(total);
@@ -47,7 +47,7 @@ static void collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t le
  * Extract the collected body from request->_tempObject and clean up.
  * Returns an empty String if no body was collected.
  */
-static String getBody(AsyncWebServerRequest* request) {
+String getBody(AsyncWebServerRequest* request) {
   String body;
   if (request->_tempObject) {
     body = *static_cast<String*>(request->_tempObject);
@@ -155,9 +155,37 @@ void sendEmptyPlaylistStructure(AsyncWebServerRequest* request) {
   doc["oscillation"] = JsonArray();
   doc["chaos"] = JsonArray();
   doc["pursuit"] = JsonArray();
+  sendJsonDoc(request, doc);
+}
+
+bool parseJsonBody(AsyncWebServerRequest* request, JsonDocument& doc) {
+  String body = getBody(request);
+  if (body.isEmpty()) {
+    sendJsonError(request, 400, "Missing JSON body");
+    return false;
+  }
+  DeserializationError error = deserializeJson(doc, body);
+  if (error) {
+    sendJsonError(request, 400, "Invalid JSON");
+    return false;
+  }
+  return true;
+}
+
+void sendJsonDoc(AsyncWebServerRequest* request, JsonDocument& doc, int code) {
   String json;
   serializeJson(doc, json);
-  request->send(200, "application/json", json);
+  AsyncWebServerResponse* response = request->beginResponse(code, "application/json", json);
+  sendCORSHeaders(response);
+  request->send(response);
+}
+
+bool requireFilesystem(AsyncWebServerRequest* request) {
+  if (!engine || !engine->isFilesystemReady()) {
+    sendJsonError(request, 500, "LittleFS not mounted");
+    return false;
+  }
+  return true;
 }
 
 // Helper: Create empty file with initial content if it doesn't exist
@@ -308,19 +336,8 @@ static void handleGetStats(AsyncWebServerRequest* request) {
 }
 
 static void handleIncrementStats(AsyncWebServerRequest* request) {
-  String body = getBody(request);
-  if (body.isEmpty()) {
-    sendJsonError(request, 400, "Missing JSON body");
-    return;
-  }
-
   JsonDocument requestDoc;
-  DeserializationError error = deserializeJson(requestDoc, body);
-
-  if (error) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, requestDoc)) return;
 
   float distanceMM = requestDoc["distanceMM"] | 0.0f;
   if (distanceMM <= 0) {
@@ -342,9 +359,7 @@ static void handleExportStats(AsyncWebServerRequest* request) {
     doc["totalDistanceMM"] = 0;
     doc["stats"].to<JsonArray>();
 
-    String json;
-    serializeJson(doc, json);
-    request->send(200, "application/json", json);
+    sendJsonDoc(request, doc);
     engine->info("📥 Stats export: empty (no data)");
     return;
   }
@@ -370,9 +385,7 @@ static void handleExportStats(AsyncWebServerRequest* request) {
     totalMM += entry["distanceMM"].as<float>();
   }
 
-  String json;
-  serializeJson(exportDoc, json);
-  request->send(200, "application/json", json);
+  sendJsonDoc(request, exportDoc);
 
   engine->info("📥 Stats exported: " + String(statsArray.size()) + " entries, " +
                String(totalMM / 1000000.0, 3) + " km total");
@@ -446,11 +459,7 @@ static void handleImportStats(AsyncWebServerRequest* request) {
   responseDoc["entriesImported"] = saveArray.size();
   responseDoc["totalDistanceMM"] = totalMM;
 
-  String json;
-  serializeJson(responseDoc, json);
-  AsyncWebServerResponse* response = request->beginResponse(200, "application/json", json);
-  sendCORSHeaders(response);
-  request->send(response);
+  sendJsonDoc(request, responseDoc);
 }
 
 // --- Playlist handlers ---
@@ -513,19 +522,10 @@ static void handleGetPlaylists(AsyncWebServerRequest* request) {
 }
 
 static void handleAddPreset(AsyncWebServerRequest* request) {
-  if (!engine || !engine->isFilesystemReady()) {
-    sendJsonError(request, 500, "LittleFS not mounted");
-    return;
-  }
+  if (!requireFilesystem(request)) return;
 
-  String body = getBody(request);
   JsonDocument reqDoc;
-  DeserializationError error = deserializeJson(reqDoc, body);
-
-  if (error) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, reqDoc)) return;
 
   const char* mode = reqDoc["mode"];
   const char* name = reqDoc["name"];
@@ -623,19 +623,10 @@ static void handleAddPreset(AsyncWebServerRequest* request) {
 }
 
 static void handleDeletePreset(AsyncWebServerRequest* request) {
-  if (!engine || !engine->isFilesystemReady()) {
-    sendJsonError(request, 500, "LittleFS not mounted");
-    return;
-  }
+  if (!requireFilesystem(request)) return;
 
-  String body = getBody(request);
   JsonDocument reqDoc;
-  DeserializationError error = deserializeJson(reqDoc, body);
-
-  if (error) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, reqDoc)) return;
 
   const char* mode = reqDoc["mode"];
   int id = reqDoc["id"] | 0;
@@ -666,19 +657,10 @@ static void handleDeletePreset(AsyncWebServerRequest* request) {
 }
 
 static void handleUpdatePreset(AsyncWebServerRequest* request) {
-  if (!engine || !engine->isFilesystemReady()) {
-    sendJsonError(request, 500, "LittleFS not mounted");
-    return;
-  }
+  if (!requireFilesystem(request)) return;
 
-  String body = getBody(request);
   JsonDocument reqDoc;
-  DeserializationError error = deserializeJson(reqDoc, body);
-
-  if (error) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, reqDoc)) return;
 
   const char* mode = reqDoc["mode"];
   int id = reqDoc["id"] | 0;
@@ -735,26 +717,16 @@ static void handleClearLogs(AsyncWebServerRequest* request) {
   }
 
   engine->info("📋 Deleted " + String(deletedCount) + " log files");
-  request->send(200, "application/json",
-    R"({"status":"ok","message":")"
-    + String(deletedCount) + R"( logs deleted","count":)"
-    + String(deletedCount) + "}");
+  JsonDocument doc;
+  doc["status"] = "ok";
+  doc["message"] = String(deletedCount) + " logs deleted";
+  doc["count"] = deletedCount;
+  sendJsonDoc(request, doc);
 }
 
 static void handleSetLoggingPreferences(AsyncWebServerRequest* request) {
-  String body = getBody(request);
-  if (body.isEmpty()) {
-    sendJsonError(request, 400, "Missing body");
-    return;
-  }
-
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body);
-
-  if (err) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, doc)) return;
 
   // Update logging enabled state
   if (doc["loggingEnabled"].is<bool>()) {
@@ -775,7 +747,7 @@ static void handleSetLoggingPreferences(AsyncWebServerRequest* request) {
   // Save to NVS
   engine->saveLoggingPreferences();
 
-  request->send(200, "application/json", R"({"success":true,"message":"Logging preferences saved"})");
+  sendJsonSuccess(request, "Logging preferences saved");
 }
 
 // --- Dumps handlers ---
@@ -862,25 +834,12 @@ static void handleWifiScan(AsyncWebServerRequest* request) {
   doc["count"] = count;
   doc["apMode"] = wasAPOnly;
 
-  String response;
-  serializeJson(doc, response);
-  request->send(200, "application/json", response);
+  sendJsonDoc(request, doc);
 }
 
 static void handleWifiSave(AsyncWebServerRequest* request) {
-  String body = getBody(request);
-  if (body.isEmpty()) {
-    sendJsonError(request, 400, "Missing body");
-    return;
-  }
-
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body);
-
-  if (err) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, doc)) return;
 
   String wifiSsid = doc["ssid"] | "";
   String wifiPassword = doc["password"] | "";
@@ -901,9 +860,7 @@ static void handleWifiSave(AsyncWebServerRequest* request) {
     respDoc["ssid"] = wifiSsid;
     respDoc["rebootRequired"] = true;
 
-    String response;
-    serializeJson(respDoc, response);
-    request->send(200, "application/json", response);
+    sendJsonDoc(request, respDoc);
 
     engine->info("✅ WiFi config saved successfully");
   } else {
@@ -918,19 +875,8 @@ static void handleWifiConnect(AsyncWebServerRequest* request) {
     return;
   }
 
-  String body = getBody(request);
-  if (body.isEmpty()) {
-    sendJsonError(request, 400, "Missing body");
-    return;
-  }
-
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body);
-
-  if (err) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, doc)) return;
 
   String wifiSsid = doc["ssid"] | "";
   String wifiPassword = doc["password"] | "";
@@ -968,9 +914,7 @@ static void handleWifiConnect(AsyncWebServerRequest* request) {
     respDoc["rebootRequired"] = true;
     respDoc["hostname"] = String(otaHostname) + ".local";
 
-    String response;
-    serializeJson(respDoc, response);
-    request->send(200, "application/json", response);
+    sendJsonDoc(request, respDoc);
 
     engine->info("✅ WiFi config saved AND tested successfully - waiting for reboot");
   } else {
@@ -987,9 +931,7 @@ static void handleWifiConnect(AsyncWebServerRequest* request) {
     respDoc["ssid"] = wifiSsid;
     respDoc["rebootRequired"] = true;
 
-    String response;
-    serializeJson(respDoc, response);
-    request->send(200, "application/json", response);
+    sendJsonDoc(request, respDoc);
 
     engine->warn("⚠️ WiFi saved but test failed: " + wifiSsid + " (will retry on reboot)");
   }
@@ -1189,7 +1131,10 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
 
   // GET /api/ping - Simple health check endpoint
   server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "application/json", R"({"status":"ok","uptime":)" + String(millis()) + "}");
+    JsonDocument doc;
+    doc["status"] = "ok";
+    doc["uptime"] = millis();
+    sendJsonDoc(request, doc);
   });
 
   // POST /api/system/reboot - Reboot ESP32
@@ -1197,7 +1142,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
     engine->info("🔄 Reboot requested via API");
 
     // Send success response before rebooting
-    request->send(200, "application/json", R"({"success":true,"message":"Rebooting ESP32..."})");
+    sendJsonSuccess(request, "Rebooting ESP32...");
 
     // Safe shutdown: stop movement, disable motor, flush logs
     StepperNetwork.safeShutdown();
@@ -1214,7 +1159,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
     engine->info("📶 WiFi reconnect requested via API");
 
     // Send success response before disconnecting
-    request->send(200, "application/json", R"({"success":true,"message":"Reconnecting WiFi..."})");
+    sendJsonSuccess(request, "Reconnecting WiFi...");
 
     // Simple reconnect - WiFi.reconnect() handles everything
     // Don't call disconnect() first - it can cause issues
@@ -1234,9 +1179,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
     doc["loggingEnabled"] = engine->isLoggingEnabled();
     doc["logLevel"] = (int)engine->getLogLevel();
 
-    String response;
-    serializeJson(doc, response);
-    request->send(200, "application/json", response);
+    sendJsonDoc(request, doc);
   });
 
   // POST /api/system/logging/preferences - Update logging preferences
@@ -1269,9 +1212,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
     doc["ip"] = WiFi.localIP().toString();
     doc["apIp"] = WiFi.softAPIP().toString();
 
-    String response;
-    serializeJson(doc, response);
-    request->send(200, "application/json", response);
+    sendJsonDoc(request, doc);
   });
 
   // POST /api/wifi/save - Save WiFi credentials to NVS without testing
@@ -1284,7 +1225,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
   // POST /api/wifi/reboot - Explicit reboot after config
   server.on("/api/wifi/reboot", HTTP_POST, [](AsyncWebServerRequest* request) {
     engine->info("🔄 WiFi config reboot requested");
-    request->send(200, "application/json", R"({"success":true,"message":"Rebooting..."})");
+    sendJsonSuccess(request, "Rebooting...");
     delay(500);
     ESP.restart();
   });
@@ -1295,7 +1236,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
 
     WiFiConfig.clearConfig();
 
-    request->send(200, "application/json", R"({"success":true,"message":"WiFi configuration cleared. Rebooting..."})");
+    sendJsonSuccess(request, "WiFi configuration cleared. Rebooting...");
 
     // Reboot to enter setup mode
     delay(1000);
@@ -1315,7 +1256,7 @@ void setupAPIRoutes() {  // NOSONAR(cpp:S3776) — sequential route registration
     // Call the SequenceTableManager import function
     SeqTable.importFromJson(jsonData);
 
-    request->send(200, "application/json", R"({"success":true,"message":"Sequence imported successfully"})");
+    sendJsonSuccess(request, "Sequence imported successfully");
   }, NULL, collectBody);
 
   // ========================================================================

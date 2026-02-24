@@ -10,6 +10,7 @@
 #define API_ROUTES_H
 
 #include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
 
 // Forward declarations for global context
 extern AsyncWebServer server;
@@ -56,5 +57,31 @@ void sendJsonSuccessWithId(AsyncWebServerRequest* request, int id);
  * @param request The async request to respond to
  */
 void sendEmptyPlaylistStructure(AsyncWebServerRequest* request);
+
+// ============================================================================
+// BODY COLLECTION & JSON HELPERS (shared across APIRoutes + FilesystemManager)
+// ============================================================================
+
+/** Reusable body collector for ESPAsyncWebServer onBody callback */
+void collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total);
+
+/** Extract collected body from request->_tempObject and clean up */
+String getBody(AsyncWebServerRequest* request);
+
+/**
+ * Parse JSON body from request — sends 400 error if missing/invalid.
+ * @return true if doc is populated, false if error response was already sent
+ */
+bool parseJsonBody(AsyncWebServerRequest* request, JsonDocument& doc);
+
+/**
+ * Serialize JsonDocument and send as HTTP response with CORS headers.
+ */
+void sendJsonDoc(AsyncWebServerRequest* request, JsonDocument& doc, int code = 200);
+
+/**
+ * Guard: returns false (and sends 500 error) if engine or LittleFS not ready.
+ */
+bool requireFilesystem(AsyncWebServerRequest* request);
 
 #endif // API_ROUTES_H

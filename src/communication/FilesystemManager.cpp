@@ -15,28 +15,6 @@ extern UtilityEngine* engine;
 using namespace std;
 
 // ============================================================================
-// BODY COLLECTOR (same pattern as APIRoutes.cpp)
-// ============================================================================
-
-static void collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-  if (index == 0) {
-    request->_tempObject = new String();
-    static_cast<String*>(request->_tempObject)->reserve(total);
-  }
-  static_cast<String*>(request->_tempObject)->concat(reinterpret_cast<char*>(data), len);
-}
-
-static String getBody(AsyncWebServerRequest* request) {
-  String body;
-  if (request->_tempObject) {
-    body = *static_cast<String*>(request->_tempObject);
-    delete static_cast<String*>(request->_tempObject);
-    request->_tempObject = nullptr;
-  }
-  return body;
-}
-
-// ============================================================================
 // CONSTRUCTOR
 // ============================================================================
 FilesystemManager::FilesystemManager(AsyncWebServer& webServer) : server(webServer) {}
@@ -202,9 +180,7 @@ void FilesystemManager::handleListFiles(AsyncWebServerRequest* request) {
   doc["totalBytes"] = totalBytes;
   doc["freeSpace"] = totalBytes - usedBytes;
 
-  String response;
-  serializeJson(doc, response);
-  request->send(200, "application/json", response);
+  sendJsonDoc(request, doc);
 }
 
 void FilesystemManager::handleDownloadFile(AsyncWebServerRequest* request) {
@@ -257,19 +233,8 @@ void FilesystemManager::handleReadFile(AsyncWebServerRequest* request) {
 }
 
 void FilesystemManager::handleWriteFile(AsyncWebServerRequest* request) {
-  String body = getBody(request);
-  if (body.isEmpty()) {
-    sendJsonError(request, 400, "Missing JSON body");
-    return;
-  }
-
   JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, body);
-
-  if (error) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, doc)) return;
 
   String path = normalizePath(doc["path"].as<String>());
   String content = doc["content"].as<String>();
@@ -378,19 +343,8 @@ void FilesystemManager::handleUploadFile(AsyncWebServerRequest* request, const S
 }
 
 void FilesystemManager::handleDeleteFile(AsyncWebServerRequest* request) {
-  String body = getBody(request);
-  if (body.isEmpty()) {
-    sendJsonError(request, 400, "Missing JSON body");
-    return;
-  }
-
   JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, body);
-
-  if (error) {
-    sendJsonError(request, 400, "Invalid JSON");
-    return;
-  }
+  if (!parseJsonBody(request, doc)) return;
 
   String path = normalizePath(doc["path"].as<String>());
 
@@ -442,9 +396,7 @@ void FilesystemManager::handleClearAllFiles(AsyncWebServerRequest* request) {
   JsonDocument doc;
   doc["success"] = true;
   doc["deletedCount"] = deletedCount;
-  String response;
-  serializeJson(doc, response);
-  request->send(200, "application/json", response);
+  sendJsonDoc(request, doc);
 }
 
 // ============================================================================
