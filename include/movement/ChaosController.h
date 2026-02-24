@@ -20,8 +20,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <WebSocketsServer.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include "core/Types.h"
 #include "core/Config.h"
 #include "ChaosPatterns.h"

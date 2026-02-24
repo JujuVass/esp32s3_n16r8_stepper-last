@@ -8,7 +8,7 @@
 #include "movement/SequenceTableManager.h"
 #include "communication/StatusBroadcaster.h"  // For Status.sendError()
 #include "core/Validators.h"
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 
 using enum MovementType;
 using enum SpeedCurve;
@@ -521,11 +521,11 @@ int SequenceTableManager::importFromJson(String jsonData) {
 // ============================================================================
 
 void SequenceTableManager::sendJsonResponse(const char* type, const String& data) {
-  if (webSocket.connectedClients() > 0) {
+  if (ws.count() > 0) {
     String response = R"({"type":")"
       + String(type) + R"(","data":)"
       + data + "}";
-    webSocket.broadcastTXT(response);
+    ws.textAll(response);
   }
 }
 

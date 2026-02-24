@@ -33,7 +33,7 @@ CommandDispatcher& CommandDispatcher::getInstance() {
 // INITIALIZATION
 // ============================================================================
 
-void CommandDispatcher::begin(WebSocketsServer* ws) {
+void CommandDispatcher::begin(AsyncWebSocket* ws) {
     _webSocket = ws;
     engine->info("CommandDispatcher initialized");
 }
@@ -42,11 +42,11 @@ void CommandDispatcher::begin(WebSocketsServer* ws) {
 // WEBSOCKET EVENT HANDLER
 // ============================================================================
 
-void CommandDispatcher::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+void CommandDispatcher::onWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
     // Client connected
-    if (type == WStype_CONNECTED) {
-        IPAddress ip = _webSocket->remoteIP(num);
-        engine->info(String("WebSocket client #") + String(num) + " connected from " +
+    if (type == WS_EVT_CONNECT) {
+        IPAddress ip = client->remoteIP();
+        engine->info(String("WebSocket client #") + String(client->id()) + " connected from " +
               String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]));
         // Reset broadcast dedup hash so the next sendStatus() is guaranteed to
         // transmit even if the payload hasn't changed since the last broadcast.
@@ -54,15 +54,19 @@ void CommandDispatcher::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* pa
     }
 
     // Client disconnected
-    if (type == WStype_DISCONNECTED) {
-        engine->info(String("WebSocket client #") + String(num) + " disconnected");
+    if (type == WS_EVT_DISCONNECT) {
+        engine->info(String("WebSocket client #") + String(client->id()) + " disconnected");
         engine->saveCurrentSessionStats();
     }
 
     // Text message received
-    if (type == WStype_TEXT) {
-        auto message = String((char*)payload);
-        handleCommand(num, message);
+    if (type == WS_EVT_DATA) {
+        AwsFrameInfo* info = (AwsFrameInfo*)arg;
+        if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+            data[len] = 0;  // Null-terminate
+            auto message = String((char*)data);
+            handleCommand(client->id(), message);
+        }
     }
 }
 

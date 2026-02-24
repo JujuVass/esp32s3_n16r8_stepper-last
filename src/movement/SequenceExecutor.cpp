@@ -43,7 +43,7 @@ SequenceExecutor& SequenceExecutor::getInstance() {
 // INITIALIZATION
 // ============================================================================
 
-void SequenceExecutor::begin(WebSocketsServer* ws) {
+void SequenceExecutor::begin(AsyncWebSocket* ws) {
     _webSocket = ws;
     engine->info("SequenceExecutor initialized");
 }
@@ -156,7 +156,7 @@ void SequenceExecutor::skipToNextLine() {
 
 void SequenceExecutor::sendStatus() {
     // Only broadcast if clients are connected (early exit)
-    if (_webSocket == nullptr || _webSocket->connectedClients() == 0) return;
+    if (_webSocket == nullptr || _webSocket->count() == 0) return;
 
     JsonDocument doc;
 
@@ -191,7 +191,7 @@ void SequenceExecutor::sendStatus() {
 
     String output;
     serializeJson(doc, output);
-    _webSocket->broadcastTXT(output);
+    _webSocket->textAll(output);
 }
 
 // ============================================================================
@@ -308,11 +308,10 @@ bool SequenceExecutor::blockingMoveToStep(long targetStepPos, unsigned long time
 
     unsigned long moveStart = millis();
     unsigned long lastStepTime = micros();
-    unsigned long lastWsService = millis();
     unsigned long lastStatusUpdate = millis();
     const unsigned long stepDelay = POSITIONING_STEP_DELAY_MICROS;
 
-    // Cooperative flag: networkTask will skip webSocket/server during blocking move
+    // Cooperative flag: networkTask will know blocking move is in progress
     blockingMoveInProgress = true;
 
     while (currentStep != targetStepPos && (millis() - moveStart < timeoutMs)) {
@@ -328,20 +327,10 @@ bool SequenceExecutor::blockingMoveToStep(long targetStepPos, unsigned long time
         }
         yield();
 
+        // Periodic status broadcast (async WS handles delivery automatically)
         unsigned long nowMs = millis();
-        if (nowMs - lastWsService >= BLOCKING_MOVE_WS_SERVICE_MS) {
-            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {  // NOSONAR(cpp:S134) — FreeRTOS mutex pattern
-                if (_webSocket) _webSocket->loop();
-                server.handleClient();
-                xSemaphoreGiveRecursive(wsMutex);
-            }
-            lastWsService = nowMs;
-        }
         if (nowMs - lastStatusUpdate >= BLOCKING_MOVE_STATUS_INTERVAL_MS) {
-            if (wsMutex && xSemaphoreTakeRecursive(wsMutex, pdMS_TO_TICKS(5)) == pdTRUE) {  // NOSONAR(cpp:S134)
-                Status.send();
-                xSemaphoreGiveRecursive(wsMutex);
-            }
+            Status.send();
             lastStatusUpdate = nowMs;
         }
     }

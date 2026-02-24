@@ -22,7 +22,7 @@
 #ifndef FILESYSTEM_MANAGER_H
 #define FILESYSTEM_MANAGER_H
 
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <functional>
@@ -43,7 +43,7 @@
  */
 class FilesystemManager {
 private:
-  WebServer& server;
+  AsyncWebServer& server;
   bool _uploadFailed = false;  // Track upload failure across multipart callbacks
 
   // Binary file extensions that cannot be edited
@@ -58,20 +58,20 @@ private:
   // JSON response helpers: uses free functions from APIRoutes.h (DRY)
 
   // Route handlers (called by registerRoutes lambdas)
-  void handleListFiles();
-  void handleDownloadFile();
-  void handleReadFile();
-  void handleWriteFile();
-  void handleUploadFile();
-  void handleDeleteFile();
-  void handleClearAllFiles();
+  void handleListFiles(AsyncWebServerRequest* request);
+  void handleDownloadFile(AsyncWebServerRequest* request);
+  void handleReadFile(AsyncWebServerRequest* request);
+  void handleWriteFile(AsyncWebServerRequest* request);
+  void handleUploadFile(AsyncWebServerRequest* request, const String& filename, size_t index, uint8_t* data, size_t len, bool isFinal);
+  void handleDeleteFile(AsyncWebServerRequest* request);
+  void handleClearAllFiles(AsyncWebServerRequest* request);
 
 public:
   /**
    * Constructor
-   * @param webServer Reference to WebServer instance (must be initialized)
+   * @param webServer Reference to AsyncWebServer instance (must be initialized)
    */
-  explicit FilesystemManager(WebServer& webServer);
+  explicit FilesystemManager(AsyncWebServer& webServer);
 
   /**
    * Register all filesystem API routes with WebServer

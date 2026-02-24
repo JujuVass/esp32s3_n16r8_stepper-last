@@ -11,7 +11,7 @@
 #define SEQUENCE_EXECUTOR_H
 
 #include <Arduino.h>
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include "core/Types.h"
 #include "core/Config.h"
@@ -43,7 +43,7 @@ public:
      * Initialize the executor with WebSocket reference
      * @param ws Pointer to WebSocketsServer for status broadcasting
      */
-    void begin(WebSocketsServer* ws);
+    void begin(AsyncWebSocket* ws);
 
     // ========================================================================
     // SEQUENCE CONTROL
@@ -110,9 +110,8 @@ public:
     void onMovementComplete();
 
     /**
-     * Blocking move to a specific step position with WS servicing.
-     * Sets/clears blockingMoveInProgress flag. Services WebSocket + HTTP
-     * every 10 ms and broadcasts status every 250 ms.
+     * Blocking move to a specific step position.
+     * Sets/clears blockingMoveInProgress flag. Broadcasts status every 250 ms.
      * @param targetStepPos Target step position to reach
      * @param timeoutMs Maximum time allowed for the move (default 30s)
      * @return true if position reached, false if timeout
@@ -124,7 +123,7 @@ private:
     SequenceExecutor(const SequenceExecutor&) = delete;
     SequenceExecutor& operator=(const SequenceExecutor&) = delete;
 
-    WebSocketsServer* _webSocket = nullptr;
+    AsyncWebSocket* _webSocket = nullptr;
     unsigned long _lastPauseStatusSend = 0;  // Rate-limit status during line pauses
 
     // ========================================================================

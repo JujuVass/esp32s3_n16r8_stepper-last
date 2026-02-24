@@ -12,7 +12,7 @@
 #define LOGGER_H
 
 #include <Arduino.h>
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <array>
@@ -55,7 +55,7 @@ public:
    * @param ws Reference to WebSocketsServer for WS broadcast
    * @param fs Reference to FileSystem for log file operations
    */
-  Logger(WebSocketsServer& ws, FileSystem& fs);
+  Logger(AsyncWebSocket& ws, FileSystem& fs);
 
   /**
    * Initialize log file (creates /logs dir, opens session file)
@@ -122,7 +122,7 @@ public:
   }
 
 private:
-  WebSocketsServer& _ws;
+  AsyncWebSocket& _ws;
   FileSystem& _fs;
 
   // Log file state

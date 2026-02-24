@@ -13,11 +13,11 @@
 // CONSTRUCTOR
 // ============================================================================
 
-UtilityEngine::UtilityEngine(WebSocketsServer& webSocketServer)
-  : _ws(webSocketServer),
+UtilityEngine::UtilityEngine(AsyncWebSocket& webSocket)
+  : _ws(webSocket),
     _fs(),
     _eeprom(),
-    _logger(webSocketServer, _fs),
+    _logger(webSocket, _fs),
     _stats(_fs, _eeprom) {
 
   // Initialize Preferences (NVS)
@@ -124,7 +124,7 @@ UtilityEngine::EngineStatus UtilityEngine::getStatus() const {
   status.filesystemReady = _fs.isReady();
   status.fileOpen = !_logger.getCurrentLogFile().isEmpty();
   status.timeSynced = isTimeSynchronized();
-  status.connectedClients = _ws.connectedClients();
+  status.connectedClients = _ws.count();
   status.totalBytes = _fs.getTotalBytes();
   status.usedBytes = _fs.getUsedBytes();
   status.diskUsagePercent = _fs.getDiskUsagePercent();

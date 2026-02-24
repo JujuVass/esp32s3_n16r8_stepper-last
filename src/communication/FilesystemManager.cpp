@@ -15,9 +15,31 @@ extern UtilityEngine* engine;
 using namespace std;
 
 // ============================================================================
+// BODY COLLECTOR (same pattern as APIRoutes.cpp)
+// ============================================================================
+
+static void collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+  if (index == 0) {
+    request->_tempObject = new String();
+    static_cast<String*>(request->_tempObject)->reserve(total);
+  }
+  static_cast<String*>(request->_tempObject)->concat(reinterpret_cast<char*>(data), len);
+}
+
+static String getBody(AsyncWebServerRequest* request) {
+  String body;
+  if (request->_tempObject) {
+    body = *static_cast<String*>(request->_tempObject);
+    delete static_cast<String*>(request->_tempObject);
+    request->_tempObject = nullptr;
+  }
+  return body;
+}
+
+// ============================================================================
 // CONSTRUCTOR
 // ============================================================================
-FilesystemManager::FilesystemManager(WebServer& webServer) : server(webServer) {}
+FilesystemManager::FilesystemManager(AsyncWebServer& webServer) : server(webServer) {}
 
 // ============================================================================
 // PRIVATE HELPER METHODS
@@ -63,65 +85,74 @@ String FilesystemManager::normalizePath(String path) {
 
 void FilesystemManager::registerRoutes() {
   // GET /filesystem - Serve filesystem.html from LittleFS
-  server.on("/filesystem", HTTP_GET, [this]() {
+  server.on("/filesystem", HTTP_GET, [this](AsyncWebServerRequest* request) {
     if (LittleFS.exists("/filesystem.html")) {
-      File file = LittleFS.open("/filesystem.html", "r");
-      if (file) {
-        server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        server.streamFile(file, "text/html; charset=UTF-8");
-        file.close();
-      } else {
-        server.send(500, "text/plain", "Error opening filesystem.html");
-      }
+      AsyncWebServerResponse* response = request->beginResponse(LittleFS, "/filesystem.html", "text/html; charset=UTF-8");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
     } else {
-      server.send(404, "text/plain", "File not found: filesystem.html");
+      request->send(404, "text/plain", "File not found: filesystem.html");
     }
   });
 
   // GET /api/fs/list - List all files recursively
-  server.on("/api/fs/list", HTTP_GET, [this]() {
-    handleListFiles();
+  server.on("/api/fs/list", HTTP_GET, [this](AsyncWebServerRequest* request) {
+    handleListFiles(request);
   });
 
   // GET /api/fs/download - Download file
-  server.on("/api/fs/download", HTTP_GET, [this]() {
-    handleDownloadFile();
+  server.on("/api/fs/download", HTTP_GET, [this](AsyncWebServerRequest* request) {
+    handleDownloadFile(request);
   });
 
   // GET /api/fs/read - Read file content for editing
-  server.on("/api/fs/read", HTTP_GET, [this]() {
-    handleReadFile();
+  server.on("/api/fs/read", HTTP_GET, [this](AsyncWebServerRequest* request) {
+    handleReadFile(request);
   });
 
-  // POST /api/fs/write - Save edited file
-  server.on("/api/fs/write", HTTP_POST, [this]() {
-    handleWriteFile();
-  });
+  // POST /api/fs/write - Save edited file (needs body collection)
+  server.on("/api/fs/write", HTTP_POST,
+    [this](AsyncWebServerRequest* request) {
+      handleWriteFile(request);
+    },
+    NULL,       // no upload handler
+    collectBody // body collector
+  );
 
   // POST /api/fs/upload - Upload file (multipart)
   server.on("/api/fs/upload", HTTP_POST,
-    [this]() {
+    // onRequest handler (called after upload completes)
+    [this](AsyncWebServerRequest* request) {
       if (_uploadFailed) {
-        sendJsonError(500, "Upload failed: incomplete write");
+        sendJsonError(request, 500, "Upload failed: incomplete write");
         _uploadFailed = false;
       } else {
-        sendJsonSuccess("File uploaded");
+        sendJsonSuccess(request, "File uploaded");
       }
     },
-    [this]() {
-      handleUploadFile();
+    // onUpload handler (called for each chunk)
+    [this](AsyncWebServerRequest* request, const String& filename, size_t index, uint8_t* data, size_t len, bool isFinal) {
+      handleUploadFile(request, filename, index, data, len, isFinal);
     }
   );
 
-  // POST /api/fs/delete - Delete file
-  server.on("/api/fs/delete", HTTP_POST, [this]() {
-    handleDeleteFile();
-  });
+  // POST /api/fs/delete - Delete file (needs body collection)
+  server.on("/api/fs/delete", HTTP_POST,
+    [this](AsyncWebServerRequest* request) {
+      handleDeleteFile(request);
+    },
+    NULL,       // no upload handler
+    collectBody // body collector
+  );
 
-  // POST /api/fs/clear - Clear all files
-  server.on("/api/fs/clear", HTTP_POST, [this]() {
-    handleClearAllFiles();
-  });
+  // POST /api/fs/clear - Clear all files (needs body collection)
+  server.on("/api/fs/clear", HTTP_POST,
+    [this](AsyncWebServerRequest* request) {
+      handleClearAllFiles(request);
+    },
+    NULL,       // no upload handler
+    collectBody // body collector
+  );
 }
 
 // ============================================================================
@@ -157,7 +188,7 @@ static void listDirRecursive(const char* dirname, const JsonArray& parentArray, 
   root.close();
 }
 
-void FilesystemManager::handleListFiles() {
+void FilesystemManager::handleListFiles(AsyncWebServerRequest* request) {
   JsonDocument doc;
   JsonArray filesArray = doc["files"].to<JsonArray>();
 
@@ -173,75 +204,70 @@ void FilesystemManager::handleListFiles() {
 
   String response;
   serializeJson(doc, response);
-  server.send(200, "application/json", response);
+  request->send(200, "application/json", response);
 }
 
-void FilesystemManager::handleDownloadFile() {
-  if (!server.hasArg("path")) {
-    sendJsonError(400, "Missing path parameter");
+void FilesystemManager::handleDownloadFile(AsyncWebServerRequest* request) {
+  if (!request->hasParam("path")) {
+    sendJsonError(request, 400, "Missing path parameter");
     return;
   }
 
-  String path = normalizePath(server.arg("path"));
+  String path = normalizePath(request->getParam("path")->value());
 
   if (!LittleFS.exists(path)) {
-    sendJsonError(404, "File not found");
-    return;
-  }
-
-  File file = LittleFS.open(path, "r");
-  if (!file) {
-    sendJsonError(500, "Failed to open file");
+    sendJsonError(request, 404, "File not found");
     return;
   }
 
   String filename = path.substring(path.lastIndexOf('/') + 1);
-  server.sendHeader("Content-Disposition", "attachment; filename=" + filename);
-  server.streamFile(file, getContentType(path));
-  file.close();
+  AsyncWebServerResponse* response = request->beginResponse(LittleFS, path, getContentType(path), true);
+  response->addHeader("Content-Disposition", "attachment; filename=" + filename);
+  request->send(response);
 }
 
-void FilesystemManager::handleReadFile() {
-  if (!server.hasArg("path")) {
-    server.send(400, "text/plain", "Missing path");
+void FilesystemManager::handleReadFile(AsyncWebServerRequest* request) {
+  if (!request->hasParam("path")) {
+    request->send(400, "text/plain", "Missing path");
     return;
   }
 
-  String path = normalizePath(server.arg("path"));
+  String path = normalizePath(request->getParam("path")->value());
 
   if (isBinaryFile(path)) {
-    server.send(400, "text/plain", "Binary files cannot be edited");
+    request->send(400, "text/plain", "Binary files cannot be edited");
     return;
   }
 
   if (!LittleFS.exists(path)) {
-    server.send(404, "text/plain", "File not found");
+    request->send(404, "text/plain", "File not found");
     return;
   }
 
   File file = LittleFS.open(path, "r");
   if (!file) {
-    server.send(500, "text/plain", "Failed to open file");
+    request->send(500, "text/plain", "Failed to open file");
     return;
   }
 
   String content = file.readString();
   file.close();
 
-  server.send(200, "text/plain; charset=UTF-8", content);
+  request->send(200, "text/plain; charset=UTF-8", content);
 }
 
-void FilesystemManager::handleWriteFile() {
-  if (!server.hasArg("plain")) {
-    sendJsonError(400, "Missing JSON body");
+void FilesystemManager::handleWriteFile(AsyncWebServerRequest* request) {
+  String body = getBody(request);
+  if (body.isEmpty()) {
+    sendJsonError(request, 400, "Missing JSON body");
     return;
   }
 
   JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+  DeserializationError error = deserializeJson(doc, body);
 
   if (error) {
-    sendJsonError(400, "Invalid JSON");
+    sendJsonError(request, 400, "Invalid JSON");
     return;
   }
 
@@ -249,18 +275,18 @@ void FilesystemManager::handleWriteFile() {
   String content = doc["content"].as<String>();
 
   if (path.isEmpty()) {
-    sendJsonError(400, "Missing path");
+    sendJsonError(request, 400, "Missing path");
     return;
   }
 
   if (isBinaryFile(path)) {
-    sendJsonError(400, "Binary files cannot be edited");
+    sendJsonError(request, 400, "Binary files cannot be edited");
     return;
   }
 
   File file = LittleFS.open(path, "w");
   if (!file) {
-    sendJsonError(500, "Failed to open file for writing");
+    sendJsonError(request, 500, "Failed to open file for writing");
     return;
   }
 
@@ -271,7 +297,7 @@ void FilesystemManager::handleWriteFile() {
 
   // 🛡️ VALIDATION: Verify write completed
   if (!file) {
-    sendJsonError(500, "File corrupted during write (flush failed)");
+    sendJsonError(request, 500, "File corrupted during write (flush failed)");
     return;
   }
 
@@ -280,108 +306,112 @@ void FilesystemManager::handleWriteFile() {
   // 🛡️ CHECK: Verify expected bytes written
   if (written != content.length()) {
     String errorMsg = "Incomplete write: " + String(written) + "/" + String(content.length()) + " bytes";
-    sendJsonError(500, errorMsg.c_str());
+    sendJsonError(request, 500, errorMsg.c_str());
     return;
   }
 
-  sendJsonSuccess("File saved");
+  sendJsonSuccess(request, "File saved");
 }
 
-void FilesystemManager::handleUploadFile() {
-  HTTPUpload& upload = server.upload();
+void FilesystemManager::handleUploadFile(AsyncWebServerRequest* request, const String& filename, size_t index, uint8_t* data, size_t len, bool isFinal) {
   static File uploadFile;
   static size_t totalWritten = 0;
 
-  if (upload.status == UPLOAD_FILE_START) {
+  if (index == 0) {
+    // UPLOAD_FILE_START equivalent
     // Track upload activity for UI overlay & light WS mode
-    // Motor stop is handled by networkTask between files (not here — would block TCP parsing)
     lastUploadActivityTime = millis();
 
-    String filename = normalizePath(upload.filename);
+    String normalizedFilename = normalizePath(filename);
 
     // 🛡️ PROTECTION: Check available space BEFORE accepting upload
-    const bool hasContentLength = server.hasHeader("Content-Length");
-    const size_t contentLength = hasContentLength ? server.header("Content-Length").toInt() : 0;
+    const size_t contentLength = request->contentLength();
     const size_t available = LittleFS.totalBytes() - LittleFS.usedBytes();
 
-    if (hasContentLength && contentLength > available) {
+    if (contentLength > 0 && contentLength > available) {
       if (engine) engine->error("Upload rejected: file too large (" + String(contentLength) + " bytes needed, only " + String(available) + " bytes available)");
       else Serial.printf("Upload rejected: file too large (%d bytes needed, only %d bytes available)\n",
                    contentLength, available);
-      server.send(413, "application/json",
-        R"({"error":"File too large","needed":)" + String(contentLength) +
-        R"(,"available":)" + String(available) + "}");
+      _uploadFailed = true;
       return;
     }
 
     // Create parent directories if needed
-    createParentDirs(filename);
+    createParentDirs(normalizedFilename);
 
-    uploadFile = LittleFS.open(filename, "w");
+    uploadFile = LittleFS.open(normalizedFilename, "w");
     totalWritten = 0;
     if (!uploadFile) {
       _uploadFailed = true;
     }
-  } else if (upload.status == UPLOAD_FILE_WRITE) {
-    if (uploadFile) {
-      size_t written = uploadFile.write(upload.buf, upload.currentSize);
-      totalWritten += written;
+  }
 
-      // 🛡️ PROTECTION: Verify all bytes were written
-      if (written != upload.currentSize) {
-        uploadFile.close();
-        uploadFile = File();  // Invalidate to prevent further writes
-        _uploadFailed = true;
-      }
+  if (uploadFile && len > 0) {
+    // UPLOAD_FILE_WRITE equivalent
+    size_t written = uploadFile.write(data, len);
+    totalWritten += written;
 
-      // 🛡️ WATCHDOG: Yield CPU between chunks for system responsiveness
-      vTaskDelay(pdMS_TO_TICKS(1));
+    // 🛡️ PROTECTION: Verify all bytes were written
+    if (written != len) {
+      uploadFile.close();
+      uploadFile = File();  // Invalidate to prevent further writes
+      _uploadFailed = true;
     }
-  } else if (upload.status == UPLOAD_FILE_END) {
+
+    // 🛡️ WATCHDOG: Yield CPU between chunks for system responsiveness
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  if (isFinal) {
+    // UPLOAD_FILE_END equivalent
     if (uploadFile) {
       // 🛡️ PROTECTION: Flush before closing
       uploadFile.flush();
       uploadFile.close();
+
+      // 🛡️ STABILITY: Let LittleFS GC + TCP stack settle before next request
+      vTaskDelay(pdMS_TO_TICKS(UPLOAD_POST_CLOSE_DELAY_MS));
     }
     // Keep upload activity timestamp fresh for batch detection
     lastUploadActivityTime = millis();
   }
 }
 
-void FilesystemManager::handleDeleteFile() {
-  if (!server.hasArg("plain")) {
-    sendJsonError(400, "Missing JSON body");
+void FilesystemManager::handleDeleteFile(AsyncWebServerRequest* request) {
+  String body = getBody(request);
+  if (body.isEmpty()) {
+    sendJsonError(request, 400, "Missing JSON body");
     return;
   }
 
   JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+  DeserializationError error = deserializeJson(doc, body);
 
   if (error) {
-    sendJsonError(400, "Invalid JSON");
+    sendJsonError(request, 400, "Invalid JSON");
     return;
   }
 
   String path = normalizePath(doc["path"].as<String>());
 
   if (path.isEmpty()) {
-    sendJsonError(400, "Missing path");
+    sendJsonError(request, 400, "Missing path");
     return;
   }
 
   if (!LittleFS.exists(path)) {
-    sendJsonError(404, "File not found");
+    sendJsonError(request, 404, "File not found");
     return;
   }
 
   if (LittleFS.remove(path)) {
-    sendJsonSuccess("File deleted");
+    sendJsonSuccess(request, "File deleted");
   } else {
-    sendJsonError(500, "Failed to delete file");
+    sendJsonError(request, 500, "Failed to delete file");
   }
 }
 
-void FilesystemManager::handleClearAllFiles() {
+void FilesystemManager::handleClearAllFiles(AsyncWebServerRequest* request) {
   int deletedCount = 0;
 
   // Recursive lambda for directory traversal
@@ -414,7 +444,7 @@ void FilesystemManager::handleClearAllFiles() {
   doc["deletedCount"] = deletedCount;
   String response;
   serializeJson(doc, response);
-  server.send(200, "application/json", response);
+  request->send(200, "application/json", response);
 }
 
 // ============================================================================

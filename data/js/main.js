@@ -544,7 +544,7 @@
         // This ensures updateUI() can access DOM.state, DOM.position, etc.
         // when the first status response arrives from the ESP32
         
-        // Use IP resolved by the script loader (avoids mDNS for WebSocket port 81)
+        // Use IP resolved by the script loader (avoids mDNS resolution delay)
         // Only use if on same subnet as current page (prevents STA IP when on AP)
         if (globalThis.__espIp && typeof isSameSubnet === 'function' 
             && isSameSubnet(globalThis.__espIp, globalThis.location.hostname)) {

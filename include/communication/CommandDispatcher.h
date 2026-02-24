@@ -24,7 +24,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <WebSocketsServer.h>
+#include <ESPAsyncWebServer.h>
 #include "core/Types.h"
 #include "core/Config.h"
 #include "core/UtilityEngine.h"
@@ -55,12 +55,12 @@ public:
      * Initialize dispatcher with WebSocket server reference
      * @param ws Pointer to WebSocketsServer instance
      */
-    void begin(WebSocketsServer* ws);
+    void begin(AsyncWebSocket* ws);
 
     /**
-     * Main WebSocket event handler - register with webSocket.onEvent()
+     * Main WebSocket event handler - register with ws.onEvent()
      */
-    void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length);
+    void onWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len);
 
     /**
      * Process a command message (called internally or for testing)
@@ -74,7 +74,7 @@ private:
     CommandDispatcher& operator=(const CommandDispatcher&) = delete;
 
     // WebSocket server reference
-    WebSocketsServer* _webSocket = nullptr;
+    AsyncWebSocket* _webSocket = nullptr;
 
     // ========================================================================
     // COMMAND HANDLERS - Each returns true if command was handled
